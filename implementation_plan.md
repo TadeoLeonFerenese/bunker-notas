@@ -1,61 +1,59 @@
-# Plan de Implementación: Autenticación en Cascada, Audio y Backup
+# Plan de Implementación: Autenticación Híbrida y Fallback de PIN
 
-Este plan establece la evolución de **Bunker Notas** con las decisiones aprobadas por el Lead Orchestrator.  
-Arquitectura: **Zero-Knowledge, Local-First, TDD obligatorio.**
+Este plan de implementación detalla la evolución del control de acceso de **Bunker Notas**.  
+Nuestra arquitectura es **Zero-Knowledge, Local-First, y TDD obligatorio**.
 
 ---
 
-## 🏛️ Decisiones Aprobadas
+## 🏛️ Decisiones de Arquitectura
 
-| # | Decisión | Estado |
-|---|----------|--------|
-| 1 | Dashboard: **grilla de filas y columnas actual** (sin cambios en tablet) | ✅ Aprobado |
-| 2 | Auth: **PIN Boxes individuales en cascada vertical** en `LoginScreen` y `PinModal` | ✅ Aprobado |
-| 3 | Auth: eliminar `setTimeout` frágiles — usar **máquina de estados + `AppState`** | ✅ Aprobado |
-| 4 | Audio: `expo-av` ya instalada (`~16.0.8`), pasar a integración | ✅ Aprobado |
+1. **Uso de Bloqueo Local del Celular:**
+   - Si el dispositivo tiene una seguridad configurada (PIN, Patrón, Contraseña, o Biometría) en el sistema operativo, **delegamos el acceso por completo al OS**.
+   - No forzamos un PIN in-app si el usuario ya asegura su celular con un método nativo.
+
+2. **Detección Dinámica (`expo-local-authentication`):**
+   - Usaremos `LocalAuthentication.getEnrolledLevelAsync()` para detectar el nivel de seguridad del dispositivo.
+   - Si el nivel es mayor a `NONE` (`SECRET`, `BIOMETRIC_WEAK` o `BIOMETRIC_STRONG`), ejecutamos la autenticación nativa por medio de `LocalAuthentication.authenticateAsync({ disableDeviceFallback: false })`.
+   - Si el nivel es `NONE` (sin bloqueo local en el celular), obligamos a registrar/validar un PIN exclusivo para Bunker Notas.
+
+3. **PIN in-app Zero-Knowledge (Caso sin bloqueo de celular):**
+   - Si el celular no tiene bloqueo, el usuario definirá un PIN de 4-6 dígitos en el primer arranque.
+   - Este PIN se hashea mediante `hashPin()` y se almacena de manera segura mediante `storeSecureCredential('app_pin_hash', hash)`.
+   - En inicios subsiguientes, se solicita el PIN in-app y se valida con `verifyPin()`.
 
 ---
 
 ## 🛠️ Cambios Propuestos
 
-### Componente 1 — `src/auth/BiometricLogin.tsx`
-> Componente dedicado a la autenticación. Es importado tanto por `LoginScreen` como por `App.tsx`.
+### Componente 1 — Mock de Jest
 
-#### [MODIFY] `frontend/src/auth/BiometricLogin.tsx`
-- Reemplazar `setTimeout(() => focus(), 250)` por escucha de `AppState` para sincronizar el foco del PIN con la restauración completa de la vista nativa.
-- Implementar máquina de estados explícita:
-  ```
-  'idle' → 'biometric_prompt' → 'biometric_success' | 'pin_input'
-  ```
-- **Nada de `keychain` para el flujo de estados** — el role de `react-native-keychain` es solo almacenar/recuperar credenciales, no coordinar UI.
+#### [MODIFY] [jest.setup.js](file:///c:/Users/Tadeo%20Leon%20Ferense/Desktop/Repositorios/bunker-notas/frontend/jest.setup.js)
+- Agregar mock de `SecurityLevel` enum y el método `getEnrolledLevelAsync` para evitar fallos en el entorno de tests.
 
 ---
 
-### Componente 2 — `src/screens/LoginScreen.tsx`
-> Pantalla principal de acceso. Ya tiene las PIN Boxes implementadas (✅ completo de sesión anterior).
+### Componente 2 — Pantalla de Acceso
 
-#### [NO CHANGES NEEDED — verificar] `frontend/src/screens/LoginScreen.tsx`
-- El layout en cascada con PIN Boxes individuales ya fue aplicado.
-- **Solo requiere verificación** de que use el nuevo `BiometricLogin` refactorizado correctamente.
-
----
-
-### Componente 3 — `App.tsx` (PinModal + Audio)
-
-#### [MODIFY] `frontend/App.tsx`
-- **PinModal:** Replicar las PIN Boxes individuales en el modal de desbloqueo de notas seguras.
-- **Audio MVP:** Integrar `expo-av` (ya instalada) — botón 🎤 en modal de creación y reproductor en modal de lectura.
+#### [MODIFY] [LoginScreen.tsx](file:///c:/Users/Tadeo%20Leon%20Ferense/Desktop/Repositorios/bunker-notas/frontend/src/screens/LoginScreen.tsx)
+- **Mount check:** Llamar a `LocalAuthentication.getEnrolledLevelAsync()` para determinar la presencia de seguridad nativa.
+- **Camino A (Con Seguridad de Celular):**
+  - Ocultar las PIN Boxes y el botón secundario biométrico.
+  - Mostrar un layout simplificado con el botón premium de desbloqueo nativo del celular.
+  - Al presionar o montar, disparar `authenticateAsync` con `disableDeviceFallback: false`.
+- **Camino B (Sin Seguridad de Celular):**
+  - Mostrar el contenedor visual premium de PIN Boxes individuales.
+  - Si no existe un PIN guardado en el llavero local (`getSecureCredential('app_pin_hash')`), entrar en modo **"Registro de PIN"**.
+  - Si ya existe un PIN guardado, entrar en modo **"Login por PIN"** y verificar el hash con `verifyPin` al ingresar los dígitos.
 
 ---
 
-### Componente 4 — Tests (TDD Mandatory)
+### Componente 3 — Suite de Tests
 
-#### [MODIFY] `frontend/__tests__/auth/BiometricLogin.test.tsx`
-- Tests del componente `BiometricLogin` aislado — ya escritos (12 tests).
-- Actualizar mocks y aserciones para validar la nueva máquina de estados.
-
-#### [VERIFY] `frontend/__tests__/screens/LoginScreen.test.tsx`
-- Test de la pantalla completa — verificar que los `testID` coincidan con el layout refactorizado.
+#### [MODIFY] [LoginScreen.test.tsx](file:///c:/Users/Tadeo%20Leon%20Ferense/Desktop/Repositorios/bunker-notas/frontend/__tests__/screens/LoginScreen.test.tsx)
+- Escribir casos de prueba dedicados:
+  1. **Camino A:** Si `getEnrolledLevelAsync` es distinto de `NONE`, debe llamar a `authenticateAsync` nativo y no mostrar las PIN Boxes in-app por defecto.
+  2. **Camino B (Registro):** Si `getEnrolledLevelAsync` es `NONE` y no hay hash guardado, debe mostrar el flujo para definir un PIN y registrarlo.
+  3. **Camino B (Login):** Si `getEnrolledLevelAsync` es `NONE` y hay un hash guardado, debe permitir el login tras ingresar el PIN in-app correcto y fallar si es incorrecto.
 
 ---
 
@@ -63,13 +61,10 @@ Arquitectura: **Zero-Knowledge, Local-First, TDD obligatorio.**
 
 ### Tests Automatizados
 ```bash
-cd frontend
-npm test -- --testPathPattern="auth|screens"
+npm run test
 ```
-- `BiometricLogin.test.tsx` → 12 tests deben pasar (flujo biométrico + PIN + Zero-Knowledge)
-- `LoginScreen.test.tsx` → sin regresiones tras el refactor de `BiometricLogin`
+Todos los 65 tests existentes más los nuevos tests agregados para validar los dos caminos deben pasar con éxito.
 
 ### Verificación Manual
-1. En simulador Android: cancelar biometría → el teclado numérico debe aparecer **sin parpadeo ni freeze**.
-2. En simulador iOS: mismo flujo.
-3. Abrir una nota segura → el `PinModal` debe mostrar las PIN Boxes al estilo cascada (no el input viejo).
+1. **Emulador sin bloqueo:** Configurar el emulador sin ningún tipo de PIN de bloqueo de pantalla. Abrir la app, definir un PIN de 6 dígitos, cerrar y volver a abrir para loguearse con ese PIN.
+2. **Emulador con bloqueo:** Configurar un PIN o huella en el sistema operativo del emulador. Al abrir la app, debe salir el prompt nativo y loguearse directo tras completarlo.
