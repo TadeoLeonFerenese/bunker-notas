@@ -1,53 +1,51 @@
 # Engram Context Backup — Bunker Notas
-**Fecha de Sesión:** 2026-05-13
+**Fecha de Sesión:** 2026-05-14
 **Proyecto:** Bunker Notas (TadeoLeonFerense/bunker-notas)
 
 ---
 
-## 📌 Observación de Arquitectura y Preferencia: Rediseño de Autenticación Premium en Cascada (Estilo Banco Galicia)
+## 📌 Observación de Arquitectura y Configuración: Desacople de Biometría y Fix de Red Metro
 **Topic Key:** `architecture/auth-model`
 **Scope:** `project`
-**Type:** `preference`
+**Type:** `architecture`
 
 ### **What**
-Rediseño arquitectónico y visual de la validación de PIN y biometría en `LoginScreen` y `App.tsx` con un layout en cascada vertical fluida y PIN boxes individuales.
+Refactorización del ciclo de vida de autenticación en `BiometricLogin.tsx` y `LoginScreen.tsx` implementando una máquina de estados limpia y escucha de `AppState`, y resolución de empaquetado de decoradores y red en Metro.
 
 ### **Why**
-Preferencia explícita del usuario de imitar la elegancia visual, fluidez y ergonomía de la aplicación móvil de Banco Galicia.
+Evitar colisiones nativas entre el prompt biométrico del OS y el teclado numérico en Android/iOS, y permitir el correcto testing en dispositivos físicos saltando los adaptadores virtuales de Windows.
 
 ### **Where**
+*   `frontend/src/auth/BiometricLogin.tsx`
 *   `frontend/src/screens/LoginScreen.tsx`
-*   `frontend/App.tsx`
+*   `frontend/babel.config.js`
 *   `implementation_plan.md`
 
 ### **Learned**
-1. Reemplazar un `TextInput` único con `letterSpacing` gigante por un contenedor visual de PIN Boxes independientes (`View` con estado de foco dinámico) asegura un centrado perfecto y adaptabilidad total frente a variaciones de DPI en Android y la apertura del teclado numérico.
-2. En botones con texto dinámico largo ("Desencriptando..."), añadir las propiedades nativas `numberOfLines={1}`, `adjustsFontSizeToFit` y `minimumFontScale={0.8}` previene quiebres de línea indeseados y recortes visuales.
+1. **Colisiones Nativas:** Forzar un `focus()` numérico con `setTimeout` mientras el OS cierra un prompt biométrico genera race conditions. Atar el foco estrictamente a la transición de `AppState` hacia `active` asegura una experiencia sin parpadeos.
+2. **Babel y WatermelonDB:** En modo Web, la transformación de decoradores exige que `transform-class-properties` esté configurado en loose mode y se ejecute en el orden correcto.
+3. **Redes Metro en Windows:** Si la PC tiene placas virtuales (VPN, VMware), Expo bindea a IPs inaccesibles (ej. `5.2.192.66`). Forzar `--tunnel` o `EXPO_LOCAL_HOST` es indispensable para probar con Expo Go.
 
 ---
 
 ## 📋 Session Summary (Sumario de Sesión)
 
 ### Goal
-Rediseñar la interfaz de validación de PIN y biometría en `LoginScreen` y el `PinModal` de `App.tsx` para imitar el flujo en cascada y las PIN boxes individuales responsivas estilo Banco Galicia, corrigiendo también desbordamientos de texto en botones.
+Alineación del plan de implementación, resolución de colisiones entre biometría nativa y teclado numérico en iOS/Android mediante `AppState`, y corrección del empaquetado de decoradores en la Web.
 
 ### Instructions
-*   TDD obligatorio y diseño premium estilo bancario.
-*   Evitar demoras en llamadas a Engram usando persistencia en archivos si el MCP no está disponible.
+*   TDD obligatorio y diseño premium estilo Galicia.
+*   Evitar bloqueos de SQLite respaldando en archivos locales `.atl`.
 
 ### Discoveries
-*   Reemplazar un único TextInput con letterSpacing extremo por un contenedor de PIN Boxes individuales independientes elimina los problemas de recorte y desbordamiento en Android frente a cambios de DPI.
-*   En botones con texto dinámico largo, añadir auto-escalado de fuente previene quiebres de línea indeseados.
+*   En modo Web, WatermelonDB requiere que `@babel/plugin-transform-class-properties` esté en modo loose:true después de los decoradores para no fallar.
+*   En Windows con adaptadores virtuales (Hamachi, VPN, WSL), Metro bindea a la IP virtual (ej. `5.2.192.66`), impidiendo que el celular acceda por Wi-Fi. La solución es usar `--tunnel`.
 
 ### Accomplished
-*   ✅ Refactorización completa de `LoginScreen` a una disposición en cascada fluida con cajitas numéricas responsivas y botón biométrico integrado.
-*   ✅ Refactorización del `PinModal` en `App.tsx` al mismo estándar visual y ergonómico.
-*   ✅ Ajuste de flexbox y auto-escalado de fuente en el botón "Validar PIN".
-
-### Next Steps
-*   Ejecutar suite de pruebas unitarias para corroborar que los selectores del nuevo diseño en cascada no afecten las aserciones de integración de Jest.
-*   Compilar y probar en dispositivo físico con distintas densidades de pantalla.
+*   ✅ Refactorización de `BiometricLogin.tsx` y `LoginScreen.tsx` usando `AppState`.
+*   ✅ Alineación de 16 tests de Jest corriendo exitosamente con Exit code 0.
+*   ✅ Alineación de dependencias de Expo SDK 54 con `npx expo install --fix`.
 
 ### Relevant Files
-*   `frontend/src/screens/LoginScreen.tsx` — Diseño en cascada, animaciones, PIN boxes y botón pulido.
-*   `frontend/App.tsx` — PinModal refactorizado al estilo Banco Galicia.
+*   `frontend/src/auth/BiometricLogin.tsx` — Desacople de biometría y PIN.
+*   `frontend/src/screens/LoginScreen.tsx` — Sincronización de UI en cascada.

@@ -1,67 +1,75 @@
-# Plan de Implementación: Rediseño de Autenticación (Estilo Banco Galicia) y Grabación de Audio
+# Plan de Implementación: Autenticación en Cascada, Audio y Backup
 
-Este plan maestro establece la evolución arquitectónica y visual de **Bunker Notas**. Por un lado, aborda la incorporación de notas de audio nativas y grillas responsivas. Por otro, introduce un rediseño completo de la experiencia de validación de PIN y Biometría, inspirándose en la fluidez y ergonomía de la aplicación móvil de **Banco Galicia**.
+Este plan establece la evolución de **Bunker Notas** con las decisiones aprobadas por el Lead Orchestrator.  
+Arquitectura: **Zero-Knowledge, Local-First, TDD obligatorio.**
 
-## 🚨 User Review Required (Requiere tu revisión)
+---
 
-### Rediseño de Autenticación en Cascada
-Para lograr una experiencia premium estilo bancario, el layout de `LoginScreen.tsx` y el `PinModal` en `App.tsx` adoptará un flujo de **Cascada Vertical Fluida (Waterfall Stack)**.
-En lugar de forzar el input de PIN y el botón biométrico en una fila horizontal (`flexDirection: 'row'`) que puede apretarse en pantallas chicas, organizaremos los elementos de arriba hacia abajo con prioridades claras y espaciados proporcionales al alto de la pantalla.
+## 🏛️ Decisiones Aprobadas
 
-### Tradeoffs y Alternativas para el Input de PIN (Responsive)
-El uso de un solo `TextInput` con `letterSpacing: 16` suele desbordarse o descentrarse en Android cuando cambia la densidad de pantalla (DPI). Te propongo dos alternativas para que elijamos:
+| # | Decisión | Estado |
+|---|----------|--------|
+| 1 | Dashboard: **grilla de filas y columnas actual** (sin cambios en tablet) | ✅ Aprobado |
+| 2 | Auth: **PIN Boxes individuales en cascada vertical** en `LoginScreen` y `PinModal` | ✅ Aprobado |
+| 3 | Auth: eliminar `setTimeout` frágiles — usar **máquina de estados + `AppState`** | ✅ Aprobado |
+| 4 | Audio: `expo-av` ya instalada (`~16.0.8`), pasar a integración | ✅ Aprobado |
 
-*   **Alternativa A (PIN Boxes Individuales - Recomendado):** Renderizar 4 a 6 cajitas visuales independientes (`View`) que reflejan cada dígito ingresado, respaldadas por un `TextInput` invisible superpuesto. 
-    *   *Pro:* Estética idéntica a cajeros automáticos y apps bancarias top; centrado perfecto y responsive garantizado.
-    *   *Contra:* Ligeramente más complejo de maquetar.
-*   **Alternativa B (TextInput Único Escalonado):** Un input centrado con fuente dinámica (`useWindowDimensions`) y sin `letterSpacing` extremo, usando caracteres de viñeta grandes (`•`).
-    *   *Pro:* Simplicidad de implementación.
-    *   *Contra:* Menor impacto visual ("WOW factor").
+---
 
-## ❓ Open Questions (Preguntas Abiertas)
+## 🛠️ Cambios Propuestos
 
-> [!WARNING]
-> **Tanke, revisá estas consultas y confirmame antes de arrancar con el código:**
-> 1. Para el PIN, ¿vamos de cabeza con la **Alternativa A (Cajitas visuales independientes)** para que quede 100% premium estilo Galicia?
-> 2. ¿Mantenemos la regla de que el botón de biometría aparezca debajo del PIN como botón principal en cascada, o preferís que esté flotando en la parte inferior de la pantalla?
-> 3. Confirmo que las grillas del Dashboard pasen a 3 o 4 columnas en tablets. ¿Te parece bien?
+### Componente 1 — `src/auth/BiometricLogin.tsx`
+> Componente dedicado a la autenticación. Es importado tanto por `LoginScreen` como por `App.tsx`.
 
-## 🛠️ Proposed Changes (Cambios Propuestos)
+#### [MODIFY] `frontend/src/auth/BiometricLogin.tsx`
+- Reemplazar `setTimeout(() => focus(), 250)` por escucha de `AppState` para sincronizar el foco del PIN con la restauración completa de la vista nativa.
+- Implementar máquina de estados explícita:
+  ```
+  'idle' → 'biometric_prompt' → 'biometric_success' | 'pin_input'
+  ```
+- **Nada de `keychain` para el flujo de estados** — el role de `react-native-keychain` es solo almacenar/recuperar credenciales, no coordinar UI.
 
-### Dependencies
-*   Instalar `expo-av` usando `npm install expo-av` (para soporte de audios).
+---
 
-### 1. Pantalla de Login Minimalista en Cascada
-#### [MODIFY] `frontend/src/screens/LoginScreen.tsx`
-*   Refactorizar el contenedor del formulario hacia un layout en cascada: Título -> Subtítulo/Hint -> Contenedor de PIN -> Botón Biométrico -> Botón de Validación.
-*   Implementar el componente visual de PIN (Cajas visuales) adaptable al ancho de la pantalla (`maxWidth: 360`).
-*   Asegurar que `KeyboardAvoidingView` y `ScrollView` manejen el padding dinámico en iOS y Android.
+### Componente 2 — `src/screens/LoginScreen.tsx`
+> Pantalla principal de acceso. Ya tiene las PIN Boxes implementadas (✅ completo de sesión anterior).
 
-### 2. Modal de Desbloqueo de Notas (PinModal)
+#### [NO CHANGES NEEDED — verificar] `frontend/src/screens/LoginScreen.tsx`
+- El layout en cascada con PIN Boxes individuales ya fue aplicado.
+- **Solo requiere verificación** de que use el nuevo `BiometricLogin` refactorizado correctamente.
+
+---
+
+### Componente 3 — `App.tsx` (PinModal + Audio)
+
 #### [MODIFY] `frontend/App.tsx`
-*   Aplicar el mismo rediseño en cascada al `pinModalVisible`.
-*   Reemplazar el input horizontal por el nuevo diseño responsivo de PIN, asegurando que al tocar una nota segura el teclado no tape los botones de acción.
+- **PinModal:** Replicar las PIN Boxes individuales en el modal de desbloqueo de notas seguras.
+- **Audio MVP:** Integrar `expo-av` (ya instalada) — botón 🎤 en modal de creación y reproductor en modal de lectura.
 
-### 3. Grabación de Audio y Reproducción (MVP)
-#### [MODIFY] `frontend/App.tsx`
-*   Añadir botón de grabación 🎤 en el modal de creación.
-*   Implementar reproductor visual de notas de voz en el modal de lectura con `Audio.Sound`.
+---
 
-### 4. Dashboard Responsivo
-#### [MODIFY] `frontend/App.tsx`
-*   Ajustar el cálculo de columnas de la grilla según el ancho del dispositivo: `width > 768 ? 3 : width > 1024 ? 4 : 2`.
+### Componente 4 — Tests (TDD Mandatory)
 
-### 5. Tests (TDD Mandatory)
 #### [MODIFY] `frontend/__tests__/auth/BiometricLogin.test.tsx`
-*   Adaptar los selectores de los tests de integración al nuevo layout en cascada (verificando que existan los contenedores de dígitos y botones biométricos).
+- Tests del componente `BiometricLogin` aislado — ya escritos (12 tests).
+- Actualizar mocks y aserciones para validar la nueva máquina de estados.
 
-## 🧪 Verification Plan
+#### [VERIFY] `frontend/__tests__/screens/LoginScreen.test.tsx`
+- Test de la pantalla completa — verificar que los `testID` coincidan con el layout refactorizado.
 
-### Automated Tests
-*   Ejecutar `npm test` para corroborar que la validación de PIN (4 a 6 dígitos), el fallback biométrico y el almacenamiento Zero-Knowledge pasen exitosamente.
+---
 
-### Manual Verification
-*   Levantar la app en Expo y probar en simulador/dispositivo:
-    1. Comportamiento del input al ingresar números en pantallas chicas y grandes.
-    2. Transición fluida entre cancelación biométrica y foco en el input numérico.
-    3. Adaptabilidad de la grilla al rotar el dispositivo.
+## 🧪 Plan de Verificación
+
+### Tests Automatizados
+```bash
+cd frontend
+npm test -- --testPathPattern="auth|screens"
+```
+- `BiometricLogin.test.tsx` → 12 tests deben pasar (flujo biométrico + PIN + Zero-Knowledge)
+- `LoginScreen.test.tsx` → sin regresiones tras el refactor de `BiometricLogin`
+
+### Verificación Manual
+1. En simulador Android: cancelar biometría → el teclado numérico debe aparecer **sin parpadeo ni freeze**.
+2. En simulador iOS: mismo flujo.
+3. Abrir una nota segura → el `PinModal` debe mostrar las PIN Boxes al estilo cascada (no el input viejo).
