@@ -6,7 +6,7 @@ const THEME_FILE = FileSystem.documentDirectory ? `${FileSystem.documentDirector
 const BACKGROUND_PREF_FILE = FileSystem.documentDirectory ? `${FileSystem.documentDirectory}background_preference.txt` : '';
 const CUSTOM_BG_FILE = FileSystem.documentDirectory ? `${FileSystem.documentDirectory}custom_background.jpg` : '';
 
-export type ThemeType = 'classic' | 'emerald' | 'cyberpunk' | 'matrix';
+export type ThemeType = 'classic' | 'emerald' | 'cyberpunk' | 'matrix' | 'light' | 'dark';
 
 export interface ThemeColors {
   bunkerBg: string;
@@ -21,6 +21,7 @@ export interface ThemeColors {
   textSecondary: string;
   secureBg: string;
   accent: string;
+  fontFamily: string;
 }
 
 interface ThemeContextProps {
@@ -49,6 +50,7 @@ export const THEME_PALETTES: Record<ThemeType, { dark: ThemeColors; light: Theme
       textSecondary: '#A0AEC0',
       secureBg: '#3D2A2A',
       accent: '#E94560',
+      fontFamily: 'Inter_400Regular',
     },
     light: {
       bunkerBg: '#F8F9FA',
@@ -63,6 +65,7 @@ export const THEME_PALETTES: Record<ThemeType, { dark: ThemeColors; light: Theme
       textSecondary: '#718096',
       secureBg: '#fff5f5',
       accent: '#E94560',
+      fontFamily: 'Inter_400Regular',
     },
   },
   emerald: {
@@ -79,6 +82,7 @@ export const THEME_PALETTES: Record<ThemeType, { dark: ThemeColors; light: Theme
       textSecondary: '#A7F3D0',
       secureBg: '#3B1A1A',
       accent: '#10B981',
+      fontFamily: 'Roboto_400Regular',
     },
     light: {
       bunkerBg: '#F0FDF4',
@@ -93,6 +97,7 @@ export const THEME_PALETTES: Record<ThemeType, { dark: ThemeColors; light: Theme
       textSecondary: '#047857',
       secureBg: '#FEF2F2',
       accent: '#059669',
+      fontFamily: 'Roboto_400Regular',
     },
   },
   cyberpunk: {
@@ -109,6 +114,7 @@ export const THEME_PALETTES: Record<ThemeType, { dark: ThemeColors; light: Theme
       textSecondary: '#D8B4FE',
       secureBg: '#2D0A1A',
       accent: '#FF007F',
+      fontFamily: 'SpaceMono_400Regular',
     },
     light: {
       bunkerBg: '#FAF5FF',
@@ -123,6 +129,7 @@ export const THEME_PALETTES: Record<ThemeType, { dark: ThemeColors; light: Theme
       textSecondary: '#8B5CF6',
       secureBg: '#FFF1F2',
       accent: '#D946EF',
+      fontFamily: 'SpaceMono_400Regular',
     },
   },
   matrix: {
@@ -139,6 +146,7 @@ export const THEME_PALETTES: Record<ThemeType, { dark: ThemeColors; light: Theme
       textSecondary: '#00DD00',
       secureBg: '#1A0000',
       accent: '#00FF00',
+      fontFamily: 'SpaceMono_400Regular',
     },
     light: {
       bunkerBg: '#000000',
@@ -153,6 +161,71 @@ export const THEME_PALETTES: Record<ThemeType, { dark: ThemeColors; light: Theme
       textSecondary: '#00DD00',
       secureBg: '#1A0000',
       accent: '#00FF00',
+      fontFamily: 'SpaceMono_400Regular',
+    },
+  },
+  light: {
+    dark: {
+      bunkerBg: '#FFFFFF',
+      bunkerDark: '#000000',
+      bunkerAccent: '#007AFF',
+      bunkerGray: '#8E8E93',
+      surface: '#F2F2F7',
+      border: '#C6C6C8',
+      textMuted: '#8E8E93',
+      cardBg: '#F2F2F7',
+      text: '#000000',
+      textSecondary: '#3A3A3C',
+      secureBg: '#E5F1FF',
+      accent: '#007AFF',
+      fontFamily: 'Inter_400Regular',
+    },
+    light: {
+      bunkerBg: '#FFFFFF',
+      bunkerDark: '#000000',
+      bunkerAccent: '#007AFF',
+      bunkerGray: '#8E8E93',
+      surface: '#F2F2F7',
+      border: '#C6C6C8',
+      textMuted: '#8E8E93',
+      cardBg: '#F2F2F7',
+      text: '#000000',
+      textSecondary: '#3A3A3C',
+      secureBg: '#E5F1FF',
+      accent: '#007AFF',
+      fontFamily: 'Inter_400Regular',
+    },
+  },
+  dark: {
+    dark: {
+      bunkerBg: '#000000',
+      bunkerDark: '#FFFFFF',
+      bunkerAccent: '#0A84FF',
+      bunkerGray: '#8E8E93',
+      surface: '#1C1C1E',
+      border: '#38383A',
+      textMuted: '#8E8E93',
+      cardBg: '#1C1C1E',
+      text: '#FFFFFF',
+      textSecondary: '#EBEBF5',
+      secureBg: '#002B5C',
+      accent: '#0A84FF',
+      fontFamily: 'Inter_400Regular',
+    },
+    light: {
+      bunkerBg: '#000000',
+      bunkerDark: '#FFFFFF',
+      bunkerAccent: '#0A84FF',
+      bunkerGray: '#8E8E93',
+      surface: '#1C1C1E',
+      border: '#38383A',
+      textMuted: '#8E8E93',
+      cardBg: '#1C1C1E',
+      text: '#FFFFFF',
+      textSecondary: '#EBEBF5',
+      secureBg: '#002B5C',
+      accent: '#0A84FF',
+      fontFamily: 'Inter_400Regular',
     },
   },
 };
@@ -161,7 +234,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const systemColorScheme = useColorScheme();
   const [theme, setThemeState] = useState<ThemeType>('classic');
   const [customBackground, setCustomBackgroundState] = useState<string | null>(null);
-  const isDark = systemColorScheme === 'dark' || theme === 'matrix'; // Matrix siempre es oscuro
+  const isDark = systemColorScheme === 'dark' || theme === 'matrix' || theme === 'dark' || theme === 'cyberpunk'; 
 
   useEffect(() => {
     const loadTheme = async () => {

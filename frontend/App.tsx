@@ -1,3 +1,6 @@
+import { useFonts, Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
+import { Roboto_400Regular, Roboto_700Bold } from '@expo-google-fonts/roboto';
+import { SpaceMono_400Regular } from '@expo-google-fonts/space-mono';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -572,8 +575,8 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
         <View style={[styles.header, { backgroundColor: customBackground ? 'transparent' : COLORS.surface, borderBottomColor: customBackground ? 'transparent' : COLORS.border }]}>
           <View style={styles.headerTop}>
             <View>
-              <Text style={[styles.headerTitle, { color: COLORS.bunkerDark }]}>Mis Notas</Text>
-              <Text style={[styles.headerSubtitle, { color: COLORS.bunkerGray }]}>
+              <Text style={[{fontFamily: COLORS.fontFamily}, styles.headerTitle, { color: COLORS.bunkerDark }]}>Mis Notas</Text>
+              <Text style={[{fontFamily: COLORS.fontFamily}, styles.headerSubtitle, { color: COLORS.bunkerGray }]}>
                 {notes.length} nota{notes.length !== 1 ? 's' : ''}
               </Text>
             </View>
@@ -604,7 +607,7 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                     shadowRadius: 8,
                     elevation: 5,
                   }}>
-                    {(['classic', 'emerald', 'cyberpunk', 'matrix'] as ThemeType[]).map((t) => (
+                    {(['classic', 'emerald', 'cyberpunk', 'matrix', 'light', 'dark'] as ThemeType[]).map((t) => (
                       <TouchableOpacity
                         key={t}
                         style={{
@@ -624,6 +627,7 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                         <Text style={{ 
                           color: theme === t ? COLORS.bunkerAccent : COLORS.bunkerDark, 
                           fontWeight: theme === t ? '600' : '400',
+                          fontFamily: COLORS.fontFamily,
                           fontSize: 13,
                           textTransform: 'capitalize',
                         }}>
@@ -788,7 +792,7 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
           {showCreateModal && (
             <View style={[styles.modalContent, { backgroundColor: COLORS.surface, width: '100%' }]}>
               <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: COLORS.bunkerDark }]}>{editingNoteId ? 'Editar Nota' : 'Nueva Nota'}</Text>
+                <Text style={[{fontFamily: COLORS.fontFamily}, styles.modalTitle, { color: COLORS.bunkerDark }]}>{editingNoteId ? 'Editar Nota' : 'Nueva Nota'}</Text>
                 <TouchableOpacity onPress={handleCloseCreateModal}>
                   <Text style={[styles.modalClose, { color: COLORS.textMuted }]}>✕</Text>
                 </TouchableOpacity>
@@ -796,7 +800,7 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                 <TextInput
-                  style={[styles.modalInput, { flex: 1, marginBottom: 0, backgroundColor: COLORS.bunkerBg, color: COLORS.bunkerDark }]}
+                  style={[{fontFamily: COLORS.fontFamily}, styles.modalInput, { flex: 1, marginBottom: 0, backgroundColor: COLORS.bunkerBg, color: COLORS.bunkerDark }]}
                   placeholder="Título"
                   placeholderTextColor={COLORS.textMuted}
                   value={newNoteTitle}
@@ -943,7 +947,7 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
               <>
                 <View style={styles.viewerHeader}>
                   <View style={styles.viewerTitleRow}>
-                    <Text style={[styles.viewerTitle, { color: COLORS.bunkerDark }]}>{selectedNote.title}</Text>
+                    <Text style={[{fontFamily: COLORS.fontFamily}, styles.viewerTitle, { color: COLORS.bunkerDark }]}>{selectedNote.title}</Text>
                     {selectedNote.isSecure && (
                       <View style={[styles.viewerSecureBadge, { backgroundColor: COLORS.bunkerBg }]}>
                         <Text style={styles.viewerSecureIcon}>🔒</Text>
@@ -1132,6 +1136,18 @@ const enhance = withObservables([], () => ({
 const EnhancedAppContent = enhance(AppContent);
 
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_600SemiBold,
+    Roboto_400Regular,
+    Roboto_700Bold,
+    SpaceMono_400Regular,
+  });
+
+  if (!fontsLoaded) {
+    return <ActivityIndicator size="large" style={{ flex: 1, justifyContent: 'center' }} />;
+  }
+
   return (
     <ThemeProvider>
       <EnhancedAppContent />

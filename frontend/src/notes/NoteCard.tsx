@@ -78,14 +78,14 @@ export function NoteCard({
         activeOpacity={0.7}
       >
         <View style={stylesGrid.header}>
-          <Text style={[stylesGrid.title, { color: COLORS.text }]} numberOfLines={2}>
+          <Text style={[{fontFamily: COLORS.fontFamily}, stylesGrid.title, { color: COLORS.text }]} numberOfLines={2}>
             {note.title}
           </Text>
           {note.isSecure && <Text style={stylesGrid.secureIcon}>🔒</Text>}
         </View>
         {note.content ? (
           <View style={{ flex: 1, overflow: 'hidden', borderRadius: 4 }}>
-            <Text style={[stylesGrid.content, { color: COLORS.textSecondary }]} numberOfLines={3}>
+            <Text style={[{fontFamily: COLORS.fontFamily}, stylesGrid.content, { color: COLORS.textSecondary }]} numberOfLines={3}>
               {note.isSecure ? 'Este contenido está protegido localmente...' : stripHtml(note.content)}
             </Text>
             {note.isSecure && (
@@ -127,7 +127,7 @@ export function NoteCard({
     >
       <View style={stylesList.headerRow}>
         <View style={stylesList.titleContainer}>
-          <Text style={[stylesList.title, { color: COLORS.text }]} numberOfLines={2}>
+          <Text style={[{fontFamily: COLORS.fontFamily}, stylesList.title, { color: COLORS.text }]} numberOfLines={2}>
             {note.title}
           </Text>
         </View>
@@ -152,7 +152,7 @@ export function NoteCard({
 
       {note.content ? (
         <View style={{ overflow: 'hidden', borderRadius: 4, marginBottom: 8 }}>
-          <Text style={[stylesList.content, { color: COLORS.textSecondary, marginBottom: 0 }]} numberOfLines={3}>
+          <Text style={[{fontFamily: COLORS.fontFamily}, stylesList.content, { color: COLORS.textSecondary, marginBottom: 0 }]} numberOfLines={3}>
             {note.isSecure ? 'Este contenido está protegido localmente...' : stripHtml(note.content)}
           </Text>
           {note.isSecure && (
