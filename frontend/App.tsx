@@ -22,7 +22,7 @@ import {
   UIManager,
   ActivityIndicator,
   FlatList,
-  ImageBackground,
+  Image,
 } from 'react-native';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -34,7 +34,7 @@ import { Audio } from 'expo-av';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import LoginScreen from './src/screens/LoginScreen';
-import { NoteCard } from './src/notes/NoteCard';
+import { NoteCard, NOTE_COLORS, NOTE_ILLUSTRATIONS } from './src/notes/NoteCard';
 import { withObservables } from '@nozbe/watermelondb/react';
 import { database } from './src/database';
 import NoteModel from './src/database/Note';
@@ -58,6 +58,7 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [isBiometricAvailable, setIsBiometricAvailable] = useState(false);
   const [showThemeMenu, setShowThemeMenu] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (customBackground) {
@@ -93,6 +94,8 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [newNoteTitle, setNewNoteTitle] = useState('');
   const [newNoteContent, setNewNoteContent] = useState('');
   const [newNoteSecure, setNewNoteSecure] = useState(false);
+  const [newNoteColor, setNewNoteColor] = useState('default');
+  const [newNoteIllustration, setNewNoteIllustration] = useState('none');
 
   // Audio State & Refs
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
@@ -440,6 +443,8 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
           n.content = newNoteContent.trim();
           n.isSecure = newNoteSecure;
           n.audioUri = recordedAudioUri || '';
+          n.color = newNoteColor;
+          n.illustration = newNoteIllustration;
         });
       } else {
         await database.get<NoteModel>('notes').create((note: any) => {
@@ -448,6 +453,8 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
           note.isSecure = newNoteSecure;
           note.isMarked = false;
           note.audioUri = recordedAudioUri || '';
+          note.color = newNoteColor;
+          note.illustration = newNoteIllustration;
         });
       }
     });
@@ -460,6 +467,8 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     setNewNoteContent(note.content || '');
     setNewNoteSecure(note.isSecure);
     setRecordedAudioUri(note.audioUri || null);
+    setNewNoteColor((note as any).color || 'default');
+    setNewNoteIllustration((note as any).illustration || 'none');
     setEditingNoteId(note.id);
     setSelectedNote(null);
     setShowCreateModal(true);
@@ -470,6 +479,8 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     setNewNoteTitle('');
     setNewNoteContent('');
     setNewNoteSecure(false);
+    setNewNoteColor('default');
+    setNewNoteIllustration('none');
     setEditingNoteId(null);
   };
 
@@ -483,8 +494,14 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
   // Filtration & Sorting
   const filteredNotes = notes.filter(note => {
-    if (filter === 'marked') return note.isMarked;
-    if (filter === 'secure') return note.isSecure;
+    if (filter === 'marked' && !note.isMarked) return false;
+    if (filter === 'secure' && !note.isSecure) return false;
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      const titleMatch = note.title?.toLowerCase().includes(query);
+      const contentMatch = note.content?.toLowerCase().includes(query);
+      return titleMatch || contentMatch;
+    }
     return true;
   });
 
@@ -570,122 +587,266 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
   const content = (
     <>
-      <SafeAreaView style={styles.feedContainer}>
+      <View style={{ flexDirection: 'row', flex: 1, backgroundColor: customBackground ? 'transparent' : COLORS.bunkerBg }}>
+      {/* Sidebar (Tablet/Desktop) */}
+      {width >= 768 && (
+        <View style={{
+          width: 260,
+          backgroundColor: COLORS.surface,
+          borderRightWidth: 1,
+          borderColor: COLORS.border,
+          paddingTop: Platform.OS === 'android' ? 40 : 20,
+          paddingHorizontal: 16,
+          justifyContent: 'space-between',
+          paddingBottom: 24,
+        }}>
+          <View>
+            {/* Logo / Brand */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 30, paddingHorizontal: 4 }}>
+              <Text style={{ fontSize: 24 }}>🛡️</Text>
+              <Text style={{ fontSize: 18, fontWeight: 'bold', color: COLORS.bunkerDark, fontFamily: COLORS.fontFamily }}>Bunker Notas</Text>
+            </View>
+
+            {/* Filters */}
+            <Text style={{ fontSize: 11, fontWeight: '700', color: COLORS.bunkerGray, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1, paddingHorizontal: 4, fontFamily: COLORS.fontFamily }}>Filtros</Text>
+            {(['all', 'marked', 'secure'] as FilterType[]).map((f) => (
+              <TouchableOpacity
+                key={f}
+                style={{
+                  paddingVertical: 10,
+                  paddingHorizontal: 12,
+                  borderRadius: 8,
+                  backgroundColor: filter === f ? COLORS.bunkerBg : 'transparent',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  marginBottom: 4
+                }}
+                onPress={() => setFilter(f)}
+              >
+                <MaterialIcons
+                  name={f === 'all' ? 'description' : f === 'marked' ? 'star' : 'lock'}
+                  size={20}
+                  color={filter === f ? COLORS.bunkerAccent : COLORS.bunkerDark}
+                  style={{ marginRight: 12 }}
+                />
+                <Text style={{
+                  color: filter === f ? COLORS.bunkerAccent : COLORS.bunkerDark,
+                  fontWeight: filter === f ? '700' : '500',
+                  fontSize: 14,
+                  fontFamily: COLORS.fontFamily
+                }}>
+                  {f === 'all' ? 'Todas' : f === 'marked' ? 'Marcadas' : 'Seguras'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+
+            <View style={{ height: 1, backgroundColor: COLORS.border, marginVertical: 20 }} />
+
+            {/* Themes Section */}
+            <Text style={{ fontSize: 11, fontWeight: '700', color: COLORS.bunkerGray, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1, paddingHorizontal: 4, fontFamily: COLORS.fontFamily }}>Temas</Text>
+            <View style={{ gap: 4 }}>
+              {(['classic', 'classic_dark', 'emerald', 'light', 'dark'] as ThemeType[]).map((t) => (
+                <TouchableOpacity
+                  key={t}
+                  style={{
+                    paddingVertical: 8,
+                    paddingHorizontal: 12,
+                    borderRadius: 8,
+                    backgroundColor: theme === t ? COLORS.bunkerBg : 'transparent',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}
+                  onPress={() => setTheme(t)}
+                >
+                  <Text style={{
+                    color: theme === t ? COLORS.bunkerAccent : COLORS.bunkerDark,
+                    fontSize: 13,
+                    fontWeight: theme === t ? '600' : '400',
+                    textTransform: 'capitalize',
+                    fontFamily: COLORS.fontFamily
+                  }}>
+                    {t}
+                  </Text>
+                  {theme === t && <MaterialIcons name="check" size={14} color={COLORS.bunkerAccent} />}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Sidebar Footer (Background Controls) */}
+          <View>
+            <View style={{ height: 1, backgroundColor: COLORS.border, marginBottom: 16 }} />
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: 10,
+                paddingHorizontal: 12,
+                borderRadius: 8,
+                gap: 10,
+                backgroundColor: COLORS.bunkerBg,
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                justifyContent: 'center',
+                marginBottom: 8
+              }}
+              onPress={handlePickBackground}
+            >
+              <MaterialIcons name="image" size={18} color={COLORS.bunkerDark} />
+              <Text style={{ color: COLORS.bunkerDark, fontSize: 13, fontWeight: '600', fontFamily: COLORS.fontFamily }}>Subir Fondo</Text>
+            </TouchableOpacity>
+
+            {customBackground && (
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingVertical: 10,
+                  paddingHorizontal: 12,
+                  borderRadius: 8,
+                  gap: 10,
+                  backgroundColor: COLORS.secureBg,
+                  borderWidth: 1,
+                  borderColor: COLORS.border,
+                  justifyContent: 'center'
+                }}
+                onPress={handleRemoveBackground}
+              >
+                <MaterialIcons name="no-photography" size={18} color={COLORS.bunkerAccent} />
+                <Text style={{ color: COLORS.bunkerAccent, fontSize: 13, fontWeight: '600', fontFamily: COLORS.fontFamily }}>Quitar Fondo</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      )}
+
+      <SafeAreaView style={[styles.feedContainer, { flex: 1, backgroundColor: customBackground ? 'transparent' : COLORS.bunkerBg }]}>
         {/* Header */}
         <View style={[styles.header, { backgroundColor: customBackground ? 'transparent' : COLORS.surface, borderBottomColor: customBackground ? 'transparent' : COLORS.border }]}>
           <View style={styles.headerTop}>
             <View>
-              <Text style={[{fontFamily: COLORS.fontFamily}, styles.headerTitle, { color: COLORS.bunkerDark }]}>Mis Notas</Text>
-              <Text style={[{fontFamily: COLORS.fontFamily}, styles.headerSubtitle, { color: COLORS.bunkerGray }]}>
-                {notes.length} nota{notes.length !== 1 ? 's' : ''}
-              </Text>
+              {width < 768 ? (
+                <>
+                  <Text style={[{fontFamily: COLORS.fontFamily}, styles.headerTitle, { color: COLORS.bunkerDark }]}>Mis Notas</Text>
+                  <Text style={[{fontFamily: COLORS.fontFamily}, styles.headerSubtitle, { color: COLORS.bunkerGray }]}>
+                    {notes.length} nota{notes.length !== 1 ? 's' : ''}
+                  </Text>
+                </>
+              ) : (
+                <Text style={[{fontFamily: COLORS.fontFamily}, styles.headerTitle, { color: COLORS.bunkerDark, fontSize: 24, lineHeight: 30 }]}>
+                  {filter === 'all' ? 'Notas' : filter === 'marked' ? 'Marcadas' : 'Seguras'}
+                </Text>
+              )}
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, zIndex: 1000 }}>
-              <View style={{ position: 'relative', zIndex: 1000 }}>
-                <TouchableOpacity
-                  style={[styles.viewToggle, { backgroundColor: COLORS.bunkerBg }]}
-                  onPress={() => setShowThemeMenu(!showThemeMenu)}
-                >
-                  <MaterialIcons name="palette" size={20} color={COLORS.bunkerGray} />
-                </TouchableOpacity>
+              {width < 768 && (
+                <>
+                  <TouchableOpacity
+                    style={[styles.viewToggle, { backgroundColor: COLORS.bunkerBg }]}
+                    onPress={() => setShowThemeMenu(true)}
+                  >
+                    <MaterialIcons name="palette" size={20} color={COLORS.bunkerGray} />
+                  </TouchableOpacity>
 
-                {showThemeMenu && (
-                  <View style={{ 
-                    backgroundColor: COLORS.surface, 
-                    borderColor: COLORS.border,
-                    position: 'absolute',
-                    top: 50,
-                    right: 0,
-                    zIndex: 1001,
-                    width: 160,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    padding: 4,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 8,
-                    elevation: 5,
-                  }}>
-                    {(['classic', 'emerald', 'cyberpunk', 'matrix', 'light', 'dark'] as ThemeType[]).map((t) => (
-                      <TouchableOpacity
-                        key={t}
-                        style={{
-                          paddingVertical: 10,
-                          paddingHorizontal: 12,
-                          borderRadius: 8,
-                          backgroundColor: theme === t ? COLORS.bunkerBg : 'transparent',
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                        }}
-                        onPress={() => {
-                          setTheme(t);
-                          setShowThemeMenu(false);
-                        }}
-                      >
-                        <Text style={{ 
-                          color: theme === t ? COLORS.bunkerAccent : COLORS.bunkerDark, 
-                          fontWeight: theme === t ? '600' : '400',
-                          fontFamily: COLORS.fontFamily,
-                          fontSize: 13,
-                          textTransform: 'capitalize',
-                        }}>
-                          {t}
-                        </Text>
-                        {theme === t && (
-                          <MaterialIcons name="check" size={14} color={COLORS.bunkerAccent} />
+                  <Modal visible={showThemeMenu} transparent animationType="fade" onRequestClose={() => setShowThemeMenu(false)}>
+                    <Pressable style={{ flex: 1 }} onPress={() => setShowThemeMenu(false)}>
+                      <Pressable style={{ 
+                        backgroundColor: COLORS.surface, 
+                        borderColor: COLORS.border,
+                        position: 'absolute',
+                        top: Platform.OS === 'ios' ? 100 : 80,
+                        right: 24,
+                        width: 160,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        padding: 4,
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 8,
+                        elevation: 5,
+                      }}>
+                        {(['classic', 'classic_dark', 'emerald', 'light', 'dark'] as ThemeType[]).map((t) => (
+                          <TouchableOpacity
+                            key={t}
+                            style={{
+                              paddingVertical: 10,
+                              paddingHorizontal: 12,
+                              borderRadius: 8,
+                              backgroundColor: theme === t ? COLORS.bunkerBg : 'transparent',
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                            }}
+                            onPress={() => {
+                              setTheme(t);
+                              setShowThemeMenu(false);
+                            }}
+                          >
+                            <Text style={{ 
+                              color: theme === t ? COLORS.bunkerAccent : COLORS.bunkerDark, 
+                              fontWeight: theme === t ? '600' : '400',
+                              fontFamily: COLORS.fontFamily,
+                              fontSize: 13,
+                              textTransform: 'capitalize',
+                            }}>
+                              {t}
+                            </Text>
+                            {theme === t && (
+                              <MaterialIcons name="check" size={14} color={COLORS.bunkerAccent} />
+                            )}
+                          </TouchableOpacity>
+                        ))}
+
+                        <View style={{ height: 1, backgroundColor: COLORS.border, marginVertical: 4 }} />
+
+                        <TouchableOpacity
+                          style={{
+                            paddingVertical: 10,
+                            paddingHorizontal: 12,
+                            borderRadius: 8,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 8,
+                          }}
+                          onPress={async () => {
+                            setShowThemeMenu(false);
+                            await handlePickBackground();
+                          }}
+                        >
+                          <MaterialIcons name="image" size={16} color={COLORS.bunkerDark} />
+                          <Text style={{ color: COLORS.bunkerDark, fontSize: 13 }}>
+                            Subir Fondo
+                          </Text>
+                        </TouchableOpacity>
+
+                        {customBackground && (
+                          <TouchableOpacity
+                            style={{
+                              paddingVertical: 10,
+                              paddingHorizontal: 12,
+                              borderRadius: 8,
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 8,
+                            }}
+                            onPress={async () => {
+                              setShowThemeMenu(false);
+                              await handleRemoveBackground();
+                            }}
+                          >
+                            <MaterialIcons name="no-photography" size={16} color={COLORS.bunkerAccent} />
+                            <Text style={{ color: COLORS.bunkerAccent, fontSize: 13, fontWeight: '500' }}>
+                              Quitar Fondo
+                            </Text>
+                          </TouchableOpacity>
                         )}
-                      </TouchableOpacity>
-                    ))}
-
-                    <View style={{ height: 1, backgroundColor: COLORS.border, marginVertical: 4 }} />
-
-                    <TouchableOpacity
-                      style={{
-                        paddingVertical: 10,
-                        paddingHorizontal: 12,
-                        borderRadius: 8,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 8,
-                      }}
-                      onPress={async () => {
-                        setShowThemeMenu(false);
-                        await handlePickBackground();
-                      }}
-                    >
-                      <MaterialIcons name="image" size={16} color={COLORS.bunkerDark} />
-                      <Text style={{ color: COLORS.bunkerDark, fontSize: 13 }}>
-                        Subir Fondo
-                      </Text>
-                    </TouchableOpacity>
-
-                    {customBackground && (
-                      <TouchableOpacity
-                        style={{
-                          paddingVertical: 10,
-                          paddingHorizontal: 12,
-                          borderRadius: 8,
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          gap: 8,
-                        }}
-                        onPress={async () => {
-                          setShowThemeMenu(false);
-                          await handleRemoveBackground();
-                        }}
-                      >
-                        <MaterialIcons name="no-photography" size={16} color={COLORS.bunkerAccent} />
-                        <Text style={{ color: COLORS.bunkerAccent, fontSize: 13, fontWeight: '500' }}>
-                          Quitar Fondo
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                )}
-              </View>
-
+                      </Pressable>
+                    </Pressable>
+                  </Modal>
+                </>
+              )}
               <TouchableOpacity
                 style={[styles.viewToggle, { backgroundColor: COLORS.bunkerBg }]}
                 onPress={() => setViewMode(viewMode === 'list' ? 'grid' : 'list')}
@@ -698,8 +859,49 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
           </View>
         </View>
 
-        {/* Filters */}
-        <View style={[styles.filterContainer, { backgroundColor: customBackground ? 'transparent' : COLORS.surface, borderColor: customBackground ? 'transparent' : COLORS.border }]}>
+        {/* Search Bar */}
+        <View style={{
+          paddingHorizontal: 16,
+          paddingVertical: 10,
+          backgroundColor: customBackground ? 'transparent' : COLORS.surface,
+          borderBottomWidth: 1,
+          borderBottomColor: COLORS.border,
+        }}>
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: COLORS.bunkerBg,
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: COLORS.border,
+            paddingHorizontal: 12,
+            height: 44,
+          }}>
+            <MaterialIcons name="search" size={20} color={COLORS.bunkerGray} style={{ marginRight: 8 }} />
+            <TextInput
+              style={{
+                flex: 1,
+                color: COLORS.text,
+                fontSize: 14,
+                fontFamily: COLORS.fontFamily,
+                paddingVertical: 8,
+              }}
+              placeholder="Buscar notas..."
+              placeholderTextColor={COLORS.textMuted}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.trim().length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <MaterialIcons name="cancel" size={18} color={COLORS.bunkerGray} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
+        {/* Filters (Mobile only) */}
+        {width < 768 && (
+          <View style={[styles.filterContainer, { backgroundColor: customBackground ? 'transparent' : COLORS.surface, borderColor: customBackground ? 'transparent' : COLORS.border }]}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
             {(['all', 'marked', 'secure'] as FilterType[]).map((f) => (
               <TouchableOpacity
@@ -722,14 +924,16 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
             ))}
           </ScrollView>
         </View>
+        )}
 
         {/* Notes Feed */}
         <ScrollView style={styles.notesList} showsVerticalScrollIndicator={false} contentContainerStyle={styles.notesContent}>
           {viewMode === 'grid' ? (
             <View style={styles.gridContainer}>
               {sortedNotes.map((note, index) => {
-                const numColumns = width < 480 ? 2 : width < 768 ? 3 : width < 1024 ? 4 : 5;
-                const gridItemWidth = (width - 32 - (numColumns - 1) * 12) / numColumns;
+                const feedWidth = width >= 768 ? width - 260 : width;
+                const numColumns = feedWidth < 480 ? 2 : feedWidth < 768 ? 3 : feedWidth < 1024 ? 4 : 5;
+                const gridItemWidth = (feedWidth - 32 - (numColumns - 1) * 12) / numColumns;
                 return (
                   <View 
                     key={note.id} 
@@ -769,7 +973,7 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
         {/* FAB */}
         <TouchableOpacity
-          style={styles.fab}
+          style={[styles.fab, { backgroundColor: COLORS.bunkerAccent, shadowColor: COLORS.bunkerAccent }]}
           onPress={() => {
             setNewNoteTitle('');
             setNewNoteContent('');
@@ -781,8 +985,9 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
           <Text style={styles.fabText}>+</Text>
         </TouchableOpacity>
       </SafeAreaView>
+    </View>
 
-      {/* CREATE MODAL */}
+    {/* CREATE MODAL */}
       <Modal visible={showCreateModal} animationType="slide" transparent onRequestClose={handleCloseCreateModal}>
         <KeyboardAvoidingView 
           style={styles.modalOverlay}
@@ -907,7 +1112,7 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                 iconTint={COLORS.bunkerGray}
                 selectedIconTint={COLORS.bunkerAccent}
               />
-              <View style={{ flex: 1, backgroundColor: COLORS.bunkerBg, borderRadius: 12, overflow: 'hidden', padding: 8, marginBottom: 90 }}>
+              <View style={{ flex: 1, backgroundColor: COLORS.bunkerBg, borderRadius: 12, overflow: 'hidden', padding: 8, marginBottom: 16 }}>
                 <RichEditor
                   ref={richText}
                   onChange={setNewNoteContent}
@@ -923,9 +1128,73 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                 />
               </View>
 
+              {/* Controles de personalización (Color y Doodle) */}
+              <View style={{
+                flexDirection: 'column',
+                gap: 12,
+                marginBottom: 16,
+              }}>
+                {/* Selector de Colores */}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center', gap: 8 }}>
+                  <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, marginRight: 4 }}>Color:</Text>
+                  {Object.keys(NOTE_COLORS).map((colorKey) => {
+                    const c = NOTE_COLORS[colorKey];
+                    const isSelected = newNoteColor === colorKey;
+                    const circleColor = colorKey === 'default' ? (isDark ? '#2D3748' : '#EDF2F7') : (isDark ? c.dark : c.light);
+                    return (
+                      <TouchableOpacity
+                        key={colorKey}
+                        onPress={() => setNewNoteColor(colorKey)}
+                        style={{
+                          width: 24,
+                          height: 24,
+                          borderRadius: 12,
+                          backgroundColor: circleColor,
+                          borderWidth: isSelected ? 2 : 1,
+                          borderColor: isSelected ? COLORS.bunkerAccent : (isDark ? '#4A5568' : '#CBD5E0'),
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}
+                      >
+                        {isSelected && (
+                          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.bunkerAccent }} />
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+
+                {/* Selector de Doodles/Emojis */}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center', gap: 8 }}>
+                  <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, marginRight: 4 }}>Doodle:</Text>
+                  {Object.keys(NOTE_ILLUSTRATIONS).map((illusKey) => {
+                    const emoji = NOTE_ILLUSTRATIONS[illusKey];
+                    const isSelected = newNoteIllustration === illusKey;
+                    return (
+                      <TouchableOpacity
+                        key={illusKey}
+                        onPress={() => setNewNoteIllustration(illusKey)}
+                        style={{
+                          paddingHorizontal: 8,
+                          paddingVertical: 3,
+                          borderRadius: 12,
+                          backgroundColor: isSelected ? COLORS.bunkerAccent : (isDark ? '#2D3748' : '#EDF2F7'),
+                          borderWidth: 1,
+                          borderColor: isSelected ? 'transparent' : (isDark ? '#4A5568' : '#CBD5E0'),
+                        }}
+                      >
+                        <Text style={{ fontSize: 11, color: isSelected ? '#fff' : COLORS.text }}>
+                          {illusKey === 'none' ? 'Ninguno' : emoji}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+
               {/* AUDIO PANEL MOVED TO TITLE ROW */}
 
-              <View style={[styles.modalActions, { position: 'absolute', bottom: 20, left: 24, right: 24 }]}>
+              <View style={{ flexDirection: 'row', gap: 12, paddingBottom: 16 }}>
                 <TouchableOpacity style={[styles.cancelButton, { backgroundColor: COLORS.bunkerBg }]} onPress={handleCloseCreateModal}>
                   <Text style={[styles.cancelButtonText, { color: COLORS.bunkerGray }]}>Cancelar</Text>
                 </TouchableOpacity>
@@ -1111,7 +1380,7 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   return (
     <View style={[styles.container, { backgroundColor: COLORS.bunkerBg }]}>
       {customBackground && (
-        <ImageBackground
+        <Image
           source={{ uri: customBackground }}
           style={StyleSheet.absoluteFillObject}
           resizeMode="cover"

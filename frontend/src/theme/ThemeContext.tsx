@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useColorScheme, Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as NavigationBar from 'expo-navigation-bar';
 
 const THEME_FILE = FileSystem.documentDirectory ? `${FileSystem.documentDirectory}theme_preference.txt` : '';
 const BACKGROUND_PREF_FILE = FileSystem.documentDirectory ? `${FileSystem.documentDirectory}background_preference.txt` : '';
 const CUSTOM_BG_FILE = FileSystem.documentDirectory ? `${FileSystem.documentDirectory}custom_background.jpg` : '';
 
-export type ThemeType = 'classic' | 'emerald' | 'cyberpunk' | 'matrix' | 'light' | 'dark';
+export type ThemeType = 'classic' | 'classic_dark' | 'emerald' | 'light' | 'dark';
 
 export interface ThemeColors {
   bunkerBg: string;
@@ -36,6 +37,38 @@ interface ThemeContextProps {
 const ThemeContext = createContext<ThemeContextProps | undefined>(undefined);
 
 export const THEME_PALETTES: Record<ThemeType, { dark: ThemeColors; light: ThemeColors }> = {
+  classic_dark: {
+    dark: {
+      bunkerBg: '#212529',
+      bunkerDark: '#F8F9FA',
+      bunkerAccent: '#E94560',
+      bunkerGray: '#868E96',
+      surface: '#343A40',
+      border: '#495057',
+      textMuted: '#6C757D',
+      cardBg: '#343A40',
+      text: '#F8F9FA',
+      textSecondary: '#CED4DA',
+      secureBg: '#4A1D24',
+      accent: '#E94560',
+      fontFamily: 'Inter_400Regular',
+    },
+    light: {
+      bunkerBg: '#212529',
+      bunkerDark: '#F8F9FA',
+      bunkerAccent: '#E94560',
+      bunkerGray: '#868E96',
+      surface: '#343A40',
+      border: '#495057',
+      textMuted: '#6C757D',
+      cardBg: '#343A40',
+      text: '#F8F9FA',
+      textSecondary: '#CED4DA',
+      secureBg: '#4A1D24',
+      accent: '#E94560',
+      fontFamily: 'Inter_400Regular',
+    },
+  },
   classic: {
     dark: {
       bunkerBg: '#1A202C',
@@ -132,38 +165,6 @@ export const THEME_PALETTES: Record<ThemeType, { dark: ThemeColors; light: Theme
       fontFamily: 'SpaceMono_400Regular',
     },
   },
-  matrix: {
-    dark: {
-      bunkerBg: '#000000',
-      bunkerDark: '#00FF00',
-      bunkerAccent: '#00FF00',
-      bunkerGray: '#008000',
-      surface: '#0D0D0D',
-      border: '#00FF00',
-      textMuted: '#00AA00',
-      cardBg: '#0D0D0D',
-      text: '#00FF00',
-      textSecondary: '#00DD00',
-      secureBg: '#1A0000',
-      accent: '#00FF00',
-      fontFamily: 'SpaceMono_400Regular',
-    },
-    light: {
-      bunkerBg: '#000000',
-      bunkerDark: '#00FF00',
-      bunkerAccent: '#00FF00',
-      bunkerGray: '#008000',
-      surface: '#0D0D0D',
-      border: '#00FF00',
-      textMuted: '#00AA00',
-      cardBg: '#0D0D0D',
-      text: '#00FF00',
-      textSecondary: '#00DD00',
-      secureBg: '#1A0000',
-      accent: '#00FF00',
-      fontFamily: 'SpaceMono_400Regular',
-    },
-  },
   light: {
     dark: {
       bunkerBg: '#FFFFFF',
@@ -234,7 +235,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const systemColorScheme = useColorScheme();
   const [theme, setThemeState] = useState<ThemeType>('classic');
   const [customBackground, setCustomBackgroundState] = useState<string | null>(null);
-  const isDark = systemColorScheme === 'dark' || theme === 'matrix' || theme === 'dark' || theme === 'cyberpunk'; 
+  const isDark = systemColorScheme === 'dark' || theme === 'dark' || theme === 'classic_dark'; 
 
   useEffect(() => {
     const loadTheme = async () => {
@@ -385,6 +386,20 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const COLORS = THEME_PALETTES[theme][isDark ? 'dark' : 'light'];
+
+  useEffect(() => {
+    const updateAndroidNavBar = async () => {
+      if (Platform.OS === 'android') {
+        try {
+          await NavigationBar.setBackgroundColorAsync(COLORS.bunkerBg);
+          await NavigationBar.setButtonStyleAsync(isDark ? 'light' : 'dark');
+        } catch (e) {
+          console.error('[ThemeContext] Error setting navigation bar color', e);
+        }
+      }
+    };
+    updateAndroidNavBar();
+  }, [COLORS.bunkerBg, isDark]);
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme, COLORS, isDark, customBackground, setCustomBackground }}>

@@ -9,6 +9,8 @@ export default class Note extends Model {
   @field('is_secure') isSecure: boolean;
   @field('is_marked') isMarked: boolean;
   @text('audio_uri') audioUri: string;
+  @text('color') color: string;
+  @text('illustration') illustration: string;
 
   @readonly @date('created_at') createdAt: Date;
   @readonly @date('updated_at') updatedAt: Date;

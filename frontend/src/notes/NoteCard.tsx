@@ -6,6 +6,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useTheme } from '../theme/ThemeContext';
+import { withObservables } from '@nozbe/watermelondb/react';
 
 export interface Note {
   id: string;
@@ -14,9 +15,36 @@ export interface Note {
   isSecure: boolean;
   isMarked: boolean;
   audioUri?: string;
+  color?: string;
+  illustration?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
+
+export const NOTE_COLORS: Record<string, { light: string; dark: string; name: string }> = {
+  default: { light: 'transparent', dark: 'transparent', name: 'Predeterminado' },
+  red: { light: '#FF9E9E', dark: '#6A1E1E', name: 'Rojo' },
+  orange: { light: '#FFC78A', dark: '#733B0A', name: 'Naranja' },
+  yellow: { light: '#FFF099', dark: '#6E620B', name: 'Amarillo' },
+  green: { light: '#B8E8B8', dark: '#1F4F1F', name: 'Verde' },
+  teal: { light: '#A3E8D9', dark: '#0F5247', name: 'Celeste' },
+  blue: { light: '#A8C6FA', dark: '#1A396B', name: 'Azul' },
+  purple: { light: '#D4B4D4', dark: '#462146', name: 'Púrpura' },
+  pink: { light: '#FFB5D6', dark: '#731C41', name: 'Rosa' },
+};
+
+export const NOTE_ILLUSTRATIONS: Record<string, string> = {
+  none: '',
+  pencil: '📝',
+  idea: '💡',
+  work: '💼',
+  home: '🏠',
+  cart: '🛒',
+  money: '💰',
+  music: '🎵',
+  heart: '❤️',
+  gym: '🏋️',
+};
 
 export interface NoteCardProps {
   note: Note;
@@ -27,15 +55,20 @@ export interface NoteCardProps {
   isGridMode?: boolean;
 }
 
-export function NoteCard({
+const NoteCardBase = ({
   note,
   onPress,
   onLongPress,
   onToggleMark,
   onAuthRequired,
   isGridMode = false,
-}: NoteCardProps) {
+}: NoteCardProps) => {
   const { COLORS, isDark } = useTheme();
+
+  const noteColorKey = note.color || 'default';
+  const customCardBg = NOTE_COLORS[noteColorKey] ? (isDark ? NOTE_COLORS[noteColorKey].dark : NOTE_COLORS[noteColorKey].light) : 'transparent';
+  const cardBgStyle = customCardBg !== 'transparent' ? { backgroundColor: customCardBg } : { backgroundColor: COLORS.cardBg };
+  const illustrationEmoji = note.illustration && NOTE_ILLUSTRATIONS[note.illustration] ? NOTE_ILLUSTRATIONS[note.illustration] : null;
 
   const handlePress = () => {
     if (note.isSecure) {
@@ -72,11 +105,32 @@ export function NoteCard({
         onLongPress={() => onLongPress(note.id)}
         style={[
           stylesGrid.card,
-          { backgroundColor: COLORS.cardBg, borderColor: COLORS.border },
-          note.isSecure && { backgroundColor: COLORS.secureBg, borderColor: COLORS.accent },
+          cardBgStyle,
+          { borderColor: COLORS.border },
+          note.isSecure && {
+            borderColor: COLORS.bunkerAccent,
+            borderWidth: 1.5,
+            shadowColor: COLORS.bunkerAccent,
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: isDark ? 0.25 : 0.15,
+            shadowRadius: 6,
+            elevation: 3,
+          }
         ]}
         activeOpacity={0.7}
       >
+        {illustrationEmoji && (
+          <Text style={{
+            position: 'absolute',
+            bottom: 8,
+            right: 8,
+            fontSize: 54,
+            opacity: 0.5,
+            zIndex: 0,
+          }}>
+            {illustrationEmoji}
+          </Text>
+        )}
         <View style={stylesGrid.header}>
           <Text style={[{fontFamily: COLORS.fontFamily}, stylesGrid.title, { color: COLORS.text }]} numberOfLines={2}>
             {note.title}
@@ -120,11 +174,32 @@ export function NoteCard({
       onLongPress={() => onLongPress(note.id)}
       style={[
         stylesList.card,
-        { backgroundColor: COLORS.cardBg, borderColor: COLORS.border },
-        note.isSecure && stylesList.secureCard,
+        cardBgStyle,
+        { borderColor: COLORS.border },
+        note.isSecure && {
+          borderColor: COLORS.bunkerAccent,
+          borderWidth: 1.5,
+          shadowColor: COLORS.bunkerAccent,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: isDark ? 0.25 : 0.15,
+          shadowRadius: 6,
+          elevation: 3,
+        }
       ]}
       activeOpacity={0.7}
     >
+      {illustrationEmoji && (
+        <Text style={{
+          position: 'absolute',
+          bottom: 10,
+          right: 10,
+          fontSize: 64,
+          opacity: 0.5,
+          zIndex: 0,
+        }}>
+          {illustrationEmoji}
+        </Text>
+      )}
       <View style={stylesList.headerRow}>
         <View style={stylesList.titleContainer}>
           <Text style={[{fontFamily: COLORS.fontFamily}, stylesList.title, { color: COLORS.text }]} numberOfLines={2}>
@@ -204,3 +279,7 @@ const stylesGrid = StyleSheet.create({
   star: { fontSize: 16, color: '#A0AEC0' },
   audioBadge: { paddingHorizontal: 4, paddingVertical: 2, borderRadius: 6, justifyContent: 'center', alignItems: 'center' },
 });
+
+export const NoteCard = withObservables(['note'], ({ note }: { note: any }) => ({
+  note: note.observe(),
+}))(NoteCardBase);
