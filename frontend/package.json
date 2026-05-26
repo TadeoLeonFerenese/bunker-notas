@@ -21,6 +21,7 @@
     "expo": "~54.0.33",
     "expo-av": "~16.0.8",
     "expo-blur": "~15.0.8",
+    "expo-document-picker": "^56.0.4",
     "expo-file-system": "~19.0.22",
     "expo-font": "^55.0.8",
     "expo-image-picker": "~17.0.11",

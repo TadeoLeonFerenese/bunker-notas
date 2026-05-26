@@ -41,6 +41,8 @@ import NoteModel from './src/database/Note';
 import { RichEditor, RichToolbar, actions } from 'react-native-pell-rich-editor';
 import RenderHtml from 'react-native-render-html';
 import { ThemeProvider, useTheme, ThemeType } from './src/theme/ThemeContext';
+import { encryption } from './src/notes/encryption';
+import { backupService } from './src/backup/BackupService';
 
 type FilterType = 'all' | 'marked' | 'secure';
 type ViewMode = 'list' | 'grid';
@@ -308,6 +310,27 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   // Auth Handling
   const handleLoginSuccess = () => setIsAuthenticated(true);
 
+  const openNoteAfterAuth = (note: NoteModel) => {
+    setPinModalVisible(false);
+    setPendingNote(null);
+    if (!note.isSecure) {
+      setSelectedNote(note);
+      return;
+    }
+    const raw = note as any;
+    setSelectedNote({
+      id: note.id,
+      title: note.title,
+      content: encryption.decrypt(note.content || ''),
+      isSecure: true,
+      isMarked: note.isMarked,
+      audioUri: raw.audioUri,
+      color: raw.color,
+      illustration: raw.illustration,
+      createdAt: raw.createdAt,
+    } as any);
+  };
+
   const handleNotePress = (noteId: string) => {
     const note = notes.find(n => n.id === noteId);
     if (!note) return;
@@ -333,8 +356,7 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       });
       
       if (result.success) {
-        setPinModalVisible(false);
-        setSelectedNote(note);
+        openNoteAfterAuth(note);
       }
     } catch (error) {
       console.log(error);
@@ -350,8 +372,7 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const showPinInput = async (note: NoteModel) => {
     setPendingNote(note);
     setPinInput('');
-    
-    // Verificar si el usuario ya tiene un PIN guardado en el llavero
+
     try {
       const { getSecureCredential } = require('./src/notes/encryption');
       const storedHash = await getSecureCredential('app_pin_hash');
@@ -387,19 +408,15 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
         setHasStoredPin(true);
         Alert.alert('PIN Registrado', 'Has definido tu PIN de seguridad para las notas.');
         
-        setPinModalVisible(false);
         if (pendingNote) {
-          setSelectedNote(pendingNote);
-          setPendingNote(null);
+          openNoteAfterAuth(pendingNote);
         }
       } else {
         // Validar PIN real contra llavero seguro
         const isValid = await verifyPin(pinInput, storedHash);
         if (isValid) {
-          setPinModalVisible(false);
           if (pendingNote) {
-            setSelectedNote(pendingNote);
-            setPendingNote(null);
+            openNoteAfterAuth(pendingNote);
           }
         } else {
           Alert.alert('PIN Incorrecto', 'El PIN ingresado no coincide.');
@@ -427,6 +444,9 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
         n.isMarked = isMarked;
       });
     });
+    if (selectedNote?.id === noteId) {
+      setSelectedNote(prev => ({ ...(prev as any), isMarked }) as any);
+    }
   };
 
   const saveNote = async () => {
@@ -434,13 +454,16 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       Alert.alert('Error', 'El título es obligatorio');
       return;
     }
+
+    const titleToStore = newNoteTitle.trim();
+    const contentToStore = newNoteSecure ? encryption.encrypt(newNoteContent.trim()) : newNoteContent.trim();
     
     await database.write(async () => {
       if (editingNoteId) {
         const note = await database.get<NoteModel>('notes').find(editingNoteId);
         await note.update((n: any) => {
-          n.title = newNoteTitle.trim();
-          n.content = newNoteContent.trim();
+          n.title = titleToStore;
+          n.content = contentToStore;
           n.isSecure = newNoteSecure;
           n.audioUri = recordedAudioUri || '';
           n.color = newNoteColor;
@@ -448,8 +471,8 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
         });
       } else {
         await database.get<NoteModel>('notes').create((note: any) => {
-          note.title = newNoteTitle.trim();
-          note.content = newNoteContent.trim();
+          note.title = titleToStore;
+          note.content = contentToStore;
           note.isSecure = newNoteSecure;
           note.isMarked = false;
           note.audioUri = recordedAudioUri || '';
@@ -490,6 +513,34 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     await database.write(async () => {
       await note.destroyPermanently();
     });
+  };
+
+  const handleExport = async () => {
+    try {
+      const path = await backupService.exportNotes();
+      await backupService.shareBackup(path);
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'No se pudo exportar las notas');
+    }
+  };
+
+  const handleImport = async () => {
+    try {
+      const count = await backupService.pickAndImport();
+      if (count > 0) {
+        Alert.alert('Importado', `Se importaron ${count} nota${count !== 1 ? 's' : ''} correctamente`);
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'No se pudo importar el archivo');
+    }
+  };
+
+  const handleBackupAction = () => {
+    Alert.alert('Respaldo', '¿Qué querés hacer?', [
+      { text: '📤 Exportar notas', onPress: handleExport },
+      { text: '📥 Importar notas', onPress: handleImport },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
   };
 
   // Filtration & Sorting
@@ -709,7 +760,8 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   backgroundColor: COLORS.secureBg,
                   borderWidth: 1,
                   borderColor: COLORS.border,
-                  justifyContent: 'center'
+                  justifyContent: 'center',
+                  marginBottom: 8,
                 }}
                 onPress={handleRemoveBackground}
               >
@@ -717,6 +769,25 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                 <Text style={{ color: COLORS.bunkerAccent, fontSize: 13, fontWeight: '600', fontFamily: COLORS.fontFamily }}>Quitar Fondo</Text>
               </TouchableOpacity>
             )}
+
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: 10,
+                paddingHorizontal: 12,
+                borderRadius: 8,
+                gap: 10,
+                backgroundColor: COLORS.bunkerBg,
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                justifyContent: 'center',
+              }}
+              onPress={handleBackupAction}
+            >
+              <MaterialIcons name="backup" size={18} color={COLORS.bunkerDark} />
+              <Text style={{ color: COLORS.bunkerDark, fontSize: 13, fontWeight: '600', fontFamily: COLORS.fontFamily }}>Respaldar</Text>
+            </TouchableOpacity>
           </View>
         </View>
       )}
@@ -747,6 +818,12 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                     onPress={() => setShowThemeMenu(true)}
                   >
                     <MaterialIcons name="palette" size={20} color={COLORS.bunkerGray} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.viewToggle, { backgroundColor: COLORS.bunkerBg }]}
+                    onPress={handleBackupAction}
+                  >
+                    <MaterialIcons name="backup" size={20} color={COLORS.bunkerGray} />
                   </TouchableOpacity>
 
                   <Modal visible={showThemeMenu} transparent animationType="fade" onRequestClose={() => setShowThemeMenu(false)}>
@@ -1216,6 +1293,15 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
               <>
                 <View style={styles.viewerHeader}>
                   <View style={styles.viewerTitleRow}>
+                    {(selectedNote as any).color && (selectedNote as any).color !== 'default' && (
+                      <View style={{
+                        width: 12, height: 12, borderRadius: 6,
+                        backgroundColor: isDark
+                          ? NOTE_COLORS[(selectedNote as any).color]?.dark
+                          : NOTE_COLORS[(selectedNote as any).color]?.light,
+                        marginRight: 4,
+                      }} />
+                    )}
                     <Text style={[{fontFamily: COLORS.fontFamily}, styles.viewerTitle, { color: COLORS.bunkerDark }]}>{selectedNote.title}</Text>
                     {selectedNote.isSecure && (
                       <View style={[styles.viewerSecureBadge, { backgroundColor: COLORS.bunkerBg }]}>
@@ -1299,7 +1385,7 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       </Modal>
 
       {/* PIN MODAL ESTILO BANCO GALICIA */}
-      <Modal visible={pinModalVisible} animationType="fade" transparent onRequestClose={() => setPinModalVisible(false)}>
+      <Modal visible={pinModalVisible} animationType="slide" transparent onRequestClose={() => setPinModalVisible(false)}>
         <Pressable style={styles.pinModalOverlay} onPress={() => setPinModalVisible(false)}>
           <Pressable style={[styles.pinModalContent, { backgroundColor: COLORS.surface }]} onPress={() => {}}>
             <Text style={[styles.pinModalTitle, { color: COLORS.bunkerDark }]}>
@@ -1472,7 +1558,7 @@ const styles = StyleSheet.create({
   viewerText: { fontSize: 18, lineHeight: 28 },
   viewerFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16, borderTopWidth: 1, paddingBottom: 20 },
   viewerDate: { fontSize: 14 },
-  pinModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  pinModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-start', alignItems: 'center', paddingHorizontal: 20, paddingTop: 80 },
   pinModalContent: { width: '100%', maxWidth: 340, borderRadius: 20, padding: 24, alignItems: 'center' },
   pinModalTitle: { fontSize: 22, fontWeight: '700', marginBottom: 8 },
   pinModalSubtitle: { fontSize: 14, marginBottom: 24 },

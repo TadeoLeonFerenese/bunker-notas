@@ -103,3 +103,8 @@ jest.mock('expo-image-picker', () => ({
     All: 'All',
   },
 }));
+
+// Mock @nozbe/watermelondb/react
+jest.mock('@nozbe/watermelondb/react', () => ({
+  withObservables: () => (Component) => Component,
+}));
