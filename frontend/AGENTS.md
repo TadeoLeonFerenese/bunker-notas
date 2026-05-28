@@ -19,3 +19,4 @@ Load this agent when working with: React Native, Expo Go, TypeScript, Watermelon
 | `expo-master`  | Modifying navigation, native modules or app config. | `skills/expo.md`       |
 | `tailwind-pro` | Styling components or config with NativeWind.       | `skills/tailwind.md`   |
 | `jest-expert`  | Writing or running tests in **tests** folder.       | `skills/jest.md`       |
+| `expo-go-expert` | Handling Expo Go and native module compatibility. | `skills/expo-go-expert.md` |
