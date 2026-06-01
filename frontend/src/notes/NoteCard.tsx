@@ -108,14 +108,16 @@ const NoteCardBase = ({
           cardBgStyle,
           { borderColor: COLORS.border },
           note.isSecure && {
-            borderColor: COLORS.bunkerAccent,
-            borderWidth: 1.5,
-            shadowColor: COLORS.bunkerAccent,
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: isDark ? 0.25 : 0.15,
-            shadowRadius: 6,
-            elevation: 3,
-          }
+          borderLeftWidth: 4,
+          borderLeftColor: noteColorKey !== 'default' ? (isDark ? NOTE_COLORS[noteColorKey].light : NOTE_COLORS[noteColorKey].dark) : COLORS.bunkerAccent,
+          borderColor: noteColorKey !== 'default' ? (isDark ? NOTE_COLORS[noteColorKey].light : NOTE_COLORS[noteColorKey].dark) : COLORS.bunkerAccent,
+          borderWidth: 1.5,
+          shadowColor: noteColorKey !== 'default' ? (isDark ? NOTE_COLORS[noteColorKey].light : NOTE_COLORS[noteColorKey].dark) : COLORS.bunkerAccent,
+          shadowOffset: { width: -2, height: 4 },
+          shadowOpacity: 1,
+          shadowRadius: 10,
+          elevation: 6,
+        }
         ]}
         activeOpacity={0.7}
       >
@@ -177,13 +179,15 @@ const NoteCardBase = ({
         cardBgStyle,
         { borderColor: COLORS.border },
         note.isSecure && {
-          borderColor: COLORS.bunkerAccent,
+          borderLeftWidth: 4,
+          borderLeftColor: noteColorKey !== 'default' ? (isDark ? NOTE_COLORS[noteColorKey].light : NOTE_COLORS[noteColorKey].dark) : COLORS.bunkerAccent,
+          borderColor: noteColorKey !== 'default' ? (isDark ? NOTE_COLORS[noteColorKey].light : NOTE_COLORS[noteColorKey].dark) : COLORS.bunkerAccent,
           borderWidth: 1.5,
-          shadowColor: COLORS.bunkerAccent,
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: isDark ? 0.25 : 0.15,
-          shadowRadius: 6,
-          elevation: 3,
+          shadowColor: noteColorKey !== 'default' ? (isDark ? NOTE_COLORS[noteColorKey].light : NOTE_COLORS[noteColorKey].dark) : COLORS.bunkerAccent,
+          shadowOffset: { width: -2, height: 4 },
+          shadowOpacity: 1,
+          shadowRadius: 10,
+          elevation: 6,
         }
       ]}
       activeOpacity={0.7}

@@ -61,6 +61,8 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [isBiometricAvailable, setIsBiometricAvailable] = useState(false);
   const [showThemeMenu, setShowThemeMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [backupModalVisible, setBackupModalVisible] = useState(false);
+  const [authAction, setAuthAction] = useState<'open' | 'delete'>('open');
 
   useEffect(() => {
     if (customBackground) {
@@ -310,9 +312,15 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   // Auth Handling
   const handleLoginSuccess = () => setIsAuthenticated(true);
 
-  const openNoteAfterAuth = (note: NoteModel) => {
+  const executeAuthAction = (note: NoteModel) => {
     setPinModalVisible(false);
     setPendingNote(null);
+
+    if (authAction === 'delete') {
+      deleteNote(note.id);
+      return;
+    }
+
     if (!note.isSecure) {
       setSelectedNote(note);
       return;
@@ -336,6 +344,7 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     if (!note) return;
 
     if (note.isSecure) {
+      setAuthAction('open');
       showPinInput(note);
     } else {
       setSelectedNote(note);
@@ -356,7 +365,7 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       });
       
       if (result.success) {
-        openNoteAfterAuth(note);
+        executeAuthAction(note);
       }
     } catch (error) {
       console.log(error);
@@ -409,14 +418,14 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
         Alert.alert('PIN Registrado', 'Has definido tu PIN de seguridad para las notas.');
         
         if (pendingNote) {
-          openNoteAfterAuth(pendingNote);
+          executeAuthAction(pendingNote);
         }
       } else {
         // Validar PIN real contra llavero seguro
         const isValid = await verifyPin(pinInput, storedHash);
         if (isValid) {
           if (pendingNote) {
-            openNoteAfterAuth(pendingNote);
+            executeAuthAction(pendingNote);
           }
         } else {
           Alert.alert('PIN Incorrecto', 'El PIN ingresado no coincide.');
@@ -432,7 +441,15 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const handleNoteLongPress = (noteId: string) => {
     Alert.alert('Opciones', '¿Qué quieres hacer?', [
       { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: () => deleteNote(noteId) },
+      { text: 'Eliminar', style: 'destructive', onPress: () => {
+          const note = notes.find(n => n.id === noteId);
+          if (note?.isSecure) {
+             setAuthAction('delete');
+             showPinInput(note);
+          } else {
+             deleteNote(noteId);
+          }
+      }},
     ]);
   };
 
@@ -517,6 +534,7 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
   const handleExport = async () => {
     try {
+      setBackupModalVisible(false);
       const path = await backupService.exportNotes();
       await backupService.shareBackup(path);
     } catch (e: any) {
@@ -526,6 +544,7 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
   const handleImport = async () => {
     try {
+      setBackupModalVisible(false);
       const count = await backupService.pickAndImport();
       if (count > 0) {
         Alert.alert('Importado', `Se importaron ${count} nota${count !== 1 ? 's' : ''} correctamente`);
@@ -536,11 +555,7 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   };
 
   const handleBackupAction = () => {
-    Alert.alert('Respaldo', '¿Qué querés hacer?', [
-      { text: '📤 Exportar notas', onPress: handleExport },
-      { text: '📥 Importar notas', onPress: handleImport },
-      { text: 'Cancelar', style: 'cancel' },
-    ]);
+    setBackupModalVisible(true);
   };
 
   // Filtration & Sorting
@@ -1450,16 +1465,95 @@ const AppContent = ({ notes }: { notes: NoteModel[] }) => {
               >
                 <Text style={[styles.pinModalCancelText, { color: COLORS.bunkerGray }]}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.pinModalVerify, { backgroundColor: COLORS.bunkerAccent }]}
                 onPress={validatePinAndOpen}
               >
-                <Text style={styles.pinModalVerifyText}>Desbloquear</Text>
+                <Text style={styles.pinModalVerifyText}>Confirmar</Text>
               </TouchableOpacity>
             </View>
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* BACKUP MODAL */}
+      <Modal visible={backupModalVisible} animationType="fade" transparent onRequestClose={() => setBackupModalVisible(false)}>
+        <Pressable style={styles.pinModalOverlay} onPress={() => setBackupModalVisible(false)}>
+          <Pressable style={[styles.pinModalContent, { backgroundColor: COLORS.surface }]} onPress={() => {}}>
+            <Text style={[styles.pinModalTitle, { color: COLORS.bunkerDark, marginBottom: 8 }]}>
+              Respaldo de Notas
+            </Text>
+            <Text style={[styles.pinModalSubtitle, { color: COLORS.bunkerGray, marginBottom: 24 }]}>
+              Elegí qué querés hacer con tus notas seguras.
+            </Text>
+
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: 14,
+                paddingHorizontal: 20,
+                borderRadius: 12,
+                backgroundColor: COLORS.bunkerBg,
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                marginBottom: 12,
+                gap: 12
+              }}
+              onPress={handleExport}
+            >
+              <MaterialIcons name="file-upload" size={24} color={COLORS.bunkerAccent} />
+              <View>
+                <Text style={{ color: COLORS.bunkerDark, fontSize: 16, fontWeight: '700', fontFamily: COLORS.fontFamily }}>Exportar notas</Text>
+                <Text style={{ color: COLORS.bunkerGray, fontSize: 13, fontFamily: COLORS.fontFamily }}>Crear un archivo encriptado .bunker</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: 14,
+                paddingHorizontal: 20,
+                borderRadius: 12,
+                backgroundColor: COLORS.bunkerBg,
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                marginBottom: 24,
+                gap: 12
+              }}
+              onPress={handleImport}
+            >
+              <MaterialIcons name="file-download" size={24} color={COLORS.bunkerAccent} />
+              <View>
+                <Text style={{ color: COLORS.bunkerDark, fontSize: 16, fontWeight: '700', fontFamily: COLORS.fontFamily }}>Importar notas</Text>
+                <Text style={{ color: COLORS.bunkerGray, fontSize: 13, fontFamily: COLORS.fontFamily }}>Restaurar desde un archivo .bunker</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                paddingVertical: 14,
+                paddingHorizontal: 20,
+                borderRadius: 12,
+                backgroundColor: COLORS.bunkerBg,
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                width: '100%',
+                gap: 8
+              }}
+              onPress={() => setBackupModalVisible(false)}
+            >
+              <MaterialIcons name="close" size={20} color={COLORS.bunkerGray} />
+              <Text style={{ color: COLORS.bunkerDark, fontSize: 16, fontWeight: '600', fontFamily: COLORS.fontFamily }}>Cerrar</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
     </>
   );
 
