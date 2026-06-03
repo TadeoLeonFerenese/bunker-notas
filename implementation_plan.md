@@ -1,70 +1,79 @@
-# Plan de Implementación: Autenticación Híbrida y Fallback de PIN
+# Plan de Implementación: Lanzamiento y Interoperabilidad con IA (MVP Fase 2)
 
-Este plan de implementación detalla la evolución del control de acceso de **Bunker Notas**.  
-Nuestra arquitectura es **Zero-Knowledge, Local-First, y TDD obligatorio**.
-
----
-
-## 🏛️ Decisiones de Arquitectura
-
-1. **Uso de Bloqueo Local del Celular:**
-   - Si el dispositivo tiene una seguridad configurada (PIN, Patrón, Contraseña, o Biometría) en el sistema operativo, **delegamos el acceso por completo al OS**.
-   - No forzamos un PIN in-app si el usuario ya asegura su celular con un método nativo.
-
-2. **Detección Dinámica (`expo-local-authentication`):**
-   - Usaremos `LocalAuthentication.getEnrolledLevelAsync()` para detectar el nivel de seguridad del dispositivo.
-   - Si el nivel es mayor a `NONE` (`SECRET`, `BIOMETRIC_WEAK` o `BIOMETRIC_STRONG`), ejecutamos la autenticación nativa por medio de `LocalAuthentication.authenticateAsync({ disableDeviceFallback: false })`.
-   - Si el nivel es `NONE` (sin bloqueo local en el celular), obligamos a registrar/validar un PIN exclusivo para Bunker Notas.
-
-3. **PIN in-app Zero-Knowledge (Caso sin bloqueo de celular):**
-   - Si el celular no tiene bloqueo, el usuario definirá un PIN de 4-6 dígitos en el primer arranque.
-   - Este PIN se hashea mediante `hashPin()` y se almacena de manera segura mediante `storeSecureCredential('app_pin_hash', hash)`.
-   - En inicios subsiguientes, se solicita el PIN in-app y se valida con `verifyPin()`.
+Este plan de implementación detalla la hoja de ruta técnica para la **Fase 2 de Bunker Notes**, priorizando una arquitectura **100% Offline-First (Local-First)** y preparando la aplicación para su distribución en el **Google Play Store**, además de integrar la funcionalidad de creación de notas externas mediante IAs (Gemini, ChatGPT) a través de **Deep Linking** y **Share Intents**.
 
 ---
 
-## 🛠️ Cambios Propuestos
+## 🏛️ Decisiones de Arquitectura y Negocio (Aprobadas por el Usuario)
 
-### Componente 1 — Mock de Jest
+1. **Prioridad Offline-First (Local-First):**
+   - Para no complicar el desarrollo inicial y preservar la filosofía de seguridad **Zero-Knowledge**, la aplicación no dependerá de un servidor centralizado de sincronización. Las notas se guardan de forma 100% local en SQLite (WatermelonDB).
+   - Los respaldos seguirán realizándose localmente como archivos `.bunker` encriptados que el usuario puede subir a su propia nube (Google Drive, Dropbox, etc.).
+   
+2. **Canal de Distribución (Google Play Store):**
+   - El objetivo es compilar la app y subirla a la Play Store en formato App Bundle (`.aab`) mediante EAS Build de Expo.
+   - *Nota de Estado:* El usuario creará la cuenta de desarrollador de Google Play Console ($25) más adelante, por lo que las tareas se dividen en "Preparación de Build" y "Lanzamiento".
 
-#### [MODIFY] [jest.setup.js](file:///c:/Users/Tadeo%20Leon%20Ferense/Desktop/Repositorios/bunker-notas/frontend/jest.setup.js)
-- Agregar mock de `SecurityLevel` enum y el método `getEnrolledLevelAsync` para evitar fallos en el entorno de tests.
-
----
-
-### Componente 2 — Pantalla de Acceso
-
-#### [MODIFY] [LoginScreen.tsx](file:///c:/Users/Tadeo%20Leon%20Ferense/Desktop/Repositorios/bunker-notas/frontend/src/screens/LoginScreen.tsx)
-- **Mount check:** Llamar a `LocalAuthentication.getEnrolledLevelAsync()` para determinar la presencia de seguridad nativa.
-- **Camino A (Con Seguridad de Celular):**
-  - Ocultar las PIN Boxes y el botón secundario biométrico.
-  - Mostrar un layout simplificado con el botón premium de desbloqueo nativo del celular.
-  - Al presionar o montar, disparar `authenticateAsync` con `disableDeviceFallback: false`.
-- **Camino B (Sin Seguridad de Celular):**
-  - Mostrar el contenedor visual premium de PIN Boxes individuales.
-  - Si no existe un PIN guardado en el llavero local (`getSecureCredential('app_pin_hash')`), entrar en modo **"Registro de PIN"**.
-  - Si ya existe un PIN guardado, entrar en modo **"Login por PIN"** y verificar el hash con `verifyPin` al ingresar los dígitos.
+3. **Integración con Inteligencias Artificiales (Interoperabilidad Local):**
+   - Dado el enfoque offline, la comunicación con IAs externas ocurrirá en el dispositivo por dos vías:
+     - **Vía 1: Deep Linking (Esquema de URL):** La aplicación registrará la URI `bunkernotas://create?title=X&content=Y`. Las IAs (Gemini, ChatGPT) podrán generar este enlace en el chat; al tocarlo, Bunker Notes se abrirá y precargará los datos.
+     - **Vía 2: Share Intent (Menú Compartir):** Integrar la app en el menú contextual "Compartir" de Android. El usuario podrá seleccionar texto en el chat de la IA, presionar "Compartir" y elegir "Bunker Notes" para crear la nota al instante.
+   - **Ciclo de Seguridad:** Cualquier nota recibida por canal externo se abrirá en el Modal de Edición para que el usuario la revise, elija si desea marcarla como "Segura" (encriptada) y presione "Guardar" de forma explícita.
 
 ---
 
-### Componente 3 — Suite de Tests
+## 🛠️ Desglose de Tareas e Implementación
 
-#### [MODIFY] [LoginScreen.test.tsx](file:///c:/Users/Tadeo%20Leon%20Ferense/Desktop/Repositorios/bunker-notas/frontend/__tests__/screens/LoginScreen.test.tsx)
-- Escribir casos de prueba dedicados:
-  1. **Camino A:** Si `getEnrolledLevelAsync` es distinto de `NONE`, debe llamar a `authenticateAsync` nativo y no mostrar las PIN Boxes in-app por defecto.
-  2. **Camino B (Registro):** Si `getEnrolledLevelAsync` es `NONE` y no hay hash guardado, debe mostrar el flujo para definir un PIN y registrarlo.
-  3. **Camino B (Login):** Si `getEnrolledLevelAsync` es `NONE` y hay un hash guardado, debe permitir el login tras ingresar el PIN in-app correcto y fallar si es incorrecto.
+### Fase 1: Interoperabilidad con IA (Links e Intents)
+
+#### [MODIFY] [app.json](file:///c:/Users/Tadeo%20Leon%20Ferense/Desktop/Repositorios/bunker-notas/frontend/app.json)
+- Configurar el esquema de URL agregando `"scheme": "bunkernotas"` en la raíz de la configuración de Expo.
+- Configurar los `intentFilters` en la sección de Android para registrar el filtro de compartir texto (`SEND` action con mimeType `text/plain`).
+
+#### [MODIFY] [App.tsx](file:///c:/Users/Tadeo%20Leon%20Ferense/Desktop/Repositorios/bunker-notas/frontend/App.tsx)
+- Utilizar `expo-linking` para capturar la URL de inicio y suscribirse a eventos de URL en segundo plano (`Linking.useURL()`).
+- Implementar un parser para extraer los parámetros `title` y `content` cuando se recibe la URI `bunkernotas://create`.
+- Modificar el flujo para que, al detectar parámetros entrantes válidos, se levante automáticamente el Modal de Creación cargando dicho texto.
+
+#### [NEW] [useShareIntent.ts](file:///c:/Users/Tadeo%20Leon%20Ferense/Desktop/Repositorios/bunker-notas/frontend/src/hooks/useShareIntent.ts) (o plugin nativo)
+- Implementar la escucha de "Compartir Texto" (Share Intent) utilizando una librería nativa como `expo-share-intent` para capturar texto enviado desde otras apps cuando la aplicación esté en segundo o primer plano.
+
+---
+
+### Fase 2: Preparación para Google Play Store (EAS Build)
+
+#### [MODIFY] [app.json](file:///c:/Users/Tadeo%20Leon%20Ferense/Desktop/Repositorios/bunker-notas/frontend/app.json)
+- Configurar el nombre oficial de la aplicación a `"name": "Bunker Notes"` (ya realizado).
+- Definir la configuración de compilación de Android:
+  ```json
+  "android": {
+    "package": "com.tadeoleon.bunkernotas",
+    "versionCode": 1,
+    "adaptiveIcon": {
+      "foregroundImage": "./assets/adaptive-icon.png",
+      "backgroundColor": "#000000"
+    }
+  }
+  ```
+- *Nota:* Asegurar que los assets de iconos estén actualizados con el logo oficial sobre fondo negro en resolución `1024x1024` (ya realizado).
+
+#### [MODIFY] [eas.json](file:///c:/Users/Tadeo%20Leon%20Ferense/Desktop/Repositorios/bunker-notas/frontend/eas.json)
+- Validar el perfil de producción (`production`) para que el `buildType` compile un `.aab` (App Bundle) en lugar de un `.apk`, ya que Google Play Store solo acepta `.aab` para nuevas aplicaciones.
 
 ---
 
 ## 🧪 Plan de Verificación
 
-### Tests Automatizados
-```bash
-npm run test
-```
-Todos los 65 tests existentes más los nuevos tests agregados para validar los dos caminos deben pasar con éxito.
+### Pruebas de Deep Linking (Desarrollo)
+- Ejecutar en la terminal de comandos con la app corriendo en modo de desarrollo:
+  ```bash
+  npx uri-scheme open bunkernotas://create?title=Prueba%20IA&content=Contenido%20de%20ejemplo --android
+  ```
+- Validar que Bunker Notes se abra, requiera PIN/huella si está configurada la seguridad global, y posteriormente abra el modal de creación con los campos "Prueba IA" y "Contenido de ejemplo" precargados.
 
-### Verificación Manual
-1. **Emulador sin bloqueo:** Configurar el emulador sin ningún tipo de PIN de bloqueo de pantalla. Abrir la app, definir un PIN de 6 dígitos, cerrar y volver a abrir para loguearse con ese PIN.
-2. **Emulador con bloqueo:** Configurar un PIN o huella en el sistema operativo del emulador. Al abrir la app, debe salir el prompt nativo y loguearse directo tras completarlo.
+### Pruebas de Compilación
+- Generar la compilación oficial de producción en la nube de EAS:
+  ```bash
+  eas build --platform android --profile production
+  ```
+- Confirmar que EAS compila exitosamente y genera el archivo `.aab` firmado para subir a Play Console.

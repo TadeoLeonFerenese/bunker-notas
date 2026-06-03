@@ -15,6 +15,7 @@ Load the relevant skill/agent BEFORE writing any code. Follow the progressive di
 | `global-strategist` | Overall architecture, project phases, or root config. | `./AGENT.md`        |
 | `frontend-dev`      | UI/UX, Expo, WatermelonDB, or Mobile Logic.           | `frontend/AGENT.md` |
 | `backend-dev`       | Vercel, Cloud Functions, or Remote Security.          | `backend/AGENT.md`  |
-| `core-skills`       | Best practices for TS, Expo, Tailwind, and Testing.   | `frontend/skills/`  |     |
+| `core-skills`       | Best practices for TS, Expo, Tailwind, and Testing.   | `frontend/skills/`  |
+| `expo-go-expert`   | Handling Expo Go and native module compatibility.     | `frontend/skills/expo-go-expert.md` |
 
 **Note:** The human (tanke) is the Lead Orchestrator. AI agents must wait for phase approval.

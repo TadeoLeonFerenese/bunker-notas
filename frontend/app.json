@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "Bunker Notes",
+    "slug": "frontend",
+    "version": "1.0.0",
+    "scheme": "bunkernotas",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0D2033"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0D2033"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.tadeoleon.bunkernotas"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "6bd9dbe9-a128-4b8d-9eb5-cb6de2384a44"
+      }
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-share-intent",
+        {
+          "android": {
+            "enabled": true,
+            "singleShareMimeTypes": ["text/plain"]
+          }
+        }
+      ]
+    ]
+  }
+}
