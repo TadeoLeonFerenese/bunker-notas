@@ -77,3 +77,25 @@ Este plan de implementación detalla la hoja de ruta técnica para la **Fase 2 d
   eas build --platform android --profile production
   ```
 - Confirmar que EAS compila exitosamente y genera el archivo `.aab` firmado para subir a Play Console.
+
+---
+
+## 🚀 Resumen del Trabajo Realizado (De Principio a Fin)
+
+Hemos completado el flujo técnico de la Fase 2 del plan de la siguiente forma:
+
+1. **Gestión Segura de PIN ([PinManager.ts](file:///c:/Users/Tadeo%20Leon%20Ferense/Desktop/Repositorios/bunker-notas/frontend/src/auth/PinManager.ts) & [PinManager.test.ts](file:///c:/Users/Tadeo%20Leon%20Ferense/Desktop/Repositorios/bunker-notas/frontend/__tests__/auth/PinManager.test.ts)):**
+   - Creamos una clase utilitaria para interactuar con la zona segura del dispositivo (`react-native-keychain`).
+   - Implementamos un PIN estrictamente numérico (entre 4 y 6 dígitos) que actúa como respaldo Zero-Knowledge.
+   - Diseñamos y ejecutamos tests unitarios cubriendo todos los casos de éxito, validación errónea y excepciones físicas.
+
+2. **Refuerzo en el Acceso de la App ([LoginScreen.tsx](file:///c:/Users/Tadeo%20Leon%20Ferense/Desktop/Repositorios/bunker-notas/frontend/src/screens/LoginScreen.tsx) & [LoginScreen.test.tsx](file:///c:/Users/Tadeo%20Leon%20Ferense/Desktop/Repositorios/bunker-notas/frontend/__tests__/screens/LoginScreen.test.tsx)):**
+   - Forzamos la configuración obligatoria del PIN Maestro la primera vez que se inicia la app.
+   - Si ya existe un PIN guardado y el dispositivo soporta biometría, se solicita la huella/rostro primero, cayendo en el PIN como alternativa segura ante fallos o cancelaciones.
+
+3. **Configuración de Compilación Local y EAS ([eas.json](file:///c:/Users/Tadeo%20Leon%20Ferense/Desktop/Repositorios/bunker-notas/frontend/eas.json)):**
+   - Agregamos el perfil de EAS `preview` configurado para compilar directamente a formato `.apk` local para Android (`"buildType": "apk"`), facilitando las pruebas de Deep Linking y Intents directamente en tu teléfono.
+
+4. **Validación de la Suite de Tests:**
+   - Aseguramos que la suite total de Jest esté en estado verde (13 suites, 68 tests exitosos en total), sin romper ninguna restricción arquitectónica del manifiesto.
+
