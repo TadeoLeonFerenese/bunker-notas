@@ -71,19 +71,18 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         const enrolledLevel = await LocalAuthentication.getEnrolledLevelAsync();
         const hasBiometrics = enrolledLevel !== LocalAuthentication.SecurityLevel.NONE;
 
-        if (hasBiometrics) {
-          // Biometría disponible → siempre mostrar huella primero, sin importar si hay PIN
+        const storedHash = await getSecureCredential('app_pin_hash');
+
+        if (!storedHash) {
+          // Sin PIN registrado → obligar a crear PIN Maestro como respaldo
+          setMode('setup');
+        } else if (hasBiometrics) {
+          // Biometría disponible y PIN registrado → siempre mostrar huella primero
           setMode('biometric');
           biometricTimerRef.current = setTimeout(() => triggerBiometricAuth(), 400);
         } else {
-          // Sin biometría → verificar si tiene PIN registrado
-          const storedHash = await getSecureCredential('app_pin_hash');
-          if (storedHash) {
-            setMode('pin');
-          } else {
-            // Sin PIN ni biometría → obligar a crear PIN Maestro
-            setMode('setup');
-          }
+          // Sin biometría pero con PIN registrado → ir a modo PIN
+          setMode('pin');
         }
       } catch {
         setMode('setup');

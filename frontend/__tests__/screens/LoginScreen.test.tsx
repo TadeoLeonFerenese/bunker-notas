@@ -86,18 +86,18 @@ describe('LoginScreen - Autenticación Híbrida y Fallback de PIN', () => {
 
   // ─── MODO BIOMÉTRICO ───────────────────────────────────────────
   describe('Modo Biométrico — Dispositivo con biometría disponible', () => {
-    it('Debe intentar autenticación biométrica automáticamente, incluso sin PIN registrado', async () => {
+    it('Debe requerir configuración de PIN en el primer uso, incluso si la biometría está disponible', async () => {
       LocalAuthentication.getEnrolledLevelAsync.mockResolvedValue(3);
-      LocalAuthentication.authenticateAsync.mockResolvedValue({ success: true });
-      // Sin PIN en el llavero — la biometría igual debe dispararse
+      
+      // Sin PIN en el llavero — NO debe disparar biometría, debe exigir setup de PIN
       getSecureCredential.mockResolvedValue(null);
 
       const onLoginSuccessMock = jest.fn();
-      render(<LoginScreen onLoginSuccess={onLoginSuccessMock} />);
+      const { getByText } = render(<LoginScreen onLoginSuccess={onLoginSuccessMock} />);
 
       await waitFor(() => {
-        expect(LocalAuthentication.authenticateAsync).toHaveBeenCalled();
-        expect(onLoginSuccessMock).toHaveBeenCalled();
+        expect(LocalAuthentication.authenticateAsync).not.toHaveBeenCalled();
+        expect(getByText('Definí tu PIN del Bunker')).toBeTruthy();
       });
     });
 
