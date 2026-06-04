@@ -36,6 +36,12 @@
     "plugins": [
       "expo-font",
       [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Permitir a Bunker Notes usar Face ID para proteger tus notas."
+        }
+      ],
+      [
         "expo-share-intent",
         {
           "android": {

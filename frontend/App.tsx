@@ -1242,6 +1242,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                     placeholderColor: COLORS.textMuted,
                   }}
                   style={{ flex: 1 }}
+                  nestedScrollEnabled={true}
                 />
               </View>
 

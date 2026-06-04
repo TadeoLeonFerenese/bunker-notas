@@ -93,9 +93,16 @@ Hemos completado el flujo técnico de la Fase 2 del plan de la siguiente forma:
    - Forzamos la configuración obligatoria del PIN Maestro la primera vez que se inicia la app.
    - Si ya existe un PIN guardado y el dispositivo soporta biometría, se solicita la huella/rostro primero, cayendo en el PIN como alternativa segura ante fallos o cancelaciones.
 
-3. **Configuración de Compilación Local y EAS ([eas.json](file:///c:/Users/Tadeo%20Leon%20Ferense/Desktop/Repositorios/bunker-notas/frontend/eas.json)):**
+3. **Corrección Crítica de Compilación (Gradle, Nueva Arquitectura y Versiones):**
+   - **Activación de Nueva Arquitectura:** Cambiamos `"newArchEnabled": true` en `app.json`.
+   - **Upgrade de Reanimated a v4:** Instalamos `react-native-reanimated` en la versión `~4.1.1` (la recomendada por Expo SDK 54). Esto resolvió el error de compilación Java (`compileReleaseJavaWithJavac`) que ocurría porque Reanimated v3 es incompatible con las APIs internas de React Native 0.81.5.
+   - **Compatibilidad con WatermelonDB:** Al tener configurado `jsi: false` en `src/database/index.ts`, WatermelonDB interactúa a través de su bridge de compatibilidad tradicional y compila exitosamente bajo la Nueva Arquitectura.
+   - **Compatibilidad de Share Intent:** Corregimos la versión de `expo-share-intent` a la rama `^5.1.1` para alinearla al Expo SDK 54 del proyecto (evitando conflictos con SDK 55).
+   - **Permisos de Face ID:** Agregamos el plugin `expo-local-authentication` a `app.json` con la descripción del permiso para iOS.
+
+4. **Configuración de Compilación Local y EAS ([eas.json](file:///c:/Users/Tadeo%20Leon%20Ferense/Desktop/Repositorios/bunker-notas/frontend/eas.json)):**
    - Agregamos el perfil de EAS `preview` configurado para compilar directamente a formato `.apk` local para Android (`"buildType": "apk"`), facilitando las pruebas de Deep Linking y Intents directamente en tu teléfono.
 
-4. **Validación de la Suite de Tests:**
+5. **Validación de la Suite de Tests:**
    - Aseguramos que la suite total de Jest esté en estado verde (13 suites, 68 tests exitosos en total), sin romper ninguna restricción arquitectónica del manifiesto.
 
