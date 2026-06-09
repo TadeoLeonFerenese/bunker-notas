@@ -103,8 +103,9 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
   // Manejo de Share Intent
   useEffect(() => {
-    if (hasShareIntent && shareIntent?.value) {
-      setPendingExternalNote({ title: 'Nota Compartida', content: shareIntent.value });
+    const sharedText = shareIntent?.text || shareIntent?.webUrl;
+    if (hasShareIntent && sharedText) {
+      setPendingExternalNote({ title: 'Nota Compartida', content: sharedText });
       resetShareIntent();
     }
   }, [hasShareIntent, shareIntent, resetShareIntent]);
@@ -1229,22 +1230,21 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                 </View>
               )}
 
-              <View style={{ flex: 1, backgroundColor: COLORS.bunkerBg, borderRadius: 12, overflow: 'hidden', padding: 8, marginBottom: 8 }}>
-                <RichEditor
-                  ref={richText}
-                  onChange={setNewNoteContent}
-                  onFocus={handleInputFocus}
-                  placeholder="Escribe el contenido de tu nota..."
-                  initialContentHTML={newNoteContent}
-                  editorStyle={{
-                    backgroundColor: COLORS.bunkerBg,
-                    color: COLORS.bunkerDark,
-                    placeholderColor: COLORS.textMuted,
-                  }}
-                  style={{ flex: 1 }}
-                  nestedScrollEnabled={true}
-                />
-              </View>
+              <RichEditor
+                ref={richText}
+                onChange={setNewNoteContent}
+                onFocus={handleInputFocus}
+                placeholder="Escribe el contenido de tu nota..."
+                initialContentHTML={newNoteContent}
+                editorStyle={{
+                  backgroundColor: COLORS.bunkerBg,
+                  color: COLORS.bunkerDark,
+                  placeholderColor: COLORS.textMuted,
+                  contentCSSText: 'font-size: 16px; min-height: 250px; height: 100%;',
+                }}
+                useContainer={true}
+                style={{ flex: 1, backgroundColor: COLORS.bunkerBg, borderRadius: 12, marginBottom: 8 }}
+              />
 
               <RichToolbar
                 editor={richText}
@@ -1263,68 +1263,70 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
               />
 
               {/* Controles de personalización (Color y Doodle) */}
-              <View style={{
-                flexDirection: 'column',
-                gap: 12,
-                marginBottom: 16,
-              }}>
-                {/* Selector de Colores */}
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center', gap: 8 }}>
-                  <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, marginRight: 4 }}>Color:</Text>
-                  {Object.keys(NOTE_COLORS).map((colorKey) => {
-                    const c = NOTE_COLORS[colorKey];
-                    const isSelected = newNoteColor === colorKey;
-                    const circleColor = colorKey === 'default' ? (isDark ? '#2D3748' : '#EDF2F7') : (isDark ? c.dark : c.light);
-                    return (
-                      <TouchableOpacity
-                        key={colorKey}
-                        onPress={() => setNewNoteColor(colorKey)}
-                        style={{
-                          width: 24,
-                          height: 24,
-                          borderRadius: 12,
-                          backgroundColor: circleColor,
-                          borderWidth: isSelected ? 2 : 1,
-                          borderColor: isSelected ? COLORS.bunkerAccent : (isDark ? '#4A5568' : '#CBD5E0'),
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                        }}
-                      >
-                        {isSelected && (
-                          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.bunkerAccent }} />
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
+              {!isKeyboardVisible && (
+                <View style={{
+                  flexDirection: 'column',
+                  gap: 12,
+                  marginBottom: 16,
+                }}>
+                  {/* Selector de Colores */}
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center', gap: 8 }}>
+                    <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, marginRight: 4 }}>Color:</Text>
+                    {Object.keys(NOTE_COLORS).map((colorKey) => {
+                      const c = NOTE_COLORS[colorKey];
+                      const isSelected = newNoteColor === colorKey;
+                      const circleColor = colorKey === 'default' ? (isDark ? '#2D3748' : '#EDF2F7') : (isDark ? c.dark : c.light);
+                      return (
+                        <TouchableOpacity
+                          key={colorKey}
+                          onPress={() => setNewNoteColor(colorKey)}
+                          style={{
+                            width: 24,
+                            height: 24,
+                            borderRadius: 12,
+                            backgroundColor: circleColor,
+                            borderWidth: isSelected ? 2 : 1,
+                            borderColor: isSelected ? COLORS.bunkerAccent : (isDark ? '#4A5568' : '#CBD5E0'),
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                          }}
+                        >
+                          {isSelected && (
+                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.bunkerAccent }} />
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
 
-                {/* Selector de Doodles/Emojis */}
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center', gap: 8 }}>
-                  <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, marginRight: 4 }}>Doodle:</Text>
-                  {Object.keys(NOTE_ILLUSTRATIONS).map((illusKey) => {
-                    const emoji = NOTE_ILLUSTRATIONS[illusKey];
-                    const isSelected = newNoteIllustration === illusKey;
-                    return (
-                      <TouchableOpacity
-                        key={illusKey}
-                        onPress={() => setNewNoteIllustration(illusKey)}
-                        style={{
-                          paddingHorizontal: 8,
-                          paddingVertical: 3,
-                          borderRadius: 12,
-                          backgroundColor: isSelected ? COLORS.bunkerAccent : (isDark ? '#2D3748' : '#EDF2F7'),
-                          borderWidth: 1,
-                          borderColor: isSelected ? 'transparent' : (isDark ? '#4A5568' : '#CBD5E0'),
-                        }}
-                      >
-                        <Text style={{ fontSize: 11, color: isSelected ? '#fff' : COLORS.text }}>
-                          {illusKey === 'none' ? 'Ninguno' : emoji}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              </View>
+                  {/* Selector de Doodles/Emojis */}
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center', gap: 8 }}>
+                    <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, marginRight: 4 }}>Doodle:</Text>
+                    {Object.keys(NOTE_ILLUSTRATIONS).map((illusKey) => {
+                      const emoji = NOTE_ILLUSTRATIONS[illusKey];
+                      const isSelected = newNoteIllustration === illusKey;
+                      return (
+                        <TouchableOpacity
+                          key={illusKey}
+                          onPress={() => setNewNoteIllustration(illusKey)}
+                          style={{
+                            paddingHorizontal: 8,
+                            paddingVertical: 3,
+                            borderRadius: 12,
+                            backgroundColor: isSelected ? COLORS.bunkerAccent : (isDark ? '#2D3748' : '#EDF2F7'),
+                            borderWidth: 1,
+                            borderColor: isSelected ? 'transparent' : (isDark ? '#4A5568' : '#CBD5E0'),
+                          }}
+                        >
+                          <Text style={{ fontSize: 11, color: isSelected ? '#fff' : COLORS.text }}>
+                            {illusKey === 'none' ? 'Ninguno' : emoji}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              )}
 
               {/* AUDIO PANEL MOVED TO TITLE ROW */}
 
