@@ -13,10 +13,12 @@ Load this agent when working with: React Native, Expo Go, TypeScript, Watermelon
 
 |## Skill Registry (Local)
 
-| Skill          | Trigger                                             | Path                   |
-| -------------- | --------------------------------------------------- | ---------------------- |
-| `ts-expert`    | Working on .ts or .tsx files.                       | `skills/typescript.md` |
-| `expo-master`  | Modifying navigation, native modules or app config. | `skills/expo.md`       |
-| `tailwind-pro` | Styling components or config with NativeWind.       | `skills/tailwind.md`   |
-| `jest-expert`  | Writing or running tests in **tests** folder.       | `skills/jest.md`       |
-| `expo-go-expert` | Handling Expo Go and native module compatibility. | `skills/expo-go-expert.md` |
+| Skill            | Trigger                                             | Path                        |
+| ---------------- | --------------------------------------------------- | --------------------------- |
+| `ts-expert`      | Working on .ts or .tsx files.                       | `skills/typescript.md`      |
+| `expo-master`    | Modifying navigation, native modules or app config. | `skills/expo.md`            |
+| `tailwind-pro`   | Styling components or config with NativeWind.       | `skills/tailwind.md`        |
+| `jest-expert`    | Writing or running tests in **tests** folder.       | `skills/jest.md`            |
+| `expo-go-expert` | Handling Expo Go and native module compatibility.   | `skills/expo-go-expert.md`  |
+| `crypto-security`| Working with encryption, keychain, or local auth.  | `skills/crypto-security.md` |
+| `watermelondb`   | Querying, creating, or migrating SQLite databases.  | `skills/watermelondb.md`    |
