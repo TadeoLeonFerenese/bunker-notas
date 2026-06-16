@@ -37,10 +37,12 @@ jobs:
           cd frontend
           npx expo prebuild --platform android --clean
 
-      - name: Generate debug keystore for Release Build
+      - name: Generate debug keystore for Release Build (if missing)
         run: |
           cd frontend/android/app
-          keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          if [ ! -f debug.keystore ]; then
+            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          fi
 
       - name: Build Release APK with Gradle
         run: |
@@ -48,9 +50,12 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon
 
+      - name: List APK output directory
+        run: ls -la frontend/android/app/build/outputs/apk/release/ || true
+
       - name: Upload Release APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: BunkerNotes-Release-APK
-          path: frontend/android/app/build/outputs/apk/release/app-release.apk
+          path: frontend/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
