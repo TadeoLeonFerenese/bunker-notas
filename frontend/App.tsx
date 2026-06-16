@@ -38,7 +38,6 @@ import { NoteCard, NOTE_COLORS, NOTE_ILLUSTRATIONS } from './src/notes/NoteCard'
 import { withObservables } from '@nozbe/watermelondb/react';
 import { database } from './src/database';
 import NoteModel from './src/database/Note';
-import { RichEditor, RichToolbar, actions } from 'react-native-pell-rich-editor';
 import RenderHtml from 'react-native-render-html';
 import { ThemeProvider, useTheme, ThemeType } from './src/theme/ThemeContext';
 import { encryption } from './src/notes/encryption';
@@ -52,7 +51,6 @@ type ViewMode = 'list' | 'grid';
 export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const { width } = useWindowDimensions();
   const { COLORS, isDark, theme, setTheme, customBackground, setCustomBackground } = useTheme();
-  const richText = useRef<RichEditor>(null);
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [filter, setFilter] = useState<FilterType>('all');
@@ -1310,20 +1308,24 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   </View>
                 )}
 
-                <RichEditor
-                  ref={richText}
-                  onChange={setNewNoteContent}
-                  onFocus={handleInputFocus}
-                  placeholder="Escribe el contenido de tu nota..."
-                  initialContentHTML={newNoteContent}
-                  editorStyle={{
+                <TextInput
+                  style={[{
+                    fontFamily: COLORS.fontFamily,
+                    fontSize: 16,
                     backgroundColor: COLORS.bunkerBg,
                     color: COLORS.bunkerDark,
-                    placeholderColor: COLORS.textMuted,
-                    contentCSSText: 'font-size: 16px; min-height: 250px;',
-                  }}
-                  useContainer={false}
-                  style={{ backgroundColor: COLORS.bunkerBg, borderRadius: 12, marginBottom: 16 }}
+                    borderRadius: 12,
+                    padding: 16,
+                    textAlignVertical: 'top',
+                    minHeight: 250,
+                    marginBottom: 16
+                  }]}
+                  placeholder="Escribe el contenido de tu nota..."
+                  placeholderTextColor={COLORS.textMuted}
+                  multiline={true}
+                  value={newNoteContent}
+                  onChangeText={setNewNoteContent}
+                  onFocus={handleInputFocus}
                 />
 
                 {/* Controles de personalización (Color y Doodle) */}
@@ -1390,22 +1392,6 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   </ScrollView>
                 </View>
               </ScrollView>
-
-              <RichToolbar
-                editor={richText}
-                actions={[
-                  actions.setBold,
-                  actions.setItalic,
-                  actions.setUnderline,
-                  actions.insertBulletsList,
-                  actions.insertOrderedList,
-                  actions.undo,
-                  actions.redo,
-                ]}
-                style={{ backgroundColor: COLORS.bunkerBg, borderRadius: 12, marginBottom: 8 }}
-                iconTint={COLORS.bunkerGray}
-                selectedIconTint={COLORS.bunkerAccent}
-              />
             </View>
           )}
         </KeyboardAvoidingView>
