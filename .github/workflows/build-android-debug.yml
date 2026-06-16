@@ -1,4 +1,4 @@
-name: Build Android Debug APK (No-EAS)
+name: Build Android APK (Standalone)
 
 on:
   push:
@@ -37,15 +37,15 @@ jobs:
           cd frontend
           npx expo prebuild --platform android --clean
 
-      - name: Build Debug APK with Gradle
+      - name: Build Release APK with Gradle
         run: |
           cd frontend/android
           chmod +x gradlew
-          ./gradlew assembleDebug -PbundleInDebug=true --no-daemon
+          ./gradlew assembleRelease --no-daemon
 
-      - name: Upload Debug APK Artifact
+      - name: Upload Release APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BunkerNotes-Debug-APK
-          path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
+          name: BunkerNotes-Release-APK
+          path: frontend/android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
