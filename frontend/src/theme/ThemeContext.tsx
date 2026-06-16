@@ -7,7 +7,7 @@ const THEME_FILE = FileSystem.documentDirectory ? `${FileSystem.documentDirector
 const BACKGROUND_PREF_FILE = FileSystem.documentDirectory ? `${FileSystem.documentDirectory}background_preference.txt` : '';
 const CUSTOM_BG_FILE = FileSystem.documentDirectory ? `${FileSystem.documentDirectory}custom_background.jpg` : '';
 
-export type ThemeType = 'classic' | 'classic_dark' | 'emerald' | 'light' | 'dark';
+export type ThemeType = 'classic' | 'classic_dark' | 'emerald' | 'light' | 'dark' | 'cyberpunk';
 
 export interface ThemeColors {
   bunkerBg: string;

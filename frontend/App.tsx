@@ -141,7 +141,6 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [newNoteSecure, setNewNoteSecure] = useState(false);
   const [newNoteColor, setNewNoteColor] = useState('default');
   const [newNoteIllustration, setNewNoteIllustration] = useState('none');
-
   // Audio State & Refs
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -152,6 +151,96 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [playbackDuration, setPlaybackDuration] = useState(0);
   const [playbackPosition, setPlaybackPosition] = useState(0);
   const recordingIntervalRef = useRef<any>(null);
+
+  // Autosave System
+  const saveTimeoutRef = useRef<any>(null);
+  const noteStateRef = useRef({
+    title: newNoteTitle,
+    content: newNoteContent,
+    isSecure: newNoteSecure,
+    color: newNoteColor,
+    illustration: newNoteIllustration,
+    audioUri: recordedAudioUri,
+    editingNoteId: editingNoteId,
+    showCreateModal: showCreateModal,
+  });
+
+  useEffect(() => {
+    noteStateRef.current = {
+      title: newNoteTitle,
+      content: newNoteContent,
+      isSecure: newNoteSecure,
+      color: newNoteColor,
+      illustration: newNoteIllustration,
+      audioUri: recordedAudioUri,
+      editingNoteId: editingNoteId,
+      showCreateModal: showCreateModal,
+    };
+  }, [newNoteTitle, newNoteContent, newNoteSecure, newNoteColor, newNoteIllustration, recordedAudioUri, editingNoteId, showCreateModal]);
+
+  const performAutosave = async () => {
+    const { title, content, isSecure, color, illustration, audioUri, editingNoteId: currentEditingId, showCreateModal: isModalVisible } = noteStateRef.current;
+
+    // Si el modal ya no está visible, no autoguardamos
+    if (!isModalVisible) return;
+
+    // Si el título, contenido y audio están completamente vacíos y no hay un ID de edición aún, no guardamos para evitar crear notas vacías
+    if (!title.trim() && !content.trim() && !audioUri && !currentEditingId) {
+      return;
+    }
+
+    const titleToStore = title.trim() || 'Sin título';
+    const contentToStore = isSecure ? encryption.encrypt(content.trim()) : content.trim();
+
+    try {
+      await database.write(async () => {
+        if (currentEditingId) {
+          const note = await database.get<NoteModel>('notes').find(currentEditingId);
+          await note.update((n: any) => {
+            n.title = titleToStore;
+            n.content = contentToStore;
+            n.isSecure = isSecure;
+            n.audioUri = audioUri || '';
+            n.color = color;
+            n.illustration = illustration;
+          });
+          console.log('[Autosave] Nota actualizada en DB:', currentEditingId);
+        } else {
+          const newNote = await database.get<NoteModel>('notes').create((note: any) => {
+            note.title = titleToStore;
+            note.content = contentToStore;
+            note.isSecure = isSecure;
+            note.isMarked = false;
+            note.audioUri = audioUri || '';
+            note.color = color;
+            note.illustration = illustration;
+          });
+          setEditingNoteId(newNote.id);
+          console.log('[Autosave] Nueva nota creada con ID:', newNote.id);
+        }
+      });
+    } catch (err) {
+      console.error('[Autosave] Error al guardar en DB:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (!showCreateModal) return;
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    saveTimeoutRef.current = setTimeout(() => {
+      performAutosave();
+    }, 1000);
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [newNoteTitle, newNoteContent, newNoteSecure, newNoteColor, newNoteIllustration, recordedAudioUri, showCreateModal]);
 
   // Keyboard Visibility
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
@@ -346,6 +435,27 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   };
 
   const handleCloseCreateModal = async () => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    
+    // Guardamos sincrónicamente/inmediatamente antes de resetear estados
+    await performAutosave();
+
+    // Si la nota guardada quedó totalmente vacía (sin título ni contenido ni audio), y tiene id, la borramos para no dejar basura
+    const { title, content, audioUri, editingNoteId: finalEditingId } = noteStateRef.current;
+    if (!title.trim() && !content.trim() && !audioUri && finalEditingId) {
+      try {
+        await database.write(async () => {
+          const note = await database.get<NoteModel>('notes').find(finalEditingId);
+          await note.destroyPermanently();
+        });
+        console.log('[Autosave] Eliminada nota vacía de la base de datos al cerrar');
+      } catch (err) {
+        console.error('[Autosave] Error al limpiar nota vacía:', err);
+      }
+    }
+
     await cleanupAudio();
     closeCreateModal();
   };
@@ -507,41 +617,6 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     }
   };
 
-  const saveNote = async () => {
-    if (!newNoteTitle.trim()) {
-      Alert.alert('Error', 'El título es obligatorio');
-      return;
-    }
-
-    const titleToStore = newNoteTitle.trim();
-    const contentToStore = newNoteSecure ? encryption.encrypt(newNoteContent.trim()) : newNoteContent.trim();
-    
-    await database.write(async () => {
-      if (editingNoteId) {
-        const note = await database.get<NoteModel>('notes').find(editingNoteId);
-        await note.update((n: any) => {
-          n.title = titleToStore;
-          n.content = contentToStore;
-          n.isSecure = newNoteSecure;
-          n.audioUri = recordedAudioUri || '';
-          n.color = newNoteColor;
-          n.illustration = newNoteIllustration;
-        });
-      } else {
-        await database.get<NoteModel>('notes').create((note: any) => {
-          note.title = titleToStore;
-          note.content = contentToStore;
-          note.isSecure = newNoteSecure;
-          note.isMarked = false;
-          note.audioUri = recordedAudioUri || '';
-          note.color = newNoteColor;
-          note.illustration = newNoteIllustration;
-        });
-      }
-    });
-
-    handleCloseCreateModal();
-  };
 
   const openEditModal = (note: NoteModel) => {
     setNewNoteTitle(note.title);
@@ -1081,7 +1156,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                       onPress={handleNotePress}
                       onLongPress={handleNoteLongPress}
                       onToggleMark={handleToggleMark}
-                      onAuthRequired={(_, id) => handleNotePress(id)}
+                      onAuthRequired={(_: any, id: string) => handleNotePress(id)}
                       isGridMode
                     />
                   </View>
@@ -1096,7 +1171,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                 onPress={handleNotePress}
                 onLongPress={handleNoteLongPress}
                 onToggleMark={handleToggleMark}
-                onAuthRequired={(_, id) => handleNotePress(id)}
+                onAuthRequired={(_: any, id: string) => handleNotePress(id)}
                 isGridMode={false}
               />
             ))
@@ -1330,14 +1405,6 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
               {/* AUDIO PANEL MOVED TO TITLE ROW */}
 
-              <View style={{ flexDirection: 'row', gap: 12, paddingBottom: 16 }}>
-                <TouchableOpacity style={[styles.cancelButton, { backgroundColor: COLORS.bunkerBg }]} onPress={handleCloseCreateModal}>
-                  <Text style={[styles.cancelButtonText, { color: COLORS.bunkerGray }]}>Cancelar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.saveButton} onPress={saveNote}>
-                  <Text style={styles.saveButtonText}>Guardar</Text>
-                </TouchableOpacity>
-              </View>
             </View>
           )}
         </KeyboardAvoidingView>

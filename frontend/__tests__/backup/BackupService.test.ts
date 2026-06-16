@@ -1,7 +1,7 @@
 import { backupService, BackupData } from '../../src/backup/BackupService';
 import { database } from '../../src/database';
 
-jest.mock('expo-file-system', () => ({
+jest.mock('expo-file-system/legacy', () => ({
   cacheDirectory: 'file:///mock-cache/',
   documentDirectory: 'file:///mock-documents/',
   writeAsStringAsync: jest.fn().mockResolvedValue(undefined),
@@ -101,7 +101,7 @@ describe('BackupService - MVP Punto 4: Portabilidad', () => {
   });
 
   it('should throw error for invalid backup file', async () => {
-    const mockFS = require('expo-file-system');
+    const mockFS = require('expo-file-system/legacy');
     mockFS.readAsStringAsync.mockResolvedValueOnce(JSON.stringify({ foo: 'bar' }));
 
     await expect(backupService.pickAndImport()).rejects.toThrow(
@@ -110,7 +110,7 @@ describe('BackupService - MVP Punto 4: Portabilidad', () => {
   });
 
   it('should import secure notes with ciphertext preserved', async () => {
-    const mockFS = require('expo-file-system');
+    const mockFS = require('expo-file-system/legacy');
     mockFS.readAsStringAsync.mockResolvedValueOnce(JSON.stringify({
       app: 'Bunker Notas',
       version: '1.0.0',
@@ -130,14 +130,14 @@ describe('BackupService - MVP Punto 4: Portabilidad', () => {
     await backupService.pickAndImport();
 
     const all = await database.collections.get('notes').query().fetch();
-    const secure = all.find(n => n.isSecure);
+    const secure = all.find(n => (n as any).isSecure) as any;
     expect(secure).toBeDefined();
-    expect(secure!.title).toBe('Secure');
-    expect(secure!.content).toBe('iv:salt:encrypted-value');
+    expect(secure.title).toBe('Secure');
+    expect(secure.content).toBe('iv:salt:encrypted-value');
   });
 
   it('should export correct JSON structure', async () => {
-    const mockFS = require('expo-file-system');
+    const mockFS = require('expo-file-system/legacy');
     let writtenJson = '';
     mockFS.writeAsStringAsync.mockImplementation(async (_: string, json: string) => {
       writtenJson = json;
