@@ -1211,134 +1211,122 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                 </TouchableOpacity>
               </View>
 
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                <TextInput
-                  style={[{fontFamily: COLORS.fontFamily}, styles.modalInput, { flex: 1, marginBottom: 0, backgroundColor: COLORS.bunkerBg, color: COLORS.bunkerDark }]}
-                  placeholder="Título"
-                  placeholderTextColor={COLORS.textMuted}
-                  value={newNoteTitle}
-                  onChangeText={setNewNoteTitle}
-                  onFocus={handleInputFocus}
-                  autoFocus
-                />
-                
-                <TouchableOpacity 
-                  style={{ 
-                    width: 52, 
-                    height: 52, 
-                    backgroundColor: newNoteSecure ? COLORS.bunkerAccent : COLORS.bunkerBg, 
-                    borderRadius: 26, 
-                    justifyContent: 'center', 
-                    alignItems: 'center',
-                    elevation: newNoteSecure ? 2 : 0,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: newNoteSecure ? 0.2 : 0,
-                    shadowRadius: 2,
-                    borderWidth: newNoteSecure ? 0 : 1,
-                    borderColor: COLORS.border,
-                  }} 
-                  onPress={() => setNewNoteSecure(!newNoteSecure)}
-                >
-                  <MaterialIcons name={newNoteSecure ? "lock" : "lock-open"} size={26} color={newNoteSecure ? "#fff" : COLORS.textMuted} />
-                </TouchableOpacity>
-                
-                {!isRecording && !recordedAudioUri && (
+              <ScrollView 
+                style={{ flex: 1 }}
+                contentContainerStyle={{ flexGrow: 1, paddingBottom: 16 }}
+                keyboardShouldPersistTaps="handled"
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <TextInput
+                    style={[{fontFamily: COLORS.fontFamily}, styles.modalInput, { flex: 1, marginBottom: 0, backgroundColor: COLORS.bunkerBg, color: COLORS.bunkerDark }]}
+                    placeholder="Título"
+                    placeholderTextColor={COLORS.textMuted}
+                    value={newNoteTitle}
+                    onChangeText={setNewNoteTitle}
+                    onFocus={handleInputFocus}
+                    autoFocus
+                  />
+                  
                   <TouchableOpacity 
                     style={{ 
                       width: 52, 
                       height: 52, 
-                      backgroundColor: COLORS.bunkerAccent, 
+                      backgroundColor: newNoteSecure ? COLORS.bunkerAccent : COLORS.bunkerBg, 
                       borderRadius: 26, 
                       justifyContent: 'center', 
                       alignItems: 'center',
-                      elevation: 2,
+                      elevation: newNoteSecure ? 2 : 0,
                       shadowColor: '#000',
                       shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.2,
+                      shadowOpacity: newNoteSecure ? 0.2 : 0,
                       shadowRadius: 2,
+                      borderWidth: newNoteSecure ? 0 : 1,
+                      borderColor: COLORS.border,
                     }} 
-                    onPress={startRecording}
+                    onPress={() => setNewNoteSecure(!newNoteSecure)}
                   >
-                    <MaterialIcons name="mic" size={30} color="#fff" />
+                    <MaterialIcons name={newNoteSecure ? "lock" : "lock-open"} size={26} color={newNoteSecure ? "#fff" : COLORS.textMuted} />
                   </TouchableOpacity>
-                )}
-              </View>
-
-              {(isRecording || recordedAudioUri) && (
-                <View style={[styles.audioPanel, { backgroundColor: COLORS.bunkerBg, borderColor: COLORS.border, marginBottom: 12 }]}>
-                  {isRecording ? (
-                    <View style={styles.audioRow}>
-                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        <View style={styles.pulsingDot} />
-                        <Text style={[styles.audioText, { color: COLORS.bunkerDark }]}>Grabando... {formatTime(recordingDuration)}</Text>
-                      </View>
-                      <TouchableOpacity 
-                        style={[styles.audioIconBtn, { backgroundColor: COLORS.bunkerAccent }]} 
-                        onPress={stopRecording}
-                      >
-                        <MaterialIcons name="pause" size={24} color="#fff" />
-                      </TouchableOpacity>
-                    </View>
-                  ) : (
-                    <View style={styles.audioRow}>
-                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        <MaterialIcons name="mic" size={20} color={COLORS.bunkerAccent} />
-                        <Text style={[styles.audioText, { color: COLORS.bunkerDark }]}>Nota de voz grabada</Text>
-                      </View>
-                      <View style={{ flexDirection: 'row', gap: 8 }}>
-                        <TouchableOpacity 
-                          style={[styles.audioIconBtn, { backgroundColor: COLORS.bunkerAccent }]} 
-                          onPress={() => handlePlayAudio(recordedAudioUri!)}
-                        >
-                          <MaterialIcons name={isPlaybackPlaying ? 'pause' : 'play-arrow'} size={24} color="#fff" />
-                        </TouchableOpacity>
-                        <TouchableOpacity 
-                          style={[styles.audioIconBtn, { backgroundColor: COLORS.bunkerBg, borderWidth: 1, borderColor: COLORS.border }]} 
-                          onPress={cleanupAudio}
-                        >
-                          <MaterialIcons name="delete-outline" size={24} color={COLORS.bunkerAccent} />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
+                  
+                  {!isRecording && !recordedAudioUri && (
+                    <TouchableOpacity 
+                      style={{ 
+                        width: 52, 
+                        height: 52, 
+                        backgroundColor: COLORS.bunkerAccent, 
+                        borderRadius: 26, 
+                        justifyContent: 'center', 
+                        alignItems: 'center',
+                        elevation: 2,
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.2,
+                        shadowRadius: 2,
+                      }} 
+                      onPress={startRecording}
+                    >
+                      <MaterialIcons name="mic" size={30} color="#fff" />
+                    </TouchableOpacity>
                   )}
                 </View>
-              )}
 
-              <RichEditor
-                ref={richText}
-                onChange={setNewNoteContent}
-                onFocus={handleInputFocus}
-                placeholder="Escribe el contenido de tu nota..."
-                initialContentHTML={newNoteContent}
-                editorStyle={{
-                  backgroundColor: COLORS.bunkerBg,
-                  color: COLORS.bunkerDark,
-                  placeholderColor: COLORS.textMuted,
-                  contentCSSText: 'font-size: 16px; min-height: 250px; height: 100%;',
-                }}
-                useContainer={true}
-                style={{ flex: 1, backgroundColor: COLORS.bunkerBg, borderRadius: 12, marginBottom: 8 }}
-              />
+                {(isRecording || recordedAudioUri) && (
+                  <View style={[styles.audioPanel, { backgroundColor: COLORS.bunkerBg, borderColor: COLORS.border, marginBottom: 12 }]}>
+                    {isRecording ? (
+                      <View style={styles.audioRow}>
+                        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <View style={styles.pulsingDot} />
+                          <Text style={[styles.audioText, { color: COLORS.bunkerDark }]}>Grabando... {formatTime(recordingDuration)}</Text>
+                        </View>
+                        <TouchableOpacity 
+                          style={[styles.audioIconBtn, { backgroundColor: COLORS.bunkerAccent }]} 
+                          onPress={stopRecording}
+                        >
+                          <MaterialIcons name="pause" size={24} color="#fff" />
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <View style={styles.audioRow}>
+                        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <MaterialIcons name="mic" size={20} color={COLORS.bunkerAccent} />
+                          <Text style={[styles.audioText, { color: COLORS.bunkerDark }]}>Nota de voz grabada</Text>
+                        </View>
+                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                          <TouchableOpacity 
+                            style={[styles.audioIconBtn, { backgroundColor: COLORS.bunkerAccent }]} 
+                            onPress={() => handlePlayAudio(recordedAudioUri!)}
+                          >
+                            <MaterialIcons name={isPlaybackPlaying ? 'pause' : 'play-arrow'} size={24} color="#fff" />
+                          </TouchableOpacity>
+                          <TouchableOpacity 
+                            style={[styles.audioIconBtn, { backgroundColor: COLORS.bunkerBg, borderWidth: 1, borderColor: COLORS.border }]} 
+                            onPress={cleanupAudio}
+                          >
+                            <MaterialIcons name="delete-outline" size={24} color={COLORS.bunkerAccent} />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                )}
 
-              <RichToolbar
-                editor={richText}
-                actions={[
-                  actions.setBold,
-                  actions.setItalic,
-                  actions.setUnderline,
-                  actions.insertBulletsList,
-                  actions.insertOrderedList,
-                  actions.undo,
-                  actions.redo,
-                ]}
-                style={{ backgroundColor: COLORS.bunkerBg, borderRadius: 12, marginBottom: 16 }}
-                iconTint={COLORS.bunkerGray}
-                selectedIconTint={COLORS.bunkerAccent}
-              />
+                <RichEditor
+                  ref={richText}
+                  onChange={setNewNoteContent}
+                  onFocus={handleInputFocus}
+                  placeholder="Escribe el contenido de tu nota..."
+                  initialContentHTML={newNoteContent}
+                  editorStyle={{
+                    backgroundColor: COLORS.bunkerBg,
+                    color: COLORS.bunkerDark,
+                    placeholderColor: COLORS.textMuted,
+                    contentCSSText: 'font-size: 16px; min-height: 250px;',
+                  }}
+                  useContainer={false}
+                  style={{ backgroundColor: COLORS.bunkerBg, borderRadius: 12, marginBottom: 16 }}
+                />
 
-              {/* Controles de personalización (Color y Doodle) */}
-              {!isKeyboardVisible && (
+                {/* Controles de personalización (Color y Doodle) */}
                 <View style={{
                   flexDirection: 'column',
                   gap: 12,
@@ -1401,10 +1389,23 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                     })}
                   </ScrollView>
                 </View>
-              )}
+              </ScrollView>
 
-              {/* AUDIO PANEL MOVED TO TITLE ROW */}
-
+              <RichToolbar
+                editor={richText}
+                actions={[
+                  actions.setBold,
+                  actions.setItalic,
+                  actions.setUnderline,
+                  actions.insertBulletsList,
+                  actions.insertOrderedList,
+                  actions.undo,
+                  actions.redo,
+                ]}
+                style={{ backgroundColor: COLORS.bunkerBg, borderRadius: 12, marginBottom: 8 }}
+                iconTint={COLORS.bunkerGray}
+                selectedIconTint={COLORS.bunkerAccent}
+              />
             </View>
           )}
         </KeyboardAvoidingView>
