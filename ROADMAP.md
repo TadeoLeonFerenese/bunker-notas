@@ -12,10 +12,19 @@ Este documento recopila las decisiones arquitectónicas, características del MV
 ## 1. MVP (Fase Actual)
 El objetivo del MVP es establecer un gestor de notas sólido, seguro y con buena usabilidad.
 
-* **Editor Enriquecido:** Implementado con `react-native-pell-rich-editor`. Correcciones aplicadas para asegurar el correcto scroll táctil y manejo inteligente del teclado (`KeyboardAvoidingView`).
-* **Interoperabilidad de Texto (Share Intent):** 
+* **Autoguardado (Autosave)**:
+  * *Decisión:* Se removió la interfaz manual de "Guardar" y "Cancelar" para agilizar el flujo de uso.
+  * *Implementación:* Un debounce de 1 segundo guarda automáticamente el título, contenido, audio y personalización en WatermelonDB dentro de transacciones `database.write(...)` seguras. Si la nota se cierra estando completamente vacía, se limpia automáticamente de la DB para evitar registros huérfanos.
+* **Scroll Nativo y UI/UX del Editor**:
+  * *Implementación:* El `RichEditor` de `react-native-pell-rich-editor` se configuró con `useContainer={false}` delegando el scroll a una `ScrollView` nativa de React Native. Esto solucionó los bloqueos táctiles del WebView interno en notas largas.
+  * *RichToolbar Sticky:* Se posiciona de manera fija directamente flotando arriba del teclado en pantalla mediante `KeyboardAvoidingView` para una edición premium similar a Apple Notes.
+  * *Personalización:* Colores y stickers de doodle siempre visibles y accesibles desde la ScrollView sin importar el estado del teclado.
+* **Interoperabilidad de Texto (Share Intent)**: 
   * *Problema:* Las aplicaciones de terceros (como Gemini o ChatGPT) bloquean el Deep Linking directo (ej: `bunkernotas://...`) por sus políticas de *sandboxing* de seguridad.
   * *Solución (Workaround):* Implementación de **Share Intent** (`expo-share-intent`). El usuario selecciona un texto en cualquier app, elige "Compartir" y lo envía a Bunker Notas. La app lo recibe nativamente (`shareIntent.text`) y prepara el modal de nueva nota.
+* **CI/CD - Compilación Remota**:
+  * *Problema:* Limitación de cuotas de compilación en Expo Application Services (EAS) y falta de recursos de hardware en computadoras de desarrollo para compilar localmente con Gradle.
+  * *Solución:* Implementación de un flujo de **GitHub Actions** (`.github/workflows/build-android-debug.yml`) que genera el APK debug de Android (`app-debug.apk`) de forma totalmente gratuita y automática en la nube de GitHub con cada push en la rama `main`.
 
 ---
 
