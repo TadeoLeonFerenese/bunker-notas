@@ -93,7 +93,11 @@ const NoteCardBase = ({
 
   const stripHtml = (html?: string) => {
     if (!html) return '';
-    return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+    return html
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/[\*_~`]/g, '')
+      .trim();
   };
 
   if (isGridMode) {

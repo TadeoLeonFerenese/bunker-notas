@@ -63,6 +63,9 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [backupModalVisible, setBackupModalVisible] = useState(false);
   const authActionRef = useRef<'open' | 'delete'>('open');
+  const contentInputRef = useRef<any>(null);
+  const [textSelection, setTextSelection] = useState<{ start: number; end: number } | undefined>(undefined);
+  const [currentSelection, setCurrentSelection] = useState({ start: 0, end: 0 });
   
   // IA Interoperability State
   const [pendingExternalNote, setPendingExternalNote] = useState<{title: string, content: string} | null>(null);
@@ -239,6 +242,76 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       }
     };
   }, [newNoteTitle, newNoteContent, newNoteSecure, newNoteColor, newNoteIllustration, recordedAudioUri, showCreateModal]);
+
+  const insertMarkdown = (marker: string) => {
+    const { start, end } = currentSelection;
+    const text = newNoteContent;
+    
+    const before = text.substring(0, start);
+    const selected = text.substring(start, end);
+    const after = text.substring(end);
+    
+    let inserted = '';
+    let newStart = start;
+    let newEnd = end;
+
+    if (marker === 'bold') {
+      inserted = `**${selected}**`;
+      newStart += 2;
+      newEnd = selected ? newStart + selected.length : newStart;
+    } else if (marker === 'italic') {
+      inserted = `*${selected}*`;
+      newStart += 1;
+      newEnd = selected ? newStart + selected.length : newStart;
+    } else if (marker === 'underline') {
+      inserted = `__${selected}__`;
+      newStart += 2;
+      newEnd = selected ? newStart + selected.length : newStart;
+    } else if (marker === 'list') {
+      inserted = `\n- ${selected}`;
+      newStart += 3;
+      newEnd = newStart + selected.length;
+    }
+
+    const newContent = before + inserted + after;
+    setNewNoteContent(newContent);
+    setTextSelection({ start: newStart, end: newEnd });
+  };
+
+  const markdownToHtml = (md: string = ''): string => {
+    // Si ya contiene etiquetas HTML, asumimos que es una nota antigua en formato HTML y la retornamos tal cual
+    if (/<[a-z/][\s\S]*>/i.test(md)) {
+      return md;
+    }
+
+    let html = md;
+    
+    // Sanitizar HTML básico
+    html = html
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    // Reemplazar saltos de línea por <br/>
+    html = html.replace(/\n/g, '<br/>');
+    
+    // Reemplazar **negrita**
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    
+    // Reemplazar *cursiva*
+    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    
+    // Reemplazar __subrayado__
+    html = html.replace(/__(.*?)__/g, '<u>$1</u>');
+    
+    // Reemplazar listas "- elemento"
+    html = html.replace(/(?:^|<br\/>)-\s+(.*?)(?=<br\/>|$)/g, '<li>$1</li>');
+    
+    // Envolver bloques de <li> en <ul>
+    html = html.replace(/(<li>.*?<\/li>)+/g, '<ul>$&</ul>');
+
+    return html;
+  };
 
   // Keyboard Visibility
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
@@ -1309,6 +1382,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                 )}
 
                 <TextInput
+                  ref={contentInputRef}
                   style={[{
                     fontFamily: COLORS.fontFamily,
                     fontSize: 16,
@@ -1318,6 +1392,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                     padding: 16,
                     textAlignVertical: 'top',
                     minHeight: 250,
+                    flex: 1,
                     marginBottom: 16
                   }]}
                   placeholder="Escribe el contenido de tu nota..."
@@ -1326,7 +1401,54 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   value={newNoteContent}
                   onChangeText={setNewNoteContent}
                   onFocus={handleInputFocus}
+                  onSelectionChange={(e) => {
+                    setCurrentSelection(e.nativeEvent.selection);
+                    setTextSelection(undefined);
+                  }}
+                  selection={textSelection}
                 />
+
+                {/* Asistente de Formato Markdown */}
+                <View style={{
+                  flexDirection: 'row',
+                  gap: 12,
+                  marginBottom: 16,
+                  paddingVertical: 10,
+                  borderBottomWidth: 1,
+                  borderTopWidth: 1,
+                  borderColor: COLORS.border,
+                  alignItems: 'center',
+                }}>
+                  <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, marginRight: 4 }}>Formato:</Text>
+                  
+                  <TouchableOpacity 
+                    style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.bunkerBg }}
+                    onPress={() => insertMarkdown('bold')}
+                  >
+                    <Text style={{ fontFamily: COLORS.fontFamily, fontWeight: 'bold', color: COLORS.bunkerDark, fontSize: 14 }}>B</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.bunkerBg }}
+                    onPress={() => insertMarkdown('italic')}
+                  >
+                    <Text style={{ fontFamily: COLORS.fontFamily, fontStyle: 'italic', color: COLORS.bunkerDark, fontSize: 14 }}>I</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.bunkerBg }}
+                    onPress={() => insertMarkdown('underline')}
+                  >
+                    <Text style={{ fontFamily: COLORS.fontFamily, textDecorationLine: 'underline', color: COLORS.bunkerDark, fontSize: 14 }}>U</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.bunkerBg }}
+                    onPress={() => insertMarkdown('list')}
+                  >
+                    <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.bunkerDark, fontSize: 14 }}>• Lista</Text>
+                  </TouchableOpacity>
+                </View>
 
                 {/* Controles de personalización (Color y Doodle) */}
                 <View style={{
@@ -1466,7 +1588,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                 <ScrollView style={styles.viewerBody}>
                   <RenderHtml
                     contentWidth={width - 48}
-                    source={{ html: selectedNote.content || '' }}
+                    source={{ html: markdownToHtml(selectedNote.content || '') }}
                     baseStyle={{
                       color: COLORS.bunkerDark,
                       fontSize: 16,
