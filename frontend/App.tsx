@@ -1267,198 +1267,191 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     </View>
 
     {/* CREATE MODAL */}
-      <Modal visible={showCreateModal} animationType="slide" transparent onRequestClose={handleCloseCreateModal}>
-        <KeyboardAvoidingView 
-          style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={handleCloseCreateModal} />
-          {showCreateModal && (
-            <View style={[styles.modalContent, { backgroundColor: COLORS.surface, width: '100%' }]}>
-              <View style={styles.modalHeader}>
-                <Text style={[{fontFamily: COLORS.fontFamily}, styles.modalTitle, { color: COLORS.bunkerDark }]}>{editingNoteId ? 'Editar Nota' : 'Nueva Nota'}</Text>
-                <TouchableOpacity onPress={handleCloseCreateModal}>
-                  <Text style={[styles.modalClose, { color: COLORS.textMuted }]}>✕</Text>
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView 
-                style={{ flex: 1 }}
-                contentContainerStyle={{ flexGrow: 1, paddingBottom: 16 }}
-                keyboardShouldPersistTaps="handled"
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                  <TextInput
-                    style={[{fontFamily: COLORS.fontFamily}, styles.modalInput, { flex: 1, marginBottom: 0, backgroundColor: COLORS.bunkerBg, color: COLORS.bunkerDark }]}
-                    placeholder="Título"
-                    placeholderTextColor={COLORS.textMuted}
-                    value={newNoteTitle}
-                    onChangeText={setNewNoteTitle}
-                    onFocus={handleInputFocus}
-                    autoFocus
-                  />
-                  
-                  <TouchableOpacity 
-                    style={{ 
-                      width: 52, 
-                      height: 52, 
-                      backgroundColor: newNoteSecure ? COLORS.bunkerAccent : COLORS.bunkerBg, 
-                      borderRadius: 26, 
-                      justifyContent: 'center', 
-                      alignItems: 'center',
-                      elevation: newNoteSecure ? 2 : 0,
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: newNoteSecure ? 0.2 : 0,
-                      shadowRadius: 2,
-                      borderWidth: newNoteSecure ? 0 : 1,
-                      borderColor: COLORS.border,
-                    }} 
-                    onPress={() => setNewNoteSecure(!newNoteSecure)}
-                  >
-                    <MaterialIcons name={newNoteSecure ? "lock" : "lock-open"} size={26} color={newNoteSecure ? "#fff" : COLORS.textMuted} />
+      <Modal visible={showCreateModal} animationType="slide" transparent={false} presentationStyle="fullScreen" onRequestClose={handleCloseCreateModal}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.surface }}>
+          <KeyboardAvoidingView 
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
+            {showCreateModal && (
+              <View style={[styles.modalContent, { backgroundColor: COLORS.surface, flex: 1, padding: 0 }]}>
+                <View style={[styles.modalHeader, { paddingHorizontal: 24, paddingTop: 16 }]}>
+                  <Text style={[{fontFamily: COLORS.fontFamily}, styles.modalTitle, { color: COLORS.bunkerDark }]}>{editingNoteId ? 'Editar Nota' : 'Nueva Nota'}</Text>
+                  <TouchableOpacity onPress={handleCloseCreateModal}>
+                    <Text style={[styles.modalClose, { color: COLORS.textMuted }]}>✕</Text>
                   </TouchableOpacity>
-                  
-                  {!isRecording && !recordedAudioUri && (
+                </View>
+
+                <ScrollView 
+                  style={{ flex: 1 }}
+                  contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingBottom: 16 }}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <TextInput
+                      style={[{fontFamily: COLORS.fontFamily}, styles.modalInput, { flex: 1, marginBottom: 0, backgroundColor: COLORS.bunkerBg, color: COLORS.bunkerDark }]}
+                      placeholder="Título"
+                      placeholderTextColor={COLORS.textMuted}
+                      value={newNoteTitle}
+                      onChangeText={setNewNoteTitle}
+                      onFocus={handleInputFocus}
+                      autoFocus
+                    />
+                    
                     <TouchableOpacity 
                       style={{ 
                         width: 52, 
                         height: 52, 
-                        backgroundColor: COLORS.bunkerAccent, 
+                        backgroundColor: newNoteSecure ? COLORS.bunkerAccent : COLORS.bunkerBg, 
                         borderRadius: 26, 
                         justifyContent: 'center', 
                         alignItems: 'center',
-                        elevation: 2,
+                        elevation: newNoteSecure ? 2 : 0,
                         shadowColor: '#000',
                         shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.2,
+                        shadowOpacity: newNoteSecure ? 0.2 : 0,
                         shadowRadius: 2,
+                        borderWidth: newNoteSecure ? 0 : 1,
+                        borderColor: COLORS.border,
                       }} 
-                      onPress={startRecording}
+                      onPress={() => setNewNoteSecure(!newNoteSecure)}
                     >
-                      <MaterialIcons name="mic" size={30} color="#fff" />
+                      <MaterialIcons name={newNoteSecure ? "lock" : "lock-open"} size={26} color={newNoteSecure ? "#fff" : COLORS.textMuted} />
                     </TouchableOpacity>
-                  )}
-                </View>
-
-                {(isRecording || recordedAudioUri) && (
-                  <View style={[styles.audioPanel, { backgroundColor: COLORS.bunkerBg, borderColor: COLORS.border, marginBottom: 12 }]}>
-                    {isRecording ? (
-                      <View style={styles.audioRow}>
-                        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                          <View style={styles.pulsingDot} />
-                          <Text style={[styles.audioText, { color: COLORS.bunkerDark }]}>Grabando... {formatTime(recordingDuration)}</Text>
-                        </View>
-                        <TouchableOpacity 
-                          style={[styles.audioIconBtn, { backgroundColor: COLORS.bunkerAccent }]} 
-                          onPress={stopRecording}
-                        >
-                          <MaterialIcons name="pause" size={24} color="#fff" />
-                        </TouchableOpacity>
-                      </View>
-                    ) : (
-                      <View style={styles.audioRow}>
-                        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                          <MaterialIcons name="mic" size={20} color={COLORS.bunkerAccent} />
-                          <Text style={[styles.audioText, { color: COLORS.bunkerDark }]}>Nota de voz grabada</Text>
-                        </View>
-                        <View style={{ flexDirection: 'row', gap: 8 }}>
-                          <TouchableOpacity 
-                            style={[styles.audioIconBtn, { backgroundColor: COLORS.bunkerAccent }]} 
-                            onPress={() => handlePlayAudio(recordedAudioUri!)}
-                          >
-                            <MaterialIcons name={isPlaybackPlaying ? 'pause' : 'play-arrow'} size={24} color="#fff" />
-                          </TouchableOpacity>
-                          <TouchableOpacity 
-                            style={[styles.audioIconBtn, { backgroundColor: COLORS.bunkerBg, borderWidth: 1, borderColor: COLORS.border }]} 
-                            onPress={cleanupAudio}
-                          >
-                            <MaterialIcons name="delete-outline" size={24} color={COLORS.bunkerAccent} />
-                          </TouchableOpacity>
-                        </View>
-                      </View>
+                    
+                    {!isRecording && !recordedAudioUri && (
+                      <TouchableOpacity 
+                        style={{ 
+                          width: 52, 
+                          height: 52, 
+                          backgroundColor: COLORS.bunkerAccent, 
+                          borderRadius: 26, 
+                          justifyContent: 'center', 
+                          alignItems: 'center',
+                          elevation: 2,
+                          shadowColor: '#000',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.2,
+                          shadowRadius: 2,
+                        }} 
+                        onPress={startRecording}
+                      >
+                        <MaterialIcons name="mic" size={30} color="#fff" />
+                      </TouchableOpacity>
                     )}
                   </View>
-                )}
 
-                <TextInput
-                  ref={contentInputRef}
-                  style={[{
-                    fontFamily: COLORS.fontFamily,
-                    fontSize: 16,
-                    backgroundColor: COLORS.bunkerBg,
-                    color: COLORS.bunkerDark,
-                    borderRadius: 12,
-                    padding: 16,
-                    textAlignVertical: 'top',
-                    minHeight: 250,
-                    flex: 1,
-                    marginBottom: 16
-                  }]}
-                  placeholder="Escribe el contenido de tu nota..."
-                  placeholderTextColor={COLORS.textMuted}
-                  multiline={true}
-                  value={newNoteContent}
-                  onChangeText={setNewNoteContent}
-                  onFocus={handleInputFocus}
-                  onSelectionChange={(e) => {
-                    setCurrentSelection(e.nativeEvent.selection);
-                    setTextSelection(undefined);
-                  }}
-                  selection={textSelection}
-                />
+                  {(isRecording || recordedAudioUri) && (
+                    <View style={[styles.audioPanel, { backgroundColor: COLORS.bunkerBg, borderColor: COLORS.border, marginBottom: 12 }]}>
+                      {isRecording ? (
+                        <View style={styles.audioRow}>
+                          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <View style={styles.pulsingDot} />
+                            <Text style={[styles.audioText, { color: COLORS.bunkerDark }]}>Grabando... {formatTime(recordingDuration)}</Text>
+                          </View>
+                          <TouchableOpacity 
+                            style={[styles.audioIconBtn, { backgroundColor: COLORS.bunkerAccent }]} 
+                            onPress={stopRecording}
+                          >
+                            <MaterialIcons name="pause" size={24} color="#fff" />
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        <View style={styles.audioRow}>
+                          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <MaterialIcons name="mic" size={20} color={COLORS.bunkerAccent} />
+                            <Text style={[styles.audioText, { color: COLORS.bunkerDark }]}>Nota de voz grabada</Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', gap: 8 }}>
+                            <TouchableOpacity 
+                              style={[styles.audioIconBtn, { backgroundColor: COLORS.bunkerAccent }]} 
+                              onPress={() => handlePlayAudio(recordedAudioUri!)}
+                            >
+                              <MaterialIcons name={isPlaybackPlaying ? 'pause' : 'play-arrow'} size={24} color="#fff" />
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                              style={[styles.audioIconBtn, { backgroundColor: COLORS.bunkerBg, borderWidth: 1, borderColor: COLORS.border }]} 
+                              onPress={cleanupAudio}
+                            >
+                              <MaterialIcons name="delete-outline" size={24} color={COLORS.bunkerAccent} />
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      )}
+                    </View>
+                  )}
 
-                {/* Asistente de Formato Markdown */}
+                  <TextInput
+                    ref={contentInputRef}
+                    style={[{
+                      fontFamily: COLORS.fontFamily,
+                      fontSize: 16,
+                      backgroundColor: 'transparent',
+                      color: COLORS.bunkerDark,
+                      textAlignVertical: 'top',
+                      minHeight: 300,
+                      flex: 1,
+                      paddingTop: 8,
+                    }]}
+                    placeholder="Escribe el contenido de tu nota..."
+                    placeholderTextColor={COLORS.textMuted}
+                    multiline={true}
+                    value={newNoteContent}
+                    onChangeText={setNewNoteContent}
+                    onFocus={handleInputFocus}
+                    onSelectionChange={(e) => {
+                      setCurrentSelection(e.nativeEvent.selection);
+                      setTextSelection(undefined);
+                    }}
+                    selection={textSelection}
+                  />
+                </ScrollView>
+
+                {/* Toolbar Fija (Pinned Toolbar) */}
                 <View style={{
-                  flexDirection: 'row',
-                  gap: 12,
-                  marginBottom: 16,
-                  paddingVertical: 10,
-                  borderBottomWidth: 1,
+                  paddingHorizontal: 24,
+                  paddingVertical: 12,
                   borderTopWidth: 1,
                   borderColor: COLORS.border,
-                  alignItems: 'center',
+                  backgroundColor: COLORS.surface,
                 }}>
-                  <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, marginRight: 4 }}>Formato:</Text>
-                  
-                  <TouchableOpacity 
-                    style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.bunkerBg }}
-                    onPress={() => insertMarkdown('bold')}
-                  >
-                    <Text style={{ fontFamily: COLORS.fontFamily, fontWeight: 'bold', color: COLORS.bunkerDark, fontSize: 14 }}>B</Text>
-                  </TouchableOpacity>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center', gap: 12 }}>
+                    
+                    {/* Formato */}
+                    <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, marginRight: -4 }}>Formato:</Text>
+                    
+                    <TouchableOpacity 
+                      style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.bunkerBg }}
+                      onPress={() => insertMarkdown('bold')}
+                    >
+                      <Text style={{ fontFamily: COLORS.fontFamily, fontWeight: 'bold', color: COLORS.bunkerDark, fontSize: 14 }}>B</Text>
+                    </TouchableOpacity>
 
-                  <TouchableOpacity 
-                    style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.bunkerBg }}
-                    onPress={() => insertMarkdown('italic')}
-                  >
-                    <Text style={{ fontFamily: COLORS.fontFamily, fontStyle: 'italic', color: COLORS.bunkerDark, fontSize: 14 }}>I</Text>
-                  </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.bunkerBg }}
+                      onPress={() => insertMarkdown('italic')}
+                    >
+                      <Text style={{ fontFamily: COLORS.fontFamily, fontStyle: 'italic', color: COLORS.bunkerDark, fontSize: 14 }}>I</Text>
+                    </TouchableOpacity>
 
-                  <TouchableOpacity 
-                    style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.bunkerBg }}
-                    onPress={() => insertMarkdown('underline')}
-                  >
-                    <Text style={{ fontFamily: COLORS.fontFamily, textDecorationLine: 'underline', color: COLORS.bunkerDark, fontSize: 14 }}>U</Text>
-                  </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.bunkerBg }}
+                      onPress={() => insertMarkdown('underline')}
+                    >
+                      <Text style={{ fontFamily: COLORS.fontFamily, textDecorationLine: 'underline', color: COLORS.bunkerDark, fontSize: 14 }}>U</Text>
+                    </TouchableOpacity>
 
-                  <TouchableOpacity 
-                    style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.bunkerBg }}
-                    onPress={() => insertMarkdown('list')}
-                  >
-                    <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.bunkerDark, fontSize: 14 }}>• Lista</Text>
-                  </TouchableOpacity>
-                </View>
+                    <TouchableOpacity 
+                      style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.bunkerBg }}
+                      onPress={() => insertMarkdown('list')}
+                    >
+                      <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.bunkerDark, fontSize: 14 }}>• Lista</Text>
+                    </TouchableOpacity>
 
-                {/* Controles de personalización (Color y Doodle) */}
-                <View style={{
-                  flexDirection: 'column',
-                  gap: 12,
-                  marginBottom: 16,
-                }}>
-                  {/* Selector de Colores */}
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center', gap: 8 }}>
-                    <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, marginRight: 4 }}>Color:</Text>
+                    <View style={{ width: 1, height: 24, backgroundColor: COLORS.border, marginHorizontal: 4 }} />
+
+                    {/* Color */}
+                    <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, marginRight: -4 }}>Color:</Text>
                     {Object.keys(NOTE_COLORS).map((colorKey) => {
                       const c = NOTE_COLORS[colorKey];
                       const isSelected = newNoteColor === colorKey;
@@ -1484,11 +1477,11 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                         </TouchableOpacity>
                       );
                     })}
-                  </ScrollView>
 
-                  {/* Selector de Doodles/Emojis */}
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center', gap: 8 }}>
-                    <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, marginRight: 4 }}>Doodle:</Text>
+                    <View style={{ width: 1, height: 24, backgroundColor: COLORS.border, marginHorizontal: 4 }} />
+
+                    {/* Doodle */}
+                    <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, marginRight: -4 }}>Doodle:</Text>
                     {Object.keys(NOTE_ILLUSTRATIONS).map((illusKey) => {
                       const emoji = NOTE_ILLUSTRATIONS[illusKey];
                       const isSelected = newNoteIllustration === illusKey;
@@ -1513,10 +1506,11 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                     })}
                   </ScrollView>
                 </View>
-              </ScrollView>
-            </View>
-          )}
-        </KeyboardAvoidingView>
+
+              </View>
+            )}
+          </KeyboardAvoidingView>
+        </SafeAreaView>
       </Modal>
 
       {/* VIEWER MODAL */}
