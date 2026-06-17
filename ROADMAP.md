@@ -28,15 +28,16 @@ El objetivo del MVP es establecer un gestor de notas sólido, seguro y con buena
 
 ---
 
-## 2. Soporte para Imágenes (Corto/Mediano Plazo)
-Permitir la carga de imágenes dentro de las notas de manera segura y performante.
+## 2. Soporte para Imágenes y Audios (MVP 2)
+Permitir la carga y recepción (vía Share Intent o local) de imágenes y audios dentro de las notas de manera segura y performante.
 
-* **El Problema del Base64:** Guardar imágenes grandes en base64 dentro de la base de datos (WatermelonDB) degradaría drásticamente el rendimiento de lectura/escritura.
-* **La Decisión de Arquitectura:** 
-  1. La imagen original se transforma en una cadena de bytes/buffer.
-  2. Se utiliza una librería criptográfica nativa (ej: `expo-crypto` o `react-native-aes-crypto`) para cifrar esos bytes usando la llave maestra del usuario derivada de su PIN.
-  3. El archivo resultante (blob/bytes encriptados) se guarda directamente en el sistema de archivos del teléfono (`expo-file-system`).
-  4. La base de datos (WatermelonDB) **solo** guarda la referencia (la ruta del archivo) local y su llave de descifrado asociada. 
+* **El Problema del Base64 y Archivos Sueltos:** Guardar imágenes grandes en base64 dentro de la base de datos (WatermelonDB) degrada el rendimiento. Asimismo, guardar audios o fotos en texto plano en el almacenamiento público compromete el principio Zero-Knowledge de la app.
+* **La Decisión de Arquitectura:**
+  1. **Recepción:** Cuando la app recibe un archivo (imagen o audio) vía Share Intent o selección local, se copia temporalmente a `FileSystem.documentDirectory`.
+  2. **Cifrado Simétrico (Zero-Knowledge):** Si el usuario marca la nota como **segura/encriptada** (candado activo), el archivo binario completo se cifra usando AES-256 con la llave maestra derivada de su PIN.
+  3. **Almacenamiento Local-First:** El archivo cifrado resultante se guarda directamente en el sistema de archivos privado de la app (`FileSystem.documentDirectory`).
+  4. **Referencia en DB:** La base de datos (WatermelonDB) solo almacena la referencia (la ruta del archivo local) y el estado de cifrado.
+  5. **Descifrado en Caliente:** Al abrir una nota segura, el archivo se descifra en memoria temporal para renderizarse en el visor de imágenes o reproducirse en el reproductor de audio, limpiándose inmediatamente al cerrar el modal.
 
 ---
 
