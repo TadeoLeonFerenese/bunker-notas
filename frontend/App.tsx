@@ -142,6 +142,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [newNoteSecure, setNewNoteSecure] = useState(false);
   const [newNoteColor, setNewNoteColor] = useState('default');
   const [newNoteIllustration, setNewNoteIllustration] = useState('none');
+  const [showFormatToolbar, setShowFormatToolbar] = useState(false);
   // Audio State & Refs
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -1275,11 +1276,29 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
           >
             {showCreateModal && (
               <View style={[styles.modalContent, { backgroundColor: COLORS.surface, flex: 1, padding: 0 }]}>
-                <View style={[styles.modalHeader, { paddingHorizontal: 24, paddingTop: 16 }]}>
-                  <Text style={[{fontFamily: COLORS.fontFamily}, styles.modalTitle, { color: COLORS.bunkerDark }]}>{editingNoteId ? 'Editar Nota' : 'Nueva Nota'}</Text>
-                  <TouchableOpacity onPress={handleCloseCreateModal}>
-                    <Text style={[styles.modalClose, { color: COLORS.textMuted }]}>✕</Text>
+                {/* Header Minimal */}
+                <View style={[styles.modalHeader, { paddingHorizontal: 16, paddingTop: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+                  <TouchableOpacity onPress={handleCloseCreateModal} style={{ padding: 8 }}>
+                    <MaterialIcons name="arrow-back" size={24} color={COLORS.bunkerDark} />
                   </TouchableOpacity>
+
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <TouchableOpacity 
+                      style={{ padding: 8, backgroundColor: newNoteSecure ? COLORS.bunkerAccent : 'transparent', borderRadius: 8 }}
+                      onPress={() => setNewNoteSecure(!newNoteSecure)}
+                    >
+                      <MaterialIcons name={newNoteSecure ? "lock" : "lock-outline"} size={22} color={newNoteSecure ? "#fff" : COLORS.textMuted} />
+                    </TouchableOpacity>
+
+                    {!isRecording && !recordedAudioUri && (
+                      <TouchableOpacity 
+                        style={{ padding: 8 }}
+                        onPress={startRecording}
+                      >
+                        <MaterialIcons name="mic-none" size={22} color={COLORS.textMuted} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
 
                 <ScrollView 
@@ -1287,59 +1306,15 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingBottom: 16 }}
                   keyboardShouldPersistTaps="handled"
                 >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                    <TextInput
-                      style={[{fontFamily: COLORS.fontFamily}, styles.modalInput, { flex: 1, marginBottom: 0, backgroundColor: COLORS.bunkerBg, color: COLORS.bunkerDark }]}
-                      placeholder="Título"
-                      placeholderTextColor={COLORS.textMuted}
-                      value={newNoteTitle}
-                      onChangeText={setNewNoteTitle}
-                      onFocus={handleInputFocus}
-                      autoFocus
-                    />
-                    
-                    <TouchableOpacity 
-                      style={{ 
-                        width: 52, 
-                        height: 52, 
-                        backgroundColor: newNoteSecure ? COLORS.bunkerAccent : COLORS.bunkerBg, 
-                        borderRadius: 26, 
-                        justifyContent: 'center', 
-                        alignItems: 'center',
-                        elevation: newNoteSecure ? 2 : 0,
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: newNoteSecure ? 0.2 : 0,
-                        shadowRadius: 2,
-                        borderWidth: newNoteSecure ? 0 : 1,
-                        borderColor: COLORS.border,
-                      }} 
-                      onPress={() => setNewNoteSecure(!newNoteSecure)}
-                    >
-                      <MaterialIcons name={newNoteSecure ? "lock" : "lock-open"} size={26} color={newNoteSecure ? "#fff" : COLORS.textMuted} />
-                    </TouchableOpacity>
-                    
-                    {!isRecording && !recordedAudioUri && (
-                      <TouchableOpacity 
-                        style={{ 
-                          width: 52, 
-                          height: 52, 
-                          backgroundColor: COLORS.bunkerAccent, 
-                          borderRadius: 26, 
-                          justifyContent: 'center', 
-                          alignItems: 'center',
-                          elevation: 2,
-                          shadowColor: '#000',
-                          shadowOffset: { width: 0, height: 2 },
-                          shadowOpacity: 0.2,
-                          shadowRadius: 2,
-                        }} 
-                        onPress={startRecording}
-                      >
-                        <MaterialIcons name="mic" size={30} color="#fff" />
-                      </TouchableOpacity>
-                    )}
-                  </View>
+                  <TextInput
+                    style={[{fontFamily: COLORS.fontFamily, fontSize: 26, fontWeight: 'bold'}, styles.modalInput, { flex: undefined, marginBottom: 8, backgroundColor: 'transparent', paddingHorizontal: 0, borderWidth: 0, color: COLORS.bunkerDark }]}
+                    placeholder="Título"
+                    placeholderTextColor={COLORS.textMuted}
+                    value={newNoteTitle}
+                    onChangeText={setNewNoteTitle}
+                    onFocus={handleInputFocus}
+                    autoFocus
+                  />
 
                   {(isRecording || recordedAudioUri) && (
                     <View style={[styles.audioPanel, { backgroundColor: COLORS.bunkerBg, borderColor: COLORS.border, marginBottom: 12 }]}>
@@ -1393,7 +1368,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                       flex: 1,
                       paddingTop: 8,
                     }]}
-                    placeholder="Escribe el contenido de tu nota..."
+                    placeholder="Nota"
                     placeholderTextColor={COLORS.textMuted}
                     multiline={true}
                     value={newNoteContent}
@@ -1407,106 +1382,124 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   />
                 </ScrollView>
 
-                {/* Toolbar Fija (Pinned Toolbar) */}
-                <View style={{
-                  paddingHorizontal: 24,
-                  paddingVertical: 12,
-                  borderTopWidth: 1,
-                  borderColor: COLORS.border,
-                  backgroundColor: COLORS.surface,
-                }}>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center', gap: 12 }}>
-                    
-                    {/* Formato */}
-                    <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, marginRight: -4 }}>Formato:</Text>
-                    
-                    <TouchableOpacity 
-                      style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.bunkerBg }}
-                      onPress={() => insertMarkdown('bold')}
-                    >
-                      <Text style={{ fontFamily: COLORS.fontFamily, fontWeight: 'bold', color: COLORS.bunkerDark, fontSize: 14 }}>B</Text>
-                    </TouchableOpacity>
+                {/* Bottom Action Bar */}
+                <View style={{ paddingHorizontal: 16, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface }}>
+                  <TouchableOpacity 
+                    style={{ padding: 8, backgroundColor: showFormatToolbar ? COLORS.bunkerAccent : 'transparent', borderRadius: 8 }}
+                    onPress={() => setShowFormatToolbar(!showFormatToolbar)}
+                  >
+                    <MaterialIcons name="text-format" size={24} color={showFormatToolbar ? "#fff" : COLORS.textMuted} />
+                  </TouchableOpacity>
 
-                    <TouchableOpacity 
-                      style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.bunkerBg }}
-                      onPress={() => insertMarkdown('italic')}
-                    >
-                      <Text style={{ fontFamily: COLORS.fontFamily, fontStyle: 'italic', color: COLORS.bunkerDark, fontSize: 14 }}>I</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity 
-                      style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.bunkerBg }}
-                      onPress={() => insertMarkdown('underline')}
-                    >
-                      <Text style={{ fontFamily: COLORS.fontFamily, textDecorationLine: 'underline', color: COLORS.bunkerDark, fontSize: 14 }}>U</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity 
-                      style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.bunkerBg }}
-                      onPress={() => insertMarkdown('list')}
-                    >
-                      <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.bunkerDark, fontSize: 14 }}>• Lista</Text>
-                    </TouchableOpacity>
-
-                    <View style={{ width: 1, height: 24, backgroundColor: COLORS.border, marginHorizontal: 4 }} />
-
-                    {/* Color */}
-                    <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, marginRight: -4 }}>Color:</Text>
-                    {Object.keys(NOTE_COLORS).map((colorKey) => {
-                      const c = NOTE_COLORS[colorKey];
-                      const isSelected = newNoteColor === colorKey;
-                      const circleColor = colorKey === 'default' ? (isDark ? '#2D3748' : '#EDF2F7') : (isDark ? c.dark : c.light);
-                      return (
-                        <TouchableOpacity
-                          key={colorKey}
-                          onPress={() => setNewNoteColor(colorKey)}
-                          style={{
-                            width: 24,
-                            height: 24,
-                            borderRadius: 12,
-                            backgroundColor: circleColor,
-                            borderWidth: isSelected ? 2 : 1,
-                            borderColor: isSelected ? COLORS.bunkerAccent : (isDark ? '#4A5568' : '#CBD5E0'),
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                          }}
-                        >
-                          {isSelected && (
-                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.bunkerAccent }} />
-                          )}
-                        </TouchableOpacity>
-                      );
-                    })}
-
-                    <View style={{ width: 1, height: 24, backgroundColor: COLORS.border, marginHorizontal: 4 }} />
-
-                    {/* Doodle */}
-                    <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, marginRight: -4 }}>Doodle:</Text>
-                    {Object.keys(NOTE_ILLUSTRATIONS).map((illusKey) => {
-                      const emoji = NOTE_ILLUSTRATIONS[illusKey];
-                      const isSelected = newNoteIllustration === illusKey;
-                      return (
-                        <TouchableOpacity
-                          key={illusKey}
-                          onPress={() => setNewNoteIllustration(illusKey)}
-                          style={{
-                            paddingHorizontal: 8,
-                            paddingVertical: 3,
-                            borderRadius: 12,
-                            backgroundColor: isSelected ? COLORS.bunkerAccent : (isDark ? '#2D3748' : '#EDF2F7'),
-                            borderWidth: 1,
-                            borderColor: isSelected ? 'transparent' : (isDark ? '#4A5568' : '#CBD5E0'),
-                          }}
-                        >
-                          <Text style={{ fontSize: 11, color: isSelected ? '#fff' : COLORS.text }}>
-                            {illusKey === 'none' ? 'Ninguno' : emoji}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
+                  <TouchableOpacity 
+                    style={{ padding: 8, marginLeft: 8, backgroundColor: showFormatToolbar ? COLORS.bunkerAccent : 'transparent', borderRadius: 8 }}
+                    onPress={() => setShowFormatToolbar(!showFormatToolbar)}
+                  >
+                    <MaterialIcons name="color-lens" size={24} color={showFormatToolbar ? "#fff" : COLORS.textMuted} />
+                  </TouchableOpacity>
                 </View>
 
+                {/* Toolbar Fija (Pinned Toolbar) - Collapsible */}
+                {showFormatToolbar && (
+                  <View style={{
+                    paddingHorizontal: 24,
+                    paddingVertical: 12,
+                    borderTopWidth: 1,
+                    borderColor: COLORS.border,
+                    backgroundColor: COLORS.bunkerBg,
+                  }}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center', gap: 12 }}>
+                      
+                      {/* Formato */}
+                      <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, marginRight: -4 }}>Formato:</Text>
+                      
+                      <TouchableOpacity 
+                        style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border }}
+                        onPress={() => insertMarkdown('bold')}
+                      >
+                        <Text style={{ fontFamily: COLORS.fontFamily, fontWeight: 'bold', color: COLORS.bunkerDark, fontSize: 14 }}>B</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity 
+                        style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border }}
+                        onPress={() => insertMarkdown('italic')}
+                      >
+                        <Text style={{ fontFamily: COLORS.fontFamily, fontStyle: 'italic', color: COLORS.bunkerDark, fontSize: 14 }}>I</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity 
+                        style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border }}
+                        onPress={() => insertMarkdown('underline')}
+                      >
+                        <Text style={{ fontFamily: COLORS.fontFamily, textDecorationLine: 'underline', color: COLORS.bunkerDark, fontSize: 14 }}>U</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity 
+                        style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border }}
+                        onPress={() => insertMarkdown('list')}
+                      >
+                        <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.bunkerDark, fontSize: 14 }}>• Lista</Text>
+                      </TouchableOpacity>
+
+                      <View style={{ width: 1, height: 24, backgroundColor: COLORS.border, marginHorizontal: 4 }} />
+
+                      {/* Color */}
+                      <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, marginRight: -4 }}>Color:</Text>
+                      {Object.keys(NOTE_COLORS).map((colorKey) => {
+                        const c = NOTE_COLORS[colorKey];
+                        const isSelected = newNoteColor === colorKey;
+                        const circleColor = colorKey === 'default' ? (isDark ? '#2D3748' : '#EDF2F7') : (isDark ? c.dark : c.light);
+                        return (
+                          <TouchableOpacity
+                            key={colorKey}
+                            onPress={() => setNewNoteColor(colorKey)}
+                            style={{
+                              width: 24,
+                              height: 24,
+                              borderRadius: 12,
+                              backgroundColor: circleColor,
+                              borderWidth: isSelected ? 2 : 1,
+                              borderColor: isSelected ? COLORS.bunkerAccent : (isDark ? '#4A5568' : '#CBD5E0'),
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                            }}
+                          >
+                            {isSelected && (
+                              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.bunkerAccent }} />
+                            )}
+                          </TouchableOpacity>
+                        );
+                      })}
+
+                      <View style={{ width: 1, height: 24, backgroundColor: COLORS.border, marginHorizontal: 4 }} />
+
+                      {/* Doodle */}
+                      <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, marginRight: -4 }}>Doodle:</Text>
+                      {Object.keys(NOTE_ILLUSTRATIONS).map((illusKey) => {
+                        const emoji = NOTE_ILLUSTRATIONS[illusKey];
+                        const isSelected = newNoteIllustration === illusKey;
+                        return (
+                          <TouchableOpacity
+                            key={illusKey}
+                            onPress={() => setNewNoteIllustration(illusKey)}
+                            style={{
+                              paddingHorizontal: 8,
+                              paddingVertical: 3,
+                              borderRadius: 12,
+                              backgroundColor: isSelected ? COLORS.bunkerAccent : (isDark ? '#2D3748' : '#EDF2F7'),
+                              borderWidth: 1,
+                              borderColor: isSelected ? 'transparent' : (isDark ? '#4A5568' : '#CBD5E0'),
+                            }}
+                          >
+                            <Text style={{ fontSize: 11, color: isSelected ? '#fff' : COLORS.text }}>
+                              {illusKey === 'none' ? 'Ninguno' : emoji}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+                )}
               </View>
             )}
           </KeyboardAvoidingView>
