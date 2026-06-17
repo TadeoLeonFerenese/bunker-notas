@@ -40,7 +40,7 @@ import { database } from './src/database';
 import NoteModel from './src/database/Note';
 import RenderHtml from 'react-native-render-html';
 import { ThemeProvider, useTheme, ThemeType } from './src/theme/ThemeContext';
-import { encryption } from './src/notes/encryption';
+import { encryption, encryptFile, decryptFile } from './src/notes/encryption';
 import { backupService } from './src/backup/BackupService';
 import * as Linking from 'expo-linking';
 import { useShareIntent, ShareIntentProvider } from 'expo-share-intent';
@@ -57,6 +57,8 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedNote, setSelectedNote] = useState<NoteModel | null>(null);
+  const [decryptedAudioUri, setDecryptedAudioUri] = useState<string | null>(null);
+  const [decryptedImages, setDecryptedImages] = useState<Record<string, string>>({});
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [isBiometricAvailable, setIsBiometricAvailable] = useState(false);
   const [showThemeMenu, setShowThemeMenu] = useState(false);
@@ -67,8 +69,12 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [textSelection, setTextSelection] = useState<{ start: number; end: number } | undefined>(undefined);
   const [currentSelection, setCurrentSelection] = useState({ start: 0, end: 0 });
   
-  // IA Interoperability State
-  const [pendingExternalNote, setPendingExternalNote] = useState<{title: string, content: string} | null>(null);
+  const [pendingExternalNote, setPendingExternalNote] = useState<{
+    title: string;
+    content: string;
+    audioUri?: string | null;
+    imageUri?: string | null;
+  } | null>(null);
   const initialUrl = Linking.useURL();
   const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent();
 
@@ -104,11 +110,58 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
   // Manejo de Share Intent
   useEffect(() => {
-    const sharedText = shareIntent?.text || shareIntent?.webUrl;
-    if (hasShareIntent && sharedText) {
-      setPendingExternalNote({ title: 'Nota Compartida', content: sharedText });
+    const handleShare = async () => {
+      if (!hasShareIntent) return;
+
+      const sharedText = shareIntent?.text || shareIntent?.webUrl;
+      const sharedFiles = shareIntent?.files;
+
+      if (sharedFiles && sharedFiles.length > 0) {
+        const file = sharedFiles[0];
+        const mime = file.mimeType || '';
+        const isAudio = mime.startsWith('audio/') || /\.(mp3|m4a|wav|ogg|aac|flac)$/i.test(file.path || '');
+        const isImage = mime.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|heic)$/i.test(file.path || '');
+
+        try {
+          const extension = file.fileName?.split('.').pop() || (isAudio ? 'm4a' : 'jpg');
+          const localFileName = `shared_${Date.now()}.${extension}`;
+          const localUri = FileSystem.documentDirectory + localFileName;
+
+          await FileSystem.copyAsync({
+            from: file.path,
+            to: localUri,
+          });
+
+          if (isAudio) {
+            setPendingExternalNote({
+              title: 'Audio Compartido',
+              content: sharedText || '',
+              audioUri: localUri,
+            });
+          } else if (isImage) {
+            setPendingExternalNote({
+              title: 'Imagen Compartida',
+              content: (sharedText ? sharedText + '\n\n' : '') + `![Imagen Compartida](${localUri})`,
+              imageUri: localUri,
+            });
+          } else {
+            setPendingExternalNote({
+              title: 'Nota Compartida',
+              content: sharedText || `Archivo compartido: ${file.fileName}`,
+            });
+          }
+        } catch (err) {
+          console.error('[ShareIntent] Error procesando archivo compartido:', err);
+          Alert.alert('Error', 'No se pudo procesar el archivo compartido.');
+        }
+      } else if (sharedText) {
+        setPendingExternalNote({ title: 'Nota Compartida', content: sharedText });
+      }
+
       resetShareIntent();
-    }
+    };
+
+    handleShare();
   }, [hasShareIntent, shareIntent, resetShareIntent]);
 
   // Compuerta de seguridad: Mostrar modal solo si está autenticado
@@ -116,6 +169,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     if (isAuthenticated && pendingExternalNote) {
       setNewNoteTitle(pendingExternalNote.title);
       setNewNoteContent(pendingExternalNote.content);
+      setRecordedAudioUri(pendingExternalNote.audioUri || null);
       setNewNoteSecure(false); // Por defecto no encriptada para que el usuario elija
       setShowCreateModal(true);
       setPendingExternalNote(null);
@@ -135,6 +189,60 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     };
     checkBiometrics();
   }, []);
+
+  // Decrypt media when opening a secure note, and clean up when closing
+  useEffect(() => {
+    if (!selectedNote) {
+      const cleanup = async () => {
+        if (decryptedAudioUri) {
+          try { await FileSystem.deleteAsync(decryptedAudioUri, { idempotent: true }); } catch (e) {}
+          setDecryptedAudioUri(null);
+        }
+        for (const uri of Object.values(decryptedImages)) {
+          try { await FileSystem.deleteAsync(uri, { idempotent: true }); } catch (e) {}
+        }
+        setDecryptedImages({});
+      };
+      cleanup();
+      return;
+    }
+
+    const decryptMedia = async () => {
+      // 1. Audio
+      if (selectedNote.isSecure && selectedNote.audioUri && selectedNote.audioUri.endsWith('.enc')) {
+        try {
+          const tempPath = await decryptFile(selectedNote.audioUri);
+          setDecryptedAudioUri(tempPath);
+        } catch (e) {
+          console.error("Failed to decrypt audio", e);
+        }
+      } else {
+        setDecryptedAudioUri(selectedNote.audioUri || null);
+      }
+
+      // 2. Images in content
+      if (selectedNote.isSecure && selectedNote.content) {
+        const matches = selectedNote.content.match(/!\[.*?\]\((file:\/\/.*?\.enc)\)/g);
+        if (matches) {
+          const newDecryptedMap: Record<string, string> = {};
+          for (const match of matches) {
+            const urlMatch = match.match(/\((file:\/\/.*?\.enc)\)/);
+            if (urlMatch && urlMatch[1]) {
+              const encUri = urlMatch[1];
+              try {
+                const tempPath = await decryptFile(encUri);
+                newDecryptedMap[encUri] = tempPath;
+              } catch (e) {
+                console.error("Failed to decrypt image", encUri, e);
+              }
+            }
+          }
+          setDecryptedImages(newDecryptedMap);
+        }
+      }
+    };
+    decryptMedia();
+  }, [selectedNote]);
 
   // Create Note State
   const [newNoteTitle, setNewNoteTitle] = useState('');
@@ -191,8 +299,83 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       return;
     }
 
+    let finalAudioUri = audioUri;
+    let finalContent = content.trim();
+
+    if (isSecure) {
+      // 1. Encriptar audio si no está encriptado
+      if (audioUri && !audioUri.endsWith('.enc')) {
+        try {
+          const encPath = await encryptFile(audioUri);
+          finalAudioUri = encPath;
+          setRecordedAudioUri(encPath);
+        } catch (e) {
+          console.error('[Autosave] Error encriptando audio:', e);
+        }
+      }
+
+      // 2. Encriptar imágenes en markdown content si no están encriptadas
+      const matches = finalContent.match(/!\[.*?\]\((file:\/\/.*?)\)/g);
+      if (matches) {
+        for (const match of matches) {
+          const urlMatch = match.match(/\((file:\/\/.*?)\)/);
+          if (urlMatch && urlMatch[1] && !urlMatch[1].endsWith('.enc')) {
+            const plainUri = urlMatch[1];
+            try {
+              const encPath = await encryptFile(plainUri);
+              finalContent = finalContent.replace(plainUri, encPath);
+            } catch (e) {
+              console.error('[Autosave] Error encriptando imagen:', plainUri, e);
+            }
+          }
+        }
+        if (finalContent !== content.trim()) {
+          setNewNoteContent(finalContent);
+        }
+      }
+    } else {
+      // 1. Desencriptar audio si el usuario quita el candado
+      if (audioUri && audioUri.endsWith('.enc')) {
+        try {
+          const decPath = await decryptFile(audioUri);
+          const extension = audioUri.match(/\.([a-zA-Z0-9]+)\.enc$/)?.[1] || 'm4a';
+          const permanentPath = FileSystem.documentDirectory + `audio_${Date.now()}.${extension}`;
+          await FileSystem.moveAsync({ from: decPath, to: permanentPath });
+          finalAudioUri = permanentPath;
+          setRecordedAudioUri(permanentPath);
+          await FileSystem.deleteAsync(audioUri, { idempotent: true });
+        } catch (e) {
+          console.error('[Autosave] Error desencriptando audio al quitar seguridad:', e);
+        }
+      }
+
+      // 2. Desencriptar imágenes en markdown content si el usuario quita el candado
+      const matches = finalContent.match(/!\[.*?\]\((file:\/\/.*?\.enc)\)/g);
+      if (matches) {
+        for (const match of matches) {
+          const urlMatch = match.match(/\((file:\/\/.*?\.enc)\)/);
+          if (urlMatch && urlMatch[1]) {
+            const encUri = urlMatch[1];
+            try {
+              const decPath = await decryptFile(encUri);
+              const extension = encUri.match(/\.([a-zA-Z0-9]+)\.enc$/)?.[1] || 'jpg';
+              const permanentPath = FileSystem.documentDirectory + `image_${Date.now()}.${extension}`;
+              await FileSystem.moveAsync({ from: decPath, to: permanentPath });
+              finalContent = finalContent.replace(encUri, permanentPath);
+              await FileSystem.deleteAsync(encUri, { idempotent: true });
+            } catch (e) {
+              console.error('[Autosave] Error desencriptando imagen al quitar seguridad:', encUri, e);
+            }
+          }
+        }
+        if (finalContent !== content.trim()) {
+          setNewNoteContent(finalContent);
+        }
+      }
+    }
+
     const titleToStore = title.trim() || 'Sin título';
-    const contentToStore = isSecure ? encryption.encrypt(content.trim()) : content.trim();
+    const contentToStore = isSecure ? encryption.encrypt(finalContent) : finalContent;
 
     try {
       await database.write(async () => {
@@ -202,7 +385,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
             n.title = titleToStore;
             n.content = contentToStore;
             n.isSecure = isSecure;
-            n.audioUri = audioUri || '';
+            n.audioUri = finalAudioUri || '';
             n.color = color;
             n.illustration = illustration;
           });
@@ -213,7 +396,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
             note.content = contentToStore;
             note.isSecure = isSecure;
             note.isMarked = false;
-            note.audioUri = audioUri || '';
+            note.audioUri = finalAudioUri || '';
             note.color = color;
             note.illustration = illustration;
           });
@@ -298,6 +481,12 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
     // Reemplazar saltos de línea por <br/>
     html = html.replace(/\n/g, '<br/>');
+    
+    // Reemplazar imágenes ![alt](url)
+    html = html.replace(/!\[(.*?)\]\((.*?)\)/g, (_, alt, url) => {
+      const resolvedUrl = decryptedImages[url] || url;
+      return `<img src="${resolvedUrl}" alt="${alt}" style="max-width: 100%; border-radius: 8px; margin-top: 8px; margin-bottom: 8px;" />`;
+    });
     
     // Reemplazar **negrita**
     html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
@@ -1537,7 +1726,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                     <View style={styles.viewerPlayerControls}>
                       <TouchableOpacity 
                         style={[styles.viewerPlayBtn, { backgroundColor: COLORS.bunkerAccent }]} 
-                        onPress={() => handlePlayAudio(selectedNote.audioUri)}
+                        onPress={() => handlePlayAudio(decryptedAudioUri || selectedNote.audioUri)}
                       >
                         <Text style={styles.viewerPlayBtnText}>
                           {isPlaybackPlaying ? '⏸ Pausa' : '▶ Reproducir'}

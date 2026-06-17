@@ -200,3 +200,36 @@ export async function getSecureCredential(key: string): Promise<string | null> {
     return memoryStore[key] || null;
   }
 }
+
+/**
+ * Encripta un archivo físico en local-first / zero-knowledge
+ */
+export async function encryptFile(fileUri: string): Promise<string> {
+  const FileSystem = require('expo-file-system/legacy');
+  const base64 = await FileSystem.readAsStringAsync(fileUri, { encoding: FileSystem.EncodingType.Base64 });
+  const encryptedData = encryption.encrypt(base64);
+  const newPath = fileUri + '.enc';
+  await FileSystem.writeAsStringAsync(newPath, encryptedData);
+  try {
+    await FileSystem.deleteAsync(fileUri, { idempotent: true });
+  } catch (e) {
+    console.warn('Failed to delete original unencrypted file:', e);
+  }
+  return newPath;
+}
+
+/**
+ * Desencripta un archivo cifrado en un archivo temporal en caché
+ */
+export async function decryptFile(fileUri: string): Promise<string> {
+  const FileSystem = require('expo-file-system/legacy');
+  const encryptedData = await FileSystem.readAsStringAsync(fileUri);
+  const base64 = encryption.decrypt(encryptedData);
+  
+  const extMatch = fileUri.match(/\.([a-zA-Z0-9]+)\.enc$/);
+  const ext = extMatch ? extMatch[1] : 'tmp';
+  
+  const tempPath = FileSystem.cacheDirectory + 'temp_' + Date.now() + '.' + ext;
+  await FileSystem.writeAsStringAsync(tempPath, base64, { encoding: FileSystem.EncodingType.Base64 });
+  return tempPath;
+}
