@@ -142,7 +142,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [newNoteSecure, setNewNoteSecure] = useState(false);
   const [newNoteColor, setNewNoteColor] = useState('default');
   const [newNoteIllustration, setNewNoteIllustration] = useState('none');
-  const [showFormatToolbar, setShowFormatToolbar] = useState(false);
+  const [activeToolbar, setActiveToolbar] = useState<'format' | 'color' | 'doodle' | null>(null);
   // Audio State & Refs
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -256,22 +256,25 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     let newStart = start;
     let newEnd = end;
 
+    const defaultText = "Texto";
+    const content = selected || defaultText;
+
     if (marker === 'bold') {
-      inserted = `**${selected}**`;
+      inserted = `**${content}**`;
       newStart += 2;
-      newEnd = selected ? newStart + selected.length : newStart;
+      newEnd = newStart + content.length;
     } else if (marker === 'italic') {
-      inserted = `*${selected}*`;
+      inserted = `*${content}*`;
       newStart += 1;
-      newEnd = selected ? newStart + selected.length : newStart;
+      newEnd = newStart + content.length;
     } else if (marker === 'underline') {
-      inserted = `__${selected}__`;
+      inserted = `__${content}__`;
       newStart += 2;
-      newEnd = selected ? newStart + selected.length : newStart;
+      newEnd = newStart + content.length;
     } else if (marker === 'list') {
-      inserted = `\n- ${selected}`;
+      inserted = `\n- ${content}`;
       newStart += 3;
-      newEnd = newStart + selected.length;
+      newEnd = newStart + content.length;
     }
 
     const newContent = before + inserted + after;
@@ -685,7 +688,17 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       });
     });
     if (selectedNote?.id === noteId) {
-      setSelectedNote(prev => ({ ...(prev as any), isMarked }) as any);
+      setSelectedNote(prev => ({
+        id: prev?.id,
+        title: prev?.title,
+        content: prev?.content,
+        isSecure: prev?.isSecure,
+        audioUri: prev?.audioUri,
+        color: (prev as any)?.color,
+        illustration: (prev as any)?.illustration,
+        createdAt: prev?.createdAt,
+        isMarked: isMarked
+      }) as any);
     }
   };
 
@@ -1287,7 +1300,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                       style={{ padding: 8, backgroundColor: newNoteSecure ? COLORS.bunkerAccent : 'transparent', borderRadius: 8 }}
                       onPress={() => setNewNoteSecure(!newNoteSecure)}
                     >
-                      <MaterialIcons name={newNoteSecure ? "lock" : "lock-outline"} size={22} color={newNoteSecure ? "#fff" : COLORS.textMuted} />
+                      <MaterialIcons name={newNoteSecure ? "lock" : "lock-outline"} size={26} color={newNoteSecure ? "#fff" : COLORS.bunkerAccent} />
                     </TouchableOpacity>
 
                     {!isRecording && !recordedAudioUri && (
@@ -1295,7 +1308,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                         style={{ padding: 8 }}
                         onPress={startRecording}
                       >
-                        <MaterialIcons name="mic-none" size={22} color={COLORS.textMuted} />
+                        <MaterialIcons name="mic-none" size={26} color={COLORS.bunkerAccent} />
                       </TouchableOpacity>
                     )}
                   </View>
@@ -1307,7 +1320,19 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   keyboardShouldPersistTaps="handled"
                 >
                   <TextInput
-                    style={[{fontFamily: COLORS.fontFamily, fontSize: 26, fontWeight: 'bold'}, styles.modalInput, { flex: undefined, marginBottom: 8, backgroundColor: 'transparent', paddingHorizontal: 0, borderWidth: 0, color: COLORS.bunkerDark }]}
+                    style={[{
+                      fontFamily: COLORS.fontFamily, 
+                      fontSize: 26, 
+                      fontWeight: 'bold', 
+                      flex: undefined, 
+                      marginBottom: 12, 
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', 
+                      paddingHorizontal: 16, 
+                      paddingVertical: 12,
+                      borderRadius: 12,
+                      borderWidth: 0, 
+                      color: COLORS.bunkerDark 
+                    }]}
                     placeholder="Título"
                     placeholderTextColor={COLORS.textMuted}
                     value={newNoteTitle}
@@ -1356,18 +1381,19 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                     </View>
                   )}
 
-                  <TextInput
-                    ref={contentInputRef}
-                    style={[{
-                      fontFamily: COLORS.fontFamily,
-                      fontSize: 16,
-                      backgroundColor: 'transparent',
-                      color: COLORS.bunkerDark,
-                      textAlignVertical: 'top',
-                      minHeight: 300,
-                      flex: 1,
-                      paddingTop: 8,
-                    }]}
+                    <TextInput
+                      ref={contentInputRef}
+                      style={[{
+                        fontFamily: COLORS.fontFamily,
+                        fontSize: 16,
+                        backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                        borderRadius: 12,
+                        padding: 16,
+                        color: COLORS.bunkerDark,
+                        textAlignVertical: 'top',
+                        minHeight: 300,
+                        flex: 1,
+                      }]}
                     placeholder="Nota"
                     placeholderTextColor={COLORS.textMuted}
                     multiline={true}
@@ -1380,126 +1406,92 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                     }}
                     selection={textSelection}
                   />
+
+                  <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, textAlign: 'center', marginTop: 12, fontStyle: 'italic' }}>
+                    Los estilos visuales se aplicarán al guardar la nota.
+                  </Text>
                 </ScrollView>
 
-                {/* Bottom Action Bar */}
-                <View style={{ paddingHorizontal: 16, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface }}>
-                  <TouchableOpacity 
-                    style={{ padding: 8, backgroundColor: showFormatToolbar ? COLORS.bunkerAccent : 'transparent', borderRadius: 8 }}
-                    onPress={() => setShowFormatToolbar(!showFormatToolbar)}
-                  >
-                    <MaterialIcons name="text-format" size={24} color={showFormatToolbar ? "#fff" : COLORS.textMuted} />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity 
-                    style={{ padding: 8, marginLeft: 8, backgroundColor: showFormatToolbar ? COLORS.bunkerAccent : 'transparent', borderRadius: 8 }}
-                    onPress={() => setShowFormatToolbar(!showFormatToolbar)}
-                  >
-                    <MaterialIcons name="color-lens" size={24} color={showFormatToolbar ? "#fff" : COLORS.textMuted} />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Toolbar Fija (Pinned Toolbar) - Collapsible */}
-                {showFormatToolbar && (
-                  <View style={{
-                    paddingHorizontal: 24,
-                    paddingVertical: 12,
-                    borderTopWidth: 1,
-                    borderColor: COLORS.border,
-                    backgroundColor: COLORS.bunkerBg,
-                  }}>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center', gap: 12 }}>
-                      
-                      {/* Formato */}
+                {/* Expandable Toolbars (Above Bottom Action Bar) */}
+                {activeToolbar === 'format' && (
+                  <View style={{ paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.bunkerBg }}>
+                    <ScrollView horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center', gap: 12 }}>
                       <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, marginRight: -4 }}>Formato:</Text>
                       
-                      <TouchableOpacity 
-                        style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border }}
-                        onPress={() => insertMarkdown('bold')}
-                      >
+                      <TouchableOpacity style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border }} onPress={() => insertMarkdown('bold')}>
                         <Text style={{ fontFamily: COLORS.fontFamily, fontWeight: 'bold', color: COLORS.bunkerDark, fontSize: 14 }}>B</Text>
                       </TouchableOpacity>
-
-                      <TouchableOpacity 
-                        style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border }}
-                        onPress={() => insertMarkdown('italic')}
-                      >
+                      <TouchableOpacity style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border }} onPress={() => insertMarkdown('italic')}>
                         <Text style={{ fontFamily: COLORS.fontFamily, fontStyle: 'italic', color: COLORS.bunkerDark, fontSize: 14 }}>I</Text>
                       </TouchableOpacity>
-
-                      <TouchableOpacity 
-                        style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border }}
-                        onPress={() => insertMarkdown('underline')}
-                      >
+                      <TouchableOpacity style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border }} onPress={() => insertMarkdown('underline')}>
                         <Text style={{ fontFamily: COLORS.fontFamily, textDecorationLine: 'underline', color: COLORS.bunkerDark, fontSize: 14 }}>U</Text>
                       </TouchableOpacity>
-
-                      <TouchableOpacity 
-                        style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border }}
-                        onPress={() => insertMarkdown('list')}
-                      >
+                      <TouchableOpacity style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border }} onPress={() => insertMarkdown('list')}>
                         <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.bunkerDark, fontSize: 14 }}>• Lista</Text>
                       </TouchableOpacity>
+                    </ScrollView>
+                  </View>
+                )}
 
-                      <View style={{ width: 1, height: 24, backgroundColor: COLORS.border, marginHorizontal: 4 }} />
-
-                      {/* Color */}
+                {activeToolbar === 'color' && (
+                  <View style={{ paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.bunkerBg }}>
+                    <ScrollView horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center', gap: 12 }}>
                       <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, marginRight: -4 }}>Color:</Text>
                       {Object.keys(NOTE_COLORS).map((colorKey) => {
                         const c = NOTE_COLORS[colorKey];
                         const isSelected = newNoteColor === colorKey;
                         const circleColor = colorKey === 'default' ? (isDark ? '#2D3748' : '#EDF2F7') : (isDark ? c.dark : c.light);
                         return (
-                          <TouchableOpacity
-                            key={colorKey}
-                            onPress={() => setNewNoteColor(colorKey)}
-                            style={{
-                              width: 24,
-                              height: 24,
-                              borderRadius: 12,
-                              backgroundColor: circleColor,
-                              borderWidth: isSelected ? 2 : 1,
-                              borderColor: isSelected ? COLORS.bunkerAccent : (isDark ? '#4A5568' : '#CBD5E0'),
-                              justifyContent: 'center',
-                              alignItems: 'center',
-                            }}
-                          >
-                            {isSelected && (
-                              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.bunkerAccent }} />
-                            )}
-                          </TouchableOpacity>
-                        );
-                      })}
-
-                      <View style={{ width: 1, height: 24, backgroundColor: COLORS.border, marginHorizontal: 4 }} />
-
-                      {/* Doodle */}
-                      <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, marginRight: -4 }}>Doodle:</Text>
-                      {Object.keys(NOTE_ILLUSTRATIONS).map((illusKey) => {
-                        const emoji = NOTE_ILLUSTRATIONS[illusKey];
-                        const isSelected = newNoteIllustration === illusKey;
-                        return (
-                          <TouchableOpacity
-                            key={illusKey}
-                            onPress={() => setNewNoteIllustration(illusKey)}
-                            style={{
-                              paddingHorizontal: 8,
-                              paddingVertical: 3,
-                              borderRadius: 12,
-                              backgroundColor: isSelected ? COLORS.bunkerAccent : (isDark ? '#2D3748' : '#EDF2F7'),
-                              borderWidth: 1,
-                              borderColor: isSelected ? 'transparent' : (isDark ? '#4A5568' : '#CBD5E0'),
-                            }}
-                          >
-                            <Text style={{ fontSize: 11, color: isSelected ? '#fff' : COLORS.text }}>
-                              {illusKey === 'none' ? 'Ninguno' : emoji}
-                            </Text>
+                          <TouchableOpacity key={colorKey} onPress={() => setNewNoteColor(colorKey)} style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: circleColor, borderWidth: isSelected ? 2 : 1, borderColor: isSelected ? COLORS.bunkerAccent : (isDark ? '#4A5568' : '#CBD5E0'), justifyContent: 'center', alignItems: 'center' }}>
+                            {isSelected && <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: COLORS.bunkerAccent }} />}
                           </TouchableOpacity>
                         );
                       })}
                     </ScrollView>
                   </View>
                 )}
+
+                {activeToolbar === 'doodle' && (
+                  <View style={{ paddingHorizontal: 16, paddingVertical: 16, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.bunkerBg, shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 10 }}>
+                    <ScrollView horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center', gap: 12 }}>
+                      <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, marginRight: -4 }}>Doodle:</Text>
+                      {Object.keys(NOTE_ILLUSTRATIONS).map((illusKey) => {
+                        const emoji = NOTE_ILLUSTRATIONS[illusKey];
+                        const isSelected = newNoteIllustration === illusKey;
+                        return (
+                          <TouchableOpacity key={illusKey} onPress={() => setNewNoteIllustration(illusKey)} style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, backgroundColor: isSelected ? COLORS.bunkerAccent : COLORS.surface, borderWidth: 1, borderColor: isSelected ? 'transparent' : COLORS.border }}>
+                            <Text style={{ fontSize: 20 }}>{illusKey === 'none' ? '🚫' : emoji}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+                )}
+
+                {/* Bottom Action Bar */}
+                <View style={{ paddingHorizontal: 16, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, borderTopWidth: 1, borderColor: COLORS.border }}>
+                  <TouchableOpacity 
+                    style={{ padding: 8, backgroundColor: activeToolbar === 'format' ? COLORS.bunkerAccent : 'transparent', borderRadius: 8 }}
+                    onPress={() => setActiveToolbar(activeToolbar === 'format' ? null : 'format')}
+                  >
+                    <MaterialIcons name="text-format" size={26} color={activeToolbar === 'format' ? "#fff" : COLORS.bunkerAccent} />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={{ padding: 8, marginLeft: 8, backgroundColor: activeToolbar === 'color' ? COLORS.bunkerAccent : 'transparent', borderRadius: 8 }}
+                    onPress={() => setActiveToolbar(activeToolbar === 'color' ? null : 'color')}
+                  >
+                    <MaterialIcons name="color-lens" size={26} color={activeToolbar === 'color' ? "#fff" : COLORS.bunkerAccent} />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={{ padding: 8, marginLeft: 8, backgroundColor: activeToolbar === 'doodle' ? COLORS.bunkerAccent : 'transparent', borderRadius: 8 }}
+                    onPress={() => setActiveToolbar(activeToolbar === 'doodle' ? null : 'doodle')}
+                  >
+                    <MaterialIcons name="emoji-emotions" size={26} color={activeToolbar === 'doodle' ? "#fff" : COLORS.bunkerAccent} />
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
           </KeyboardAvoidingView>
@@ -1604,7 +1596,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                       handleToggleMark(selectedNote.id, !selectedNote.isMarked);
                     }}
                   >
-                    <Text style={{ fontSize: 24 }}>
+                    <Text style={{ fontSize: 28, color: selectedNote.isMarked ? COLORS.bunkerAccent : COLORS.textMuted }}>
                       {selectedNote.isMarked ? '★' : '☆'}
                     </Text>
                   </TouchableOpacity>
