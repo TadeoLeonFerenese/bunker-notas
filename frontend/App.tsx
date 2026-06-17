@@ -43,7 +43,7 @@ import { ThemeProvider, useTheme, ThemeType } from './src/theme/ThemeContext';
 import { encryption } from './src/notes/encryption';
 import { backupService } from './src/backup/BackupService';
 import * as Linking from 'expo-linking';
-import { useShareIntent } from 'expo-share-intent';
+import { useShareIntent, ShareIntentProvider } from 'expo-share-intent';
 
 type FilterType = 'all' | 'marked' | 'secure';
 type ViewMode = 'list' | 'grid';
@@ -1270,7 +1270,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       <Modal visible={showCreateModal} animationType="slide" transparent onRequestClose={handleCloseCreateModal}>
         <KeyboardAvoidingView 
           style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <Pressable style={StyleSheet.absoluteFillObject} onPress={handleCloseCreateModal} />
           {showCreateModal && (
@@ -1593,6 +1593,15 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                       color: COLORS.bunkerDark,
                       fontSize: 16,
                       lineHeight: 24,
+                      fontFamily: COLORS.fontFamily,
+                    }}
+                    tagsStyles={{
+                      strong: { fontWeight: 'bold', color: COLORS.bunkerDark },
+                      b: { fontWeight: 'bold', color: COLORS.bunkerDark },
+                      em: { fontStyle: 'italic' },
+                      i: { fontStyle: 'italic' },
+                      u: { textDecorationLine: 'underline' },
+                      li: { color: COLORS.bunkerDark, fontSize: 16, lineHeight: 24 },
                     }}
                   />
                 </ScrollView>
@@ -1819,7 +1828,9 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <EnhancedAppContent />
+      <ShareIntentProvider>
+        <EnhancedAppContent />
+      </ShareIntentProvider>
     </ThemeProvider>
   );
 }
