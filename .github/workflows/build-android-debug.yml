@@ -44,19 +44,19 @@ jobs:
             keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           fi
 
-      - name: Build Debug APK with Gradle
+      - name: Build Release APK with Gradle
         run: |
           cd frontend/android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleRelease --no-daemon
 
       - name: List APK output directory
-        run: ls -la frontend/android/app/build/outputs/apk/debug/ || true
+        run: ls -la frontend/android/app/build/outputs/apk/release/ || true
 
-      - name: Upload Debug APK Artifact
+      - name: Upload Release APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
-          path: frontend/android/app/build/outputs/apk/debug/*.apk
+          name: app-release
+          path: frontend/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
 
