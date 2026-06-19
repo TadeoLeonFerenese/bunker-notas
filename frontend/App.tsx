@@ -1550,12 +1550,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                     )}
                   </View>
                 </View>
-
-                <ScrollView 
-                  style={{ flex: 1 }}
-                  contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingBottom: 16 }}
-                  keyboardShouldPersistTaps="handled"
-                >
+                <View style={{ flex: 1, paddingHorizontal: 24, paddingBottom: 16, paddingTop: 12 }}>
                   <TextInput
                     style={[{
                       fontFamily: COLORS.fontFamily, 
@@ -1626,9 +1621,9 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                         backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
                         borderRadius: 12,
                         padding: 16,
+                        paddingBottom: 40,
                         color: COLORS.bunkerDark,
                         textAlignVertical: 'top',
-                        minHeight: 300,
                         flex: 1,
                       }]}
                     placeholder="Nota"
@@ -1647,7 +1642,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, textAlign: 'center', marginTop: 12, fontStyle: 'italic' }}>
                     Los estilos visuales se aplicarán al guardar la nota.
                   </Text>
-                </ScrollView>
+                </View>
 
                 {/* Expandable Toolbars (Above Bottom Action Bar) */}
                 {activeToolbar === 'format' && (
