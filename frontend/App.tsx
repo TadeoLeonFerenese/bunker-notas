@@ -67,7 +67,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const authActionRef = useRef<'open' | 'delete'>('open');
   const contentInputRef = useRef<any>(null);
   const [textSelection, setTextSelection] = useState<{ start: number; end: number } | undefined>(undefined);
-  const [currentSelection, setCurrentSelection] = useState({ start: 0, end: 0 });
+  const currentSelectionRef = useRef({ start: 0, end: 0 });
   
   const [pendingExternalNote, setPendingExternalNote] = useState<{
     title: string;
@@ -428,7 +428,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   }, [newNoteTitle, newNoteContent, newNoteSecure, newNoteColor, newNoteIllustration, recordedAudioUri, showCreateModal]);
 
   const insertMarkdown = (marker: string) => {
-    const { start, end } = currentSelection;
+    const { start, end } = currentSelectionRef.current;
     const text = newNoteContent;
     
     const before = text.substring(0, start);
@@ -1085,7 +1085,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
         });
 
         const markdownTag = `\n![Imagen](${localUri})\n`;
-        const { start, end } = currentSelection;
+        const { start, end } = currentSelectionRef.current;
         const text = newNoteContent;
         
         const before = text.substring(0, start);
@@ -1672,10 +1672,10 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                     onChangeText={setNewNoteContent}
                     onFocus={handleInputFocus}
                     onSelectionChange={(e) => {
-                      setCurrentSelection(e.nativeEvent.selection);
+                      currentSelectionRef.current = e.nativeEvent.selection;
                       setTextSelection(undefined);
                     }}
-                    selection={textSelection}
+                    {...(textSelection ? { selection: textSelection } : {})}
                   />
 
                   <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, textAlign: 'center', marginTop: 12, fontStyle: 'italic' }}>
