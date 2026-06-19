@@ -61,7 +61,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [decryptedImages, setDecryptedImages] = useState<Record<string, string>>({});
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [isBiometricAvailable, setIsBiometricAvailable] = useState(false);
-  const [showThemeMenu, setShowThemeMenu] = useState(false);
+  const [showBurgerMenu, setShowBurgerMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [backupModalVisible, setBackupModalVisible] = useState(false);
   const authActionRef = useRef<'open' | 'delete'>('open');
@@ -1286,213 +1286,300 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
       <SafeAreaView style={[styles.feedContainer, { flex: 1, backgroundColor: customBackground ? 'transparent' : COLORS.bunkerBg }]}>
         {/* Header */}
-        <View style={[styles.header, { backgroundColor: customBackground ? 'transparent' : COLORS.surface, borderBottomColor: customBackground ? 'transparent' : COLORS.border }]}>
-          <View style={styles.headerTop}>
-            <View>
-              {width < 768 ? (
-                <>
-                  <Text style={[{fontFamily: COLORS.fontFamily}, styles.headerTitle, { color: COLORS.bunkerDark }]}>Mis Notas</Text>
-                  <Text style={[{fontFamily: COLORS.fontFamily}, styles.headerSubtitle, { color: COLORS.bunkerGray }]}>
-                    {notes.length} nota{notes.length !== 1 ? 's' : ''}
-                  </Text>
-                </>
-              ) : (
-                <Text style={[{fontFamily: COLORS.fontFamily}, styles.headerTitle, { color: COLORS.bunkerDark, fontSize: 24, lineHeight: 30 }]}>
-                  {filter === 'all' ? 'Notas' : filter === 'marked' ? 'Marcadas' : 'Seguras'}
-                </Text>
+        <View style={[styles.header, { backgroundColor: customBackground ? 'transparent' : COLORS.surface, borderBottomColor: customBackground ? 'transparent' : COLORS.border, paddingBottom: 10, paddingTop: Platform.OS === 'android' ? 48 : 24, marginTop: '10%' }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            {/* Logo de Bunker Notas (Image) */}
+            <Image 
+              source={require('./assets/icon.png')} 
+              style={{ 
+                width: 40, 
+                height: 40, 
+                borderRadius: 20,
+              }} 
+            />
+
+            {/* Barra de Búsqueda (Gray Input) */}
+            <View style={{
+              flex: 1,
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: COLORS.bunkerBg,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: COLORS.border,
+              paddingHorizontal: 12,
+              height: 48,
+            }}>
+              <MaterialIcons name="search" size={18} color={COLORS.bunkerGray} style={{ marginRight: 6 }} />
+              <TextInput
+                style={{
+                  flex: 1,
+                  color: COLORS.text,
+                  fontSize: 15,
+                  fontFamily: COLORS.fontFamily,
+                  paddingVertical: 8,
+                }}
+                placeholder="Buscar Notas"
+                placeholderTextColor={COLORS.textMuted}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              {searchQuery.trim().length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <MaterialIcons name="cancel" size={16} color={COLORS.bunkerGray} />
+                </TouchableOpacity>
               )}
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, zIndex: 1000 }}>
-              {width < 768 && (
-                <>
+
+            {/* Burger Menu Button (Yellow theme/action group inside) */}
+            <TouchableOpacity
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: COLORS.bunkerBg,
+                justifyContent: 'center',
+                alignItems: 'center',
+                borderWidth: 1,
+                borderColor: COLORS.border,
+              }}
+              onPress={() => setShowBurgerMenu(true)}
+            >
+              <MaterialIcons name="menu" size={22} color={COLORS.bunkerDark} />
+            </TouchableOpacity>
+
+            {/* Floating Burger Menu Modal Dropdown */}
+            <Modal visible={showBurgerMenu} transparent animationType="fade" onRequestClose={() => setShowBurgerMenu(false)}>
+              <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.1)' }} onPress={() => setShowBurgerMenu(false)}>
+                <Pressable style={{ 
+                  backgroundColor: COLORS.surface, 
+                  borderColor: COLORS.border,
+                  position: 'absolute',
+                  top: Platform.OS === 'ios' ? 100 : 80,
+                  right: 16,
+                  width: 220,
+                  borderRadius: 16,
+                  borderWidth: 1,
+                  padding: 16,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 8,
+                  elevation: 5,
+                }}>
+                  {/* Note Layout Toggle */}
                   <TouchableOpacity
-                    style={[styles.viewToggle, { backgroundColor: COLORS.bunkerBg }]}
-                    onPress={() => setShowThemeMenu(true)}
+                    style={{
+                      paddingVertical: 10,
+                      paddingHorizontal: 8,
+                      borderRadius: 8,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 10,
+                      backgroundColor: 'transparent',
+                      marginBottom: 4
+                    }}
+                    onPress={() => {
+                      setViewMode(viewMode === 'list' ? 'grid' : 'list');
+                      setShowBurgerMenu(false);
+                    }}
                   >
-                    <MaterialIcons name="palette" size={20} color={COLORS.bunkerGray} />
+                    <MaterialIcons name={viewMode === 'list' ? 'grid-view' : 'view-list'} size={18} color={COLORS.bunkerDark} />
+                    <Text style={{ color: COLORS.bunkerDark, fontSize: 13, fontFamily: COLORS.fontFamily, fontWeight: '500' }}>
+                      Vista: {viewMode === 'list' ? 'Cuadrícula' : 'Lista'}
+                    </Text>
                   </TouchableOpacity>
+
+                  {/* Backup / Import */}
                   <TouchableOpacity
-                    style={[styles.viewToggle, { backgroundColor: COLORS.bunkerBg }]}
-                    onPress={handleBackupAction}
+                    style={{
+                      paddingVertical: 10,
+                      paddingHorizontal: 8,
+                      borderRadius: 8,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 10,
+                      backgroundColor: 'transparent',
+                      marginBottom: 8
+                    }}
+                    onPress={() => {
+                      setShowBurgerMenu(false);
+                      handleBackupAction();
+                    }}
                   >
-                    <MaterialIcons name="backup" size={20} color={COLORS.bunkerGray} />
+                    <MaterialIcons name="backup" size={18} color={COLORS.bunkerDark} />
+                    <Text style={{ color: COLORS.bunkerDark, fontSize: 13, fontFamily: COLORS.fontFamily, fontWeight: '500' }}>
+                      Respaldar / Importar
+                    </Text>
                   </TouchableOpacity>
 
-                  <Modal visible={showThemeMenu} transparent animationType="fade" onRequestClose={() => setShowThemeMenu(false)}>
-                    <Pressable style={{ flex: 1 }} onPress={() => setShowThemeMenu(false)}>
-                      <Pressable style={{ 
-                        backgroundColor: COLORS.surface, 
-                        borderColor: COLORS.border,
-                        position: 'absolute',
-                        top: Platform.OS === 'ios' ? 100 : 80,
-                        right: 24,
-                        width: 160,
-                        borderRadius: 12,
-                        borderWidth: 1,
-                        padding: 4,
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 4 },
-                        shadowOpacity: 0.1,
-                        shadowRadius: 8,
-                        elevation: 5,
-                      }}>
-                        {(['classic', 'classic_dark', 'emerald', 'light', 'dark'] as ThemeType[]).map((t) => (
-                          <TouchableOpacity
-                            key={t}
-                            style={{
-                              paddingVertical: 10,
-                              paddingHorizontal: 12,
-                              borderRadius: 8,
-                              backgroundColor: theme === t ? COLORS.bunkerBg : 'transparent',
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                            }}
-                            onPress={() => {
-                              setTheme(t);
-                              setShowThemeMenu(false);
-                            }}
-                          >
-                            <Text style={{ 
-                              color: theme === t ? COLORS.bunkerAccent : COLORS.bunkerDark, 
-                              fontWeight: theme === t ? '600' : '400',
-                              fontFamily: COLORS.fontFamily,
-                              fontSize: 13,
-                              textTransform: 'capitalize',
-                            }}>
-                              {t}
-                            </Text>
-                            {theme === t && (
-                              <MaterialIcons name="check" size={14} color={COLORS.bunkerAccent} />
-                            )}
-                          </TouchableOpacity>
-                        ))}
+                  <View style={{ height: 1, backgroundColor: COLORS.border, marginBottom: 8 }} />
 
-                        <View style={{ height: 1, backgroundColor: COLORS.border, marginVertical: 4 }} />
+                  {/* Themes section */}
+                  <Text style={{ 
+                    fontFamily: COLORS.fontFamily,
+                    fontSize: 11, 
+                    fontWeight: 'bold', 
+                    color: COLORS.bunkerGray, 
+                    textTransform: 'uppercase',
+                    marginBottom: 8,
+                    paddingLeft: 8
+                  }}>
+                    Tema
+                  </Text>
 
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 4, marginBottom: 8 }}>
+                    {(['classic', 'classic_dark', 'emerald', 'light', 'dark'] as ThemeType[]).map((t) => {
+                      let leftColor = '#A0AEC0';
+                      let rightColor = '#A0AEC0';
+
+                      if (t === 'classic') {
+                        leftColor = '#FFFFFF';
+                        rightColor = '#E94560';
+                      } else if (t === 'classic_dark') {
+                        leftColor = '#212529';
+                        rightColor = '#E94560';
+                      } else if (t === 'emerald') {
+                        leftColor = '#FFFFFF';
+                        rightColor = '#059669';
+                      } else if (t === 'light') {
+                        leftColor = '#FFFFFF';
+                        rightColor = '#007AFF';
+                      } else if (t === 'dark') {
+                        leftColor = '#000000';
+                        rightColor = '#0A84FF';
+                      }
+
+                      const isSelected = theme === t;
+
+                      return (
                         <TouchableOpacity
+                          key={t}
                           style={{
-                            paddingVertical: 10,
-                            paddingHorizontal: 12,
-                            borderRadius: 8,
-                            flexDirection: 'row',
+                            width: 28,
+                            height: 28,
+                            borderRadius: 14,
+                            borderWidth: 2,
+                            borderColor: isSelected ? COLORS.bunkerAccent : (isDark ? '#4A5568' : '#CBD5E0'),
+                            justifyContent: 'center',
                             alignItems: 'center',
-                            gap: 8,
+                            overflow: 'hidden',
+                            position: 'relative'
                           }}
-                          onPress={async () => {
-                            setShowThemeMenu(false);
-                            await handlePickBackground();
+                          onPress={() => {
+                            setTheme(t);
+                            setShowBurgerMenu(false);
                           }}
                         >
-                          <MaterialIcons name="image" size={16} color={COLORS.bunkerDark} />
-                          <Text style={{ color: COLORS.bunkerDark, fontSize: 13 }}>
-                            Subir Fondo
-                          </Text>
+                          {/* Two halves split vertically */}
+                          <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, flexDirection: 'row' }}>
+                            <View style={{ flex: 1, backgroundColor: leftColor }} />
+                            <View style={{ flex: 1, backgroundColor: rightColor }} />
+                          </View>
+
+                          {isSelected && (
+                            <MaterialIcons 
+                              name="check" 
+                              size={14} 
+                              color={(t === 'light' || leftColor === '#FFFFFF') ? '#000' : '#fff'} 
+                              style={{ zIndex: 1 }} 
+                            />
+                          )}
                         </TouchableOpacity>
+                      );
+                    })}
+                  </View>
 
-                        {customBackground && (
-                          <TouchableOpacity
-                            style={{
-                              paddingVertical: 10,
-                              paddingHorizontal: 12,
-                              borderRadius: 8,
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              gap: 8,
-                            }}
-                            onPress={async () => {
-                              setShowThemeMenu(false);
-                              await handleRemoveBackground();
-                            }}
-                          >
-                            <MaterialIcons name="no-photography" size={16} color={COLORS.bunkerAccent} />
-                            <Text style={{ color: COLORS.bunkerAccent, fontSize: 13, fontWeight: '500' }}>
-                              Quitar Fondo
-                            </Text>
-                          </TouchableOpacity>
-                        )}
-                      </Pressable>
-                    </Pressable>
-                  </Modal>
-                </>
-              )}
-              <TouchableOpacity
-                style={[styles.viewToggle, { backgroundColor: COLORS.bunkerBg }]}
-                onPress={() => setViewMode(viewMode === 'list' ? 'grid' : 'list')}
-              >
-                <Text style={[styles.viewToggleIcon, { color: COLORS.bunkerGray }]}>
-                  {viewMode === 'list' ? '▦' : '☰'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+                  <View style={{ height: 1, backgroundColor: COLORS.border, marginVertical: 8 }} />
 
-        {/* Search Bar */}
-        <View style={{
-          paddingHorizontal: 16,
-          paddingVertical: 10,
-          backgroundColor: customBackground ? 'transparent' : COLORS.surface,
-          borderBottomWidth: 1,
-          borderBottomColor: COLORS.border,
-        }}>
-          <View style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            backgroundColor: COLORS.bunkerBg,
-            borderRadius: 12,
-            borderWidth: 1,
-            borderColor: COLORS.border,
-            paddingHorizontal: 12,
-            height: 44,
-          }}>
-            <MaterialIcons name="search" size={20} color={COLORS.bunkerGray} style={{ marginRight: 8 }} />
-            <TextInput
-              style={{
-                flex: 1,
-                color: COLORS.text,
-                fontSize: 14,
-                fontFamily: COLORS.fontFamily,
-                paddingVertical: 8,
-              }}
-              placeholder="Buscar notas..."
-              placeholderTextColor={COLORS.textMuted}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {searchQuery.trim().length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <MaterialIcons name="cancel" size={18} color={COLORS.bunkerGray} />
-              </TouchableOpacity>
-            )}
+                  {/* Custom Background Actions */}
+                  <TouchableOpacity
+                    style={{
+                      paddingVertical: 8,
+                      paddingHorizontal: 8,
+                      borderRadius: 8,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 10,
+                    }}
+                    onPress={async () => {
+                      setShowBurgerMenu(false);
+                      await handlePickBackground();
+                    }}
+                  >
+                    <MaterialIcons name="image" size={18} color={COLORS.bunkerDark} />
+                    <Text style={{ color: COLORS.bunkerDark, fontSize: 13, fontFamily: COLORS.fontFamily }}>
+                      Subir Fondo
+                    </Text>
+                  </TouchableOpacity>
+
+                  {customBackground && (
+                    <TouchableOpacity
+                      style={{
+                        paddingVertical: 8,
+                        paddingHorizontal: 8,
+                        borderRadius: 8,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 10,
+                        marginTop: 4
+                      }}
+                      onPress={async () => {
+                        setShowBurgerMenu(false);
+                        await handleRemoveBackground();
+                      }}
+                    >
+                      <MaterialIcons name="no-photography" size={18} color={COLORS.bunkerAccent} />
+                      <Text style={{ color: COLORS.bunkerAccent, fontSize: 13, fontWeight: '500', fontFamily: COLORS.fontFamily }}>
+                        Quitar Fondo
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                </Pressable>
+              </Pressable>
+            </Modal>
+
           </View>
         </View>
 
         {/* Filters (Mobile only) */}
         {width < 768 && (
-          <View style={[styles.filterContainer, { backgroundColor: customBackground ? 'transparent' : COLORS.surface, borderColor: customBackground ? 'transparent' : COLORS.border }]}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-            {(['all', 'marked', 'secure'] as FilterType[]).map((f) => (
-              <TouchableOpacity
-                key={f}
-                style={[
-                  styles.filterTab,
-                  filter === f 
-                    ? { backgroundColor: COLORS.bunkerAccent }
-                    : { backgroundColor: COLORS.bunkerBg, borderWidth: 1, borderColor: COLORS.border },
-                ]}
-                onPress={() => setFilter(f)}
-              >
-                <Text style={[
-                  styles.filterText,
-                  { color: filter === f ? '#fff' : COLORS.bunkerDark },
-                ]}>
-                  {f === 'all' ? 'Todas' : f === 'marked' ? 'Marcadas' : 'Seguras'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+          <View style={[
+            styles.filterContainer, 
+            { 
+              backgroundColor: customBackground ? 'transparent' : COLORS.surface, 
+              borderColor: customBackground ? 'transparent' : COLORS.border,
+              borderBottomWidth: 1,
+              marginTop: 16,
+              paddingVertical: 10,
+              justifyContent: 'center',
+              alignItems: 'center'
+            }
+          ]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingHorizontal: 16, width: '100%' }}>
+              {(['all', 'marked', 'secure'] as FilterType[]).map((f) => (
+                <TouchableOpacity
+                  key={f}
+                  style={[
+                    styles.filterTab,
+                    filter === f 
+                      ? { backgroundColor: COLORS.bunkerAccent }
+                      : { backgroundColor: COLORS.bunkerBg, borderWidth: 1, borderColor: COLORS.border },
+                    { flex: 1, maxWidth: 120, alignItems: 'center', paddingHorizontal: 8 }
+                  ]}
+                  onPress={() => setFilter(f)}
+                >
+                  <Text style={[
+                    styles.filterText,
+                    { color: filter === f ? '#fff' : COLORS.bunkerDark },
+                  ]}>
+                    {f === 'all' ? 'Todas' : f === 'marked' ? 'Marcadas' : 'Seguras'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
         )}
 
         {/* Notes Feed */}
@@ -1566,7 +1653,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
             {showCreateModal && (
               <View style={[styles.modalContent, { backgroundColor: COLORS.surface, flex: 1, padding: 0 }]}>
                 {/* Header Minimal */}
-                <View style={[styles.modalHeader, { paddingHorizontal: 16, paddingTop: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+                <View style={[styles.modalHeader, { paddingHorizontal: 16, paddingTop: 16, marginBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
                   <TouchableOpacity onPress={handleCloseCreateModal} style={{ padding: 8 }}>
                     <MaterialIcons name="arrow-back" size={24} color={COLORS.bunkerDark} />
                   </TouchableOpacity>
@@ -1589,17 +1676,17 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                     )}
                   </View>
                 </View>
-                <View style={{ flex: 1, paddingHorizontal: 24, paddingBottom: 16, paddingTop: 12 }}>
+                <View style={{ flex: 1, paddingHorizontal: 24, paddingBottom: 8, paddingTop: 6 }}>
                   <TextInput
                     style={[{
                       fontFamily: COLORS.fontFamily, 
-                      fontSize: 26, 
+                      fontSize: 20, 
                       fontWeight: 'bold', 
                       flex: undefined, 
-                      marginBottom: 12, 
+                      marginBottom: 6, 
                       backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', 
                       paddingHorizontal: 16, 
-                      paddingVertical: 12,
+                      paddingVertical: 8,
                       borderRadius: 12,
                       borderWidth: 0, 
                       color: COLORS.bunkerDark 
@@ -1613,7 +1700,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   />
 
                   {(isRecording || recordedAudioUri) && (
-                    <View style={[styles.audioPanel, { backgroundColor: COLORS.bunkerBg, borderColor: COLORS.border, marginBottom: 12 }]}>
+                    <View style={[styles.audioPanel, { backgroundColor: COLORS.bunkerBg, borderColor: COLORS.border, marginBottom: 6, paddingVertical: 8 }]}>
                       {isRecording ? (
                         <View style={styles.audioRow}>
                           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -1635,7 +1722,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                           </View>
                           <View style={{ flexDirection: 'row', gap: 8 }}>
                             <TouchableOpacity 
-                              style={[styles.audioIconBtn, { backgroundColor: COLORS.bunkerAccent }]} 
+                               style={[styles.audioIconBtn, { backgroundColor: COLORS.bunkerAccent }]} 
                               onPress={() => handlePlayAudio(recordedAudioUri!)}
                             >
                               <MaterialIcons name={isPlaybackPlaying ? 'pause' : 'play-arrow'} size={24} color="#fff" />
@@ -1680,7 +1767,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                     {...(textSelection ? { selection: textSelection } : {})}
                   />
 
-                  <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, textAlign: 'center', marginTop: 12, fontStyle: 'italic' }}>
+                  <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, textAlign: 'center', marginTop: 6, fontStyle: 'italic' }}>
                     Los estilos visuales se aplicarán al guardar la nota.
                   </Text>
                 </View>

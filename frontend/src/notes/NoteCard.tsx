@@ -115,8 +115,7 @@ const NoteCardBase = ({
         onLongPress={() => onLongPress(note.id)}
         style={[
           stylesGrid.card,
-          cardBgStyle,
-          { borderColor: COLORS.border },
+          { backgroundColor: COLORS.cardBg, borderColor: COLORS.border },
           note.isSecure && {
           borderLeftWidth: 4,
           borderLeftColor: noteColorKey !== 'default' ? (isDark ? NOTE_COLORS[noteColorKey].light : NOTE_COLORS[noteColorKey].dark) : COLORS.bunkerAccent,
@@ -143,41 +142,43 @@ const NoteCardBase = ({
             {illustrationEmoji}
           </Text>
         )}
-        <View style={stylesGrid.header}>
+        <View style={[stylesGrid.header, customCardBg !== 'transparent' && { backgroundColor: customCardBg }]}>
           <Text style={[{fontFamily: COLORS.fontFamily}, stylesGrid.title, { color: COLORS.text }]} numberOfLines={2}>
             {note.title}
           </Text>
           {note.isSecure && <Text style={stylesGrid.secureIcon}>🔒</Text>}
         </View>
-        {note.content ? (
-          <View style={{ flex: 1, overflow: 'hidden', borderRadius: 4 }}>
-            <Text style={[{fontFamily: COLORS.fontFamily}, stylesGrid.content, { color: COLORS.textSecondary }]} numberOfLines={3}>
-              {note.isSecure ? 'Este contenido está protegido localmente...' : stripHtml(note.content)}
-            </Text>
-            {note.isSecure && (
-              <BlurView intensity={isDark ? 80 : 50} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
-            )}
+        <View style={{ padding: 12, paddingTop: 8, flex: 1 }}>
+          {note.content ? (
+            <View style={{ flex: 1, overflow: 'hidden', borderRadius: 4 }}>
+              <Text style={[{fontFamily: COLORS.fontFamily}, stylesGrid.content, { color: COLORS.textSecondary }]} numberOfLines={3}>
+                {note.isSecure ? 'Este contenido está protegido localmente...' : stripHtml(note.content)}
+              </Text>
+              {note.isSecure && (
+                <BlurView intensity={isDark ? 80 : 50} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+              )}
+            </View>
+          ) : null}
+          <View style={stylesGrid.footer}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {note.audioUri && (
+                <View style={[stylesGrid.audioBadge, { backgroundColor: isDark ? '#4A5568' : '#EBF8FF' }]}>
+                  <Text style={{ fontSize: 9 }}>🎙️</Text>
+                </View>
+              )}
+              {hasImage && (
+                <View style={[stylesGrid.audioBadge, { backgroundColor: isDark ? '#4A5568' : '#EBF8FF' }]}>
+                  <Text style={{ fontSize: 9 }}>📷</Text>
+                </View>
+              )}
+              <Text style={[stylesGrid.date, { color: COLORS.textMuted }]}>{formatDate(note.createdAt)}</Text>
+            </View>
+            <TouchableOpacity onPress={handleToggleMark} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={[stylesGrid.star, note.isMarked && { color: COLORS.accent }]}>
+                {note.isMarked ? '★' : '☆'}
+              </Text>
+            </TouchableOpacity>
           </View>
-        ) : null}
-        <View style={stylesGrid.footer}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            {note.audioUri && (
-              <View style={[stylesGrid.audioBadge, { backgroundColor: isDark ? '#4A5568' : '#EBF8FF' }]}>
-                <Text style={{ fontSize: 9 }}>🎙️</Text>
-              </View>
-            )}
-            {hasImage && (
-              <View style={[stylesGrid.audioBadge, { backgroundColor: isDark ? '#4A5568' : '#EBF8FF' }]}>
-                <Text style={{ fontSize: 9 }}>📷</Text>
-              </View>
-            )}
-            <Text style={[stylesGrid.date, { color: COLORS.textMuted }]}>{formatDate(note.createdAt)}</Text>
-          </View>
-          <TouchableOpacity onPress={handleToggleMark} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Text style={[stylesGrid.star, note.isMarked && { color: COLORS.accent }]}>
-              {note.isMarked ? '★' : '☆'}
-            </Text>
-          </TouchableOpacity>
         </View>
       </TouchableOpacity>
     );
@@ -191,8 +192,7 @@ const NoteCardBase = ({
       onLongPress={() => onLongPress(note.id)}
       style={[
         stylesList.card,
-        cardBgStyle,
-        { borderColor: COLORS.border },
+        { backgroundColor: COLORS.cardBg, borderColor: COLORS.border },
         note.isSecure && {
           borderLeftWidth: 4,
           borderLeftColor: noteColorKey !== 'default' ? (isDark ? NOTE_COLORS[noteColorKey].light : NOTE_COLORS[noteColorKey].dark) : COLORS.bunkerAccent,
@@ -219,7 +219,7 @@ const NoteCardBase = ({
           {illustrationEmoji}
         </Text>
       )}
-      <View style={stylesList.headerRow}>
+      <View style={[stylesList.headerRow, customCardBg !== 'transparent' && { backgroundColor: customCardBg }]}>
         <View style={stylesList.titleContainer}>
           <Text style={[{fontFamily: COLORS.fontFamily}, stylesList.title, { color: COLORS.text }]} numberOfLines={2}>
             {note.title}
@@ -244,35 +244,37 @@ const NoteCardBase = ({
         </View>
       </View>
 
-      {note.content ? (
-        <View style={{ overflow: 'hidden', borderRadius: 4, marginBottom: 8 }}>
-          <Text style={[{fontFamily: COLORS.fontFamily}, stylesList.content, { color: COLORS.textSecondary, marginBottom: 0 }]} numberOfLines={3}>
-            {note.isSecure ? 'Este contenido está protegido localmente...' : stripHtml(note.content)}
-          </Text>
-          {note.isSecure && (
-            <BlurView intensity={isDark ? 80 : 50} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
-          )}
-        </View>
-      ) : null}
+      <View style={{ padding: 16, paddingTop: 8 }}>
+        {note.content ? (
+          <View style={{ overflow: 'hidden', borderRadius: 4, marginBottom: 8 }}>
+            <Text style={[{fontFamily: COLORS.fontFamily}, stylesList.content, { color: COLORS.textSecondary, marginBottom: 0 }]} numberOfLines={3}>
+              {note.isSecure ? 'Este contenido está protegido localmente...' : stripHtml(note.content)}
+            </Text>
+            {note.isSecure && (
+              <BlurView intensity={isDark ? 80 : 50} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+            )}
+          </View>
+        ) : null}
 
-      <View style={stylesList.footer}>
-        <View style={stylesList.meta}>
-          {note.audioUri && (
-            <View style={[stylesList.audioBadge, { backgroundColor: isDark ? '#4A5568' : '#EBF8FF', borderColor: isDark ? '#4A5568' : '#BEE3F8', borderWidth: 1 }]}>
-              <Text style={[stylesList.audioText, { color: isDark ? '#E2E8F0' : '#2B6CB0' }]}>🎙️ Nota de Audio</Text>
-            </View>
-          )}
-          {hasImage && (
-            <View style={[stylesList.audioBadge, { backgroundColor: isDark ? '#4A5568' : '#EBF8FF', borderColor: isDark ? '#4A5568' : '#BEE3F8', borderWidth: 1, flexDirection: 'row', alignItems: 'center' }]}>
-              {imgUri && !note.isSecure ? (
-                <Image source={{ uri: imgUri }} style={{ width: 14, height: 14, borderRadius: 3, marginRight: 4 }} />
-              ) : (
-                <Text style={{ fontSize: 11, marginRight: 4 }}>📷</Text>
-              )}
-              <Text style={[stylesList.audioText, { color: isDark ? '#E2E8F0' : '#2B6CB0' }]}>Imagen</Text>
-            </View>
-          )}
-          <Text style={[stylesList.date, { color: COLORS.textMuted }]}>{formatDate(note.createdAt)}</Text>
+        <View style={stylesList.footer}>
+          <View style={stylesList.meta}>
+            {note.audioUri && (
+              <View style={[stylesList.audioBadge, { backgroundColor: isDark ? '#4A5568' : '#EBF8FF', borderColor: isDark ? '#4A5568' : '#BEE3F8', borderWidth: 1 }]}>
+                <Text style={[stylesList.audioText, { color: isDark ? '#E2E8F0' : '#2B6CB0' }]}>🎙️ Nota de Audio</Text>
+              </View>
+            )}
+            {hasImage && (
+              <View style={[stylesList.audioBadge, { backgroundColor: isDark ? '#4A5568' : '#EBF8FF', borderColor: isDark ? '#4A5568' : '#BEE3F8', borderWidth: 1, flexDirection: 'row', alignItems: 'center' }]}>
+                {imgUri && !note.isSecure ? (
+                  <Image source={{ uri: imgUri }} style={{ width: 14, height: 14, borderRadius: 3, marginRight: 4 }} />
+                ) : (
+                  <Text style={{ fontSize: 11, marginRight: 4 }}>📷</Text>
+                )}
+                <Text style={[stylesList.audioText, { color: isDark ? '#E2E8F0' : '#2B6CB0' }]}>Imagen</Text>
+              </View>
+            )}
+            <Text style={[stylesList.date, { color: COLORS.textMuted }]}>{formatDate(note.createdAt)}</Text>
+          </View>
         </View>
       </View>
     </TouchableOpacity>
@@ -280,9 +282,9 @@ const NoteCardBase = ({
 }
 
 const stylesList = StyleSheet.create({
-  card: { borderRadius: 16, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2, borderWidth: 1 },
+  card: { borderRadius: 16, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2, borderWidth: 1, overflow: 'hidden' },
   secureCard: { borderLeftWidth: 4, borderLeftColor: '#E94560' },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 16, paddingBottom: 12 },
   titleContainer: { flex: 1, marginRight: 8 },
   title: { fontSize: 16, fontWeight: '600', lineHeight: 22 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
@@ -298,8 +300,8 @@ const stylesList = StyleSheet.create({
 });
 
 const stylesGrid = StyleSheet.create({
-  card: { borderRadius: 12, padding: 12, borderWidth: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 },
+  card: { borderRadius: 12, borderWidth: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1, overflow: 'hidden' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 12, paddingBottom: 8 },
   title: { fontSize: 14, fontWeight: '600', lineHeight: 18, flex: 1 },
   secureIcon: { fontSize: 10, marginLeft: 4 },
   content: { fontSize: 12, lineHeight: 16, marginBottom: 8, flex: 1 },
