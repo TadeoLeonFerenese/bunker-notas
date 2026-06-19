@@ -50,3 +50,18 @@ Implementar una Inteligencia Artificial directamente en la app capaz de redactar
 1. **Reemplazar LokiJSAdapter por SQLiteAdapter en WatermelonDB:** Migrar a la base de datos nativa SQLite en producción para mayor velocidad con bases de datos grandes (requerirá Development Builds nativas).
 2. **Preservación de Fechas en Backup:** Ajustar el `BackupService.ts` para respetar los timestamps originales (`createdAt`/`updatedAt`) de las notas importadas desde el archivo `.bunker` en vez de reescribirlas con la fecha actual.
 3. **Modo Sincronización Local-First:** Desarrollar el sistema de sincronización selectiva con el backend remoto.
+
+---
+
+## 5. Descarga de APK compilada desde otra PC
+
+Para descargar la última versión de la APK (`app-debug.apk`) desde cualquier computadora sin tener que configurar ningún entorno de desarrollo local, seguí estos pasos sencillos:
+
+1. **Ingresar a GitHub:** Abrí el navegador y accedé al repositorio oficial del proyecto: `https://github.com/TadeoLeonFerenese/bunker-notas`.
+2. **Ir a la pestaña de Actions:** En el menú superior del repositorio, hacé click en la pestaña **Actions**.
+3. **Seleccionar la ejecución del Workflow:** Buscá la ejecución más reciente en la rama `main` (que coincide con el último commit pusheado) y hacé click sobre ella.
+4. **Descargar el artefacto (Artifact):**
+   * Desplazate hasta la sección **Artifacts** en la parte inferior de la página de detalles del Workflow.
+   * Hacé click en el enlace `app-debug` para descargar el archivo comprimido.
+5. **Instalar en el dispositivo:** Descomprimí el archivo `.zip` obtenido, extraé la APK (`app-debug.apk`) y transferila o mandala a tu celular Android para instalarla directamente.
+

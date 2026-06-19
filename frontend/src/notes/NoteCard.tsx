@@ -44,6 +44,7 @@ export const NOTE_ILLUSTRATIONS: Record<string, string> = {
   music: '🎵',
   heart: '❤️',
   gym: '🏋️',
+  cinema: '🎬',
 };
 
 export interface NoteCardProps {
