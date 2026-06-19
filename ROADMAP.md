@@ -1,53 +1,52 @@
 # Bunker Notas - Roadmap & Arquitectura
 
-Este documento recopila las decisiones arquitectónicas, características del MVP y el mapa de ruta (Roadmap) a futuro discutidas para Bunker Notas.
+Este documento recopila las decisiones arquitectónicas, características del MVP y el mapa de ruta (Roadmap) a futuro para Bunker Notas.
 
 ## Principios Fundamentales
-1. **Zero-Knowledge (Cero Conocimiento):** Toda la información debe estar encriptada del lado del cliente. Ningún servidor de terceros debe tener acceso al texto plano o a los archivos sin la clave del usuario.
-2. **Local-First (Primero Local):** La aplicación debe funcionar de forma autónoma sin depender de una conexión a internet para sus funciones básicas.
-3. **Seguridad Nativa:** Uso de biometría y PIN nativos del dispositivo para la apertura de bóvedas seguras.
+1. **Zero-Knowledge (Cero Conocimiento) Real:** Toda la información confidencial está cifrada del lado del cliente. Ningún servidor de terceros o base de datos local desprotegida tiene acceso al texto plano o a los archivos sin la clave criptográfica derivada del PIN del usuario.
+2. **Local-First (Primero Local):** La aplicación funciona de forma 100% autónoma sin depender de una conexión a internet para sus funciones básicas.
+3. **Seguridad Nativa:** Uso de biometría y PIN nativos del dispositivo (Keychain nativo protegido por hardware) para la apertura de bóvedas seguras y la liberación de la clave criptográfica.
 
 ---
 
-## 1. MVP (Fase Actual)
-El objetivo del MVP es establecer un gestor de notas sólido, seguro y con buena usabilidad.
+## 1. MVP (Fase 1: Estabilización del Editor)
+El objetivo de esta fase fue establecer un gestor de notas sólido, responsive y con excelente usabilidad táctil.
 
 * **Autoguardado (Autosave)**:
-  * *Decisión:* Se removió la interfaz manual de "Guardar" y "Cancelar" para agilizar el flujo de uso.
-  * *Implementación:* Un debounce de 1 segundo guarda automáticamente el título, contenido, audio y personalización en WatermelonDB dentro de transacciones `database.write(...)` seguras. Si la nota se cierra estando completamente vacía, se limpia automáticamente de la DB para evitar registros huérfanos.
-* **Scroll Nativo y UI/UX del Editor**:
-  * *Implementación:* El `RichEditor` de `react-native-pell-rich-editor` se configuró con `useContainer={false}` delegando el scroll a una `ScrollView` nativa de React Native. Esto solucionó los bloqueos táctiles del WebView interno en notas largas.
-  * *RichToolbar Sticky:* Se posiciona de manera fija directamente flotando arriba del teclado en pantalla mediante `KeyboardAvoidingView` para una edición premium similar a Apple Notes.
-  * *Personalización:* Colores y stickers de doodle siempre visibles y accesibles desde la ScrollView sin importar el estado del teclado.
-* **Interoperabilidad de Texto (Share Intent)**: 
-  * *Problema:* Las aplicaciones de terceros (como Gemini o ChatGPT) bloquean el Deep Linking directo (ej: `bunkernotas://...`) por sus políticas de *sandboxing* de seguridad.
-  * *Solución (Workaround):* Implementación de **Share Intent** (`expo-share-intent`). El usuario selecciona un texto en cualquier app, elige "Compartir" y lo envía a Bunker Notas. La app lo recibe nativamente (`shareIntent.text`) y prepara el modal de nueva nota.
-* **CI/CD - Compilación Remota**:
-  * *Problema:* Limitación de cuotas de compilación en Expo Application Services (EAS) y falta de recursos de hardware en computadoras de desarrollo para compilar localmente con Gradle.
-  * *Solución:* Implementación de un flujo de **GitHub Actions** (`.github/workflows/build-android-debug.yml`) que genera el APK debug de Android (`app-debug.apk`) de forma totalmente gratuita y automática en la nube de GitHub con cada push en la rama `main`.
+  * Un debounce de 1 segundo guarda automáticamente el título, contenido, audio y personalización en WatermelonDB dentro de transacciones seguras. Si la nota se cierra estando vacía, se limpia de la base de datos para evitar registros huérfanos.
+* **Scroll Nativo y UX del Editor**:
+  * El editor delega el scroll al `TextInput` nativo multilínea (con `flex: 1` y sin `minHeight` restrictivos). Esto solucionó bugs de saltos bruscos y oclusión del cursor en Android e iOS.
+  * **Zona de Cortesía:** Se configuró un `paddingBottom: 40` en el estilo del `TextInput` del contenido. Esto permite al usuario desplazar las últimas líneas de notas largas por encima del teclado virtual y de la barra de herramientas, evitando que el texto quede oculto al escribir en la parte final.
+  * **Sticky Toolbar:** La barra de herramientas de formato y colores flota arriba del teclado en pantalla mediante `KeyboardAvoidingView`.
 
 ---
 
-## 2. Soporte para Imágenes y Audios (MVP 2)
-Permitir la carga y recepción (vía Share Intent o local) de imágenes y audios dentro de las notas de manera segura y performante.
+## 2. Soporte para Imágenes, Audios y Cifrado Real (MVP 2 - Estado Actual ✅)
+Permitir la carga, visualización y recepción (vía Share Intent o local) de imágenes y audios de manera segura, performante y con cifrado real.
 
-* **El Problema del Base64 y Archivos Sueltos:** Guardar imágenes grandes en base64 dentro de la base de datos (WatermelonDB) degrada el rendimiento. Asimismo, guardar audios o fotos en texto plano en el almacenamiento público compromete el principio Zero-Knowledge de la app.
-* **La Decisión de Arquitectura:**
-  1. **Recepción:** Cuando la app recibe un archivo (imagen o audio) vía Share Intent o selección local, se copia temporalmente a `FileSystem.documentDirectory`.
-  2. **Cifrado Simétrico (Zero-Knowledge):** Si el usuario marca la nota como **segura/encriptada** (candado activo), el archivo binario completo se cifra usando AES-256 con la llave maestra derivada de su PIN.
-  3. **Almacenamiento Local-First:** El archivo cifrado resultante se guarda directamente en el sistema de archivos privado de la app (`FileSystem.documentDirectory`).
-  4. **Referencia en DB:** La base de datos (WatermelonDB) solo almacena la referencia (la ruta del archivo local) y el estado de cifrado.
-  5. **Descifrado en Caliente:** Al abrir una nota segura, el archivo se descifra en memoria temporal para renderizarse en el visor de imágenes o reproducirse en el reproductor de audio, limpiándose inmediatamente al cerrar el modal.
+* **La Decisión de Arquitectura Criptográfica:**
+  1. **Librería de Cifrado:** Se implementó criptografía real mediante `crypto-js` en puro JavaScript, manteniendo compatibilidad total con el cliente genérico de **Expo Go** y con la suite de tests unitarios en **Jest** sin requerir dependencias nativas pesadas de linkeo.
+  2. **Derivación de Clave (Zero-Knowledge):** Al configurar o validar el PIN, la app genera un *salt* criptográfico aleatorio único por dispositivo (guardado en el Keychain en `'app_encryption_salt'`). Usando **PBKDF2** (con 1000 iteraciones), se deriva una clave simétrica **AES-256** a partir del PIN y el salt.
+  3. **Clave de Sesión en Memoria (In-Memory Key):** La clave derivada se almacena temporalmente en memoria en la sesión de la app (`encryption.setSessionKey`). Al cerrar la aplicación, la clave se destruye de la memoria física.
+  4. **Biometría Segura:** Al iniciar sesión por huella, la app recupera de forma segura el PIN del usuario almacenado en el Keychain nativo (`'app_user_pin'`) para derivar la clave criptográfica en segundo plano de manera transparente.
+  5. **Cifrado de Archivos Locales:** Si la nota es segura (`isSecure: true`), los archivos multimedia (fotos y grabaciones de audio) se cifran físicamente en disco (`.enc`) usando AES-256. El visor de la app los descifra en memoria temporal de caché al abrir la nota y los destruye inmediatamente al cerrarla.
+
+* **Recepción Nativa en la APK (Share Intent):**
+  * La app intercepta texto, imágenes y audios compartidos desde otras aplicaciones (`expo-share-intent`).
+  * **Ajuste de Intents en la APK:** Se modificó `app.json` agregando `"singleShareMimeTypes": ["text/plain", "image/*", "audio/*"]` para asegurar que el sistema operativo Android registre la app en la lista nativa de compartir cuando el usuario selecciona fotos o archivos de voz en aplicaciones externas.
 
 ---
 
 ## 3. Asistente de IA Integrado (Largo Plazo)
-Implementar una Inteligencia Artificial directamente en la app capaz de redactar o transcribir notas por voz o texto.
+Implementar una Inteligencia Artificial directamente en la app capaz de redactar o transcribir notas por voz o texto de manera privada.
 
-* **Estrategia Elegida: BYOK (Bring Your Own Key)**. 
-  * Se descarta que Bunker Notas provea la IA por defecto debido a los costos de servidor.
+* **Estrategia BYOK (Bring Your Own Key):**
   * La app incluirá un panel de configuración donde el usuario inserta su propia API Key (ej. OpenAI, Anthropic, Gemini).
-* **Beneficios de esta arquitectura:**
-  * **Multimotor:** El usuario puede elegir qué modelo/empresa usar.
-  * **Zero-Knowledge respetado:** Las llamadas a la IA (HTTPS) van directamente del celular del usuario al proveedor (OpenAI/Google). No hay un backend intermedio de Bunker Notas espiando la petición.
-  * **Costo cero para el desarrollador:** El consumo de tokens es asumido por el usuario (generalmente fracciones de centavo por nota).
+  * **Zero-Knowledge Respetado:** Las llamadas a la IA (HTTPS) van directo desde el celular del usuario al proveedor (OpenAI/Google). No hay un servidor intermedio de Bunker Notas auditando o recopilando los datos.
+
+---
+
+## 4. Próximos Pasos Identificados
+1. **Reemplazar LokiJSAdapter por SQLiteAdapter en WatermelonDB:** Migrar a la base de datos nativa SQLite en producción para mayor velocidad con bases de datos grandes (requerirá Development Builds nativas).
+2. **Preservación de Fechas en Backup:** Ajustar el `BackupService.ts` para respetar los timestamps originales (`createdAt`/`updatedAt`) de las notas importadas desde el archivo `.bunker` en vez de reescribirlas con la fecha actual.
+3. **Modo Sincronización Local-First:** Desarrollar el sistema de sincronización selectiva con el backend remoto.
