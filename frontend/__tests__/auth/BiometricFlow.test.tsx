@@ -83,10 +83,17 @@ jest.mock('../../src/notes/encryption', () => ({
   encryption: {
     encrypt: jest.fn((text) => `encrypted_${text}`),
     decrypt: jest.fn((text) => text.replace('encrypted_', '')),
+    setSessionKey: jest.fn(),
+    clearSessionKey: jest.fn(),
+    hasSessionKey: jest.fn(() => true),
   },
   hashPin: jest.fn((pin) => Promise.resolve(`hashed_${pin}`)),
   storeSecureCredential: jest.fn(() => Promise.resolve()),
-  getSecureCredential: jest.fn(() => Promise.resolve('hashed_1234')),
+  getSecureCredential: jest.fn((key) => {
+    if (key === 'app_user_pin') return Promise.resolve('1234');
+    if (key === 'app_encryption_salt') return Promise.resolve('test-salt');
+    return Promise.resolve('hashed_1234');
+  }),
   verifyPin: jest.fn((pin, hash) => Promise.resolve(hash === `hashed_${pin}`)),
 }));
 

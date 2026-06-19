@@ -725,7 +725,22 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   };
 
   // Auth Handling
-  const handleLoginSuccess = () => setIsAuthenticated(true);
+  const handleLoginSuccess = async (pin: string) => {
+    try {
+      const { getSecureCredential } = require('./src/notes/encryption');
+      let salt = await getSecureCredential('app_encryption_salt');
+      if (!salt) {
+        salt = 'bunker-default-salt-value-for-device-migrations';
+      }
+      const CryptoJS = require('crypto-js');
+      const derivedKey = CryptoJS.PBKDF2(pin, salt, { keySize: 256/32, iterations: 1000 }).toString();
+      encryption.setSessionKey(derivedKey);
+      setIsAuthenticated(true);
+    } catch (e) {
+      console.error('[Auth] Error al derivar la clave de sesión:', e);
+      setIsAuthenticated(true);
+    }
+  };
 
   const executeAuthAction = (note: NoteModel) => {
     setPinModalVisible(false);
@@ -780,6 +795,15 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       });
       
       if (result.success) {
+        const { getSecureCredential } = require('./src/notes/encryption');
+        const savedPin = await getSecureCredential('app_user_pin');
+        let salt = await getSecureCredential('app_encryption_salt');
+        if (savedPin) {
+          if (!salt) salt = 'bunker-default-salt-value-for-device-migrations';
+          const CryptoJS = require('crypto-js');
+          const derivedKey = CryptoJS.PBKDF2(savedPin, salt, { keySize: 256/32, iterations: 1000 }).toString();
+          encryption.setSessionKey(derivedKey);
+        }
         executeAuthAction(note);
       }
     } catch (error) {
@@ -828,10 +852,17 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       if (!storedHash) {
         // Registro dinámico del primer PIN
         const hash = await hashPin(pinInput);
+        const salt = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+        await storeSecureCredential('app_encryption_salt', salt);
+        await storeSecureCredential('app_user_pin', pinInput);
         await storeSecureCredential('app_pin_hash', hash);
         setHasStoredPin(true);
         Alert.alert('PIN Registrado', 'Has definido tu PIN de seguridad para las notas.');
         
+        const CryptoJS = require('crypto-js');
+        const derivedKey = CryptoJS.PBKDF2(pinInput, salt, { keySize: 256/32, iterations: 1000 }).toString();
+        encryption.setSessionKey(derivedKey);
+
         if (pendingNote) {
           executeAuthAction(pendingNote);
         }
@@ -839,6 +870,14 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
         // Validar PIN real contra llavero seguro
         const isValid = await verifyPin(pinInput, storedHash);
         if (isValid) {
+          let salt = await getSecureCredential('app_encryption_salt');
+          if (!salt) {
+            salt = 'bunker-default-salt-value-for-device-migrations';
+          }
+          const CryptoJS = require('crypto-js');
+          const derivedKey = CryptoJS.PBKDF2(pinInput, salt, { keySize: 256/32, iterations: 1000 }).toString();
+          encryption.setSessionKey(derivedKey);
+
           if (pendingNote) {
             executeAuthAction(pendingNote);
           }

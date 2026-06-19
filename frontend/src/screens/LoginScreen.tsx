@@ -38,7 +38,7 @@ const COLORS = {
 type LoginMode = 'loading' | 'setup' | 'biometric' | 'pin';
 
 interface LoginScreenProps {
-  onLoginSuccess: () => void;
+  onLoginSuccess: (pin: string) => void;
 }
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
@@ -113,7 +113,15 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       });
 
       if (result.success) {
-        onLoginSuccess();
+        const { getSecureCredential } = require('../notes/encryption');
+        const savedPin = await getSecureCredential('app_user_pin');
+        if (savedPin) {
+          onLoginSuccess(savedPin);
+        } else {
+          setMode('pin');
+          setHint('Configurá o ingresá tu PIN manualmente.');
+          setHintIsError(true);
+        }
       } else {
         const error = result.error as string | undefined;
         if (error === 'lockout' || error === 'lockout_permanent') {
@@ -150,9 +158,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           // Paso 2: Confirmar
           if (pin === pinConfirm) {
             const hash = await hashPin(pin);
+            const salt = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+            await storeSecureCredential('app_encryption_salt', salt);
+            await storeSecureCredential('app_user_pin', pin);
             await storeSecureCredential('app_pin_hash', hash);
             setIsLoading(false);
-            onLoginSuccess();
+            onLoginSuccess(pin);
           } else {
             setIsLoading(false);
             setPin('');
@@ -169,7 +180,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           const isValid = await verifyPin(pin, storedHash);
           setIsLoading(false);
           if (isValid) {
-            onLoginSuccess();
+            onLoginSuccess(pin);
           } else {
             setPin('');
             setHint('PIN incorrecto. Intentá de nuevo.');
