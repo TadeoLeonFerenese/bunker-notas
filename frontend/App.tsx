@@ -1015,6 +1015,54 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     await setCustomBackground(null);
   };
 
+  const handleInsertImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permiso Denegado',
+          'Necesitamos acceso a tu galería para poder insertar imágenes.'
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.9,
+      });
+
+      if (result.canceled) return;
+
+      if (result.assets && result.assets[0] && result.assets[0].uri) {
+        const selectedUri = result.assets[0].uri;
+        const extension = selectedUri.split('.').pop() || 'jpg';
+        const localFileName = `image_${Date.now()}.${extension}`;
+        const localUri = FileSystem.documentDirectory + localFileName;
+
+        await FileSystem.copyAsync({
+          from: selectedUri,
+          to: localUri,
+        });
+
+        const markdownTag = `\n![Imagen](${localUri})\n`;
+        const { start, end } = currentSelection;
+        const text = newNoteContent;
+        
+        const before = text.substring(0, start);
+        const after = text.substring(end);
+        const newContent = before + markdownTag + after;
+        
+        setNewNoteContent(newContent);
+        const newCursorPos = start + markdownTag.length;
+        setTextSelection({ start: newCursorPos, end: newCursorPos });
+      }
+    } catch (e) {
+      console.error('[ImagePicker] Error al insertar imagen:', e);
+      Alert.alert('Error', 'No se pudo cargar la imagen.');
+    }
+  };
+
   const hexToRgba = (hex: string, alpha: number): string => {
     let cleanHex = hex.replace('#', '');
     if (cleanHex.length === 3) {
@@ -1659,26 +1707,35 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                 )}
 
                 {/* Bottom Action Bar */}
-                <View style={{ paddingHorizontal: 16, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, borderTopWidth: 1, borderColor: COLORS.border }}>
-                  <TouchableOpacity 
-                    style={{ padding: 8, backgroundColor: activeToolbar === 'format' ? COLORS.bunkerAccent : 'transparent', borderRadius: 8 }}
-                    onPress={() => setActiveToolbar(activeToolbar === 'format' ? null : 'format')}
-                  >
-                    <MaterialIcons name="text-format" size={26} color={activeToolbar === 'format' ? "#fff" : COLORS.bunkerAccent} />
-                  </TouchableOpacity>
+                <View style={{ paddingHorizontal: 16, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: COLORS.surface, borderTopWidth: 1, borderColor: COLORS.border }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <TouchableOpacity 
+                      style={{ padding: 8, marginBottom: 5, backgroundColor: activeToolbar === 'format' ? COLORS.bunkerAccent : 'transparent', borderRadius: 8 }}
+                      onPress={() => setActiveToolbar(activeToolbar === 'format' ? null : 'format')}
+                    >
+                      <MaterialIcons name="text-format" size={26} color={activeToolbar === 'format' ? "#fff" : COLORS.bunkerAccent} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                      style={{ padding: 8, marginLeft: 8, marginBottom: 5, backgroundColor: activeToolbar === 'color' ? COLORS.bunkerAccent : 'transparent', borderRadius: 8 }}
+                      onPress={() => setActiveToolbar(activeToolbar === 'color' ? null : 'color')}
+                    >
+                      <MaterialIcons name="color-lens" size={26} color={activeToolbar === 'color' ? "#fff" : COLORS.bunkerAccent} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                      style={{ padding: 8, marginLeft: 8, marginBottom: 5, backgroundColor: activeToolbar === 'doodle' ? COLORS.bunkerAccent : 'transparent', borderRadius: 8 }}
+                      onPress={() => setActiveToolbar(activeToolbar === 'doodle' ? null : 'doodle')}
+                    >
+                      <MaterialIcons name="emoji-emotions" size={26} color={activeToolbar === 'doodle' ? "#fff" : COLORS.bunkerAccent} />
+                    </TouchableOpacity>
+                  </View>
 
                   <TouchableOpacity 
-                    style={{ padding: 8, marginLeft: 8, backgroundColor: activeToolbar === 'color' ? COLORS.bunkerAccent : 'transparent', borderRadius: 8 }}
-                    onPress={() => setActiveToolbar(activeToolbar === 'color' ? null : 'color')}
+                    style={{ padding: 8, marginBottom: 5, borderRadius: 8 }}
+                    onPress={handleInsertImage}
                   >
-                    <MaterialIcons name="color-lens" size={26} color={activeToolbar === 'color' ? "#fff" : COLORS.bunkerAccent} />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity 
-                    style={{ padding: 8, marginLeft: 8, backgroundColor: activeToolbar === 'doodle' ? COLORS.bunkerAccent : 'transparent', borderRadius: 8 }}
-                    onPress={() => setActiveToolbar(activeToolbar === 'doodle' ? null : 'doodle')}
-                  >
-                    <MaterialIcons name="emoji-emotions" size={26} color={activeToolbar === 'doodle' ? "#fff" : COLORS.bunkerAccent} />
+                    <MaterialIcons name="photo-library" size={26} color={COLORS.bunkerAccent} />
                   </TouchableOpacity>
                 </View>
               </View>

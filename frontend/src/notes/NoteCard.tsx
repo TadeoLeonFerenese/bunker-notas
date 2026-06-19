@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useTheme } from '../theme/ThemeContext';
 import { withObservables } from '@nozbe/watermelondb/react';
@@ -65,6 +65,10 @@ const NoteCardBase = ({
 }: NoteCardProps) => {
   const { COLORS, isDark } = useTheme();
 
+  const imgMatch = note.content ? note.content.match(/!\[.*?\]\((.*?)\)/) : null;
+  const hasImage = !!imgMatch;
+  const imgUri = imgMatch ? imgMatch[1] : null;
+
   const noteColorKey = note.color || 'default';
   const customCardBg = NOTE_COLORS[noteColorKey] ? (isDark ? NOTE_COLORS[noteColorKey].dark : NOTE_COLORS[noteColorKey].light) : 'transparent';
   const cardBgStyle = customCardBg !== 'transparent' ? { backgroundColor: customCardBg } : { backgroundColor: COLORS.cardBg };
@@ -94,6 +98,7 @@ const NoteCardBase = ({
   const stripHtml = (html?: string) => {
     if (!html) return '';
     return html
+      .replace(/!\[.*?\]\(.*?\)/g, '')
       .replace(/<[^>]*>/g, '')
       .replace(/&nbsp;/g, ' ')
       .replace(/[\*_~`]/g, '')
@@ -158,6 +163,11 @@ const NoteCardBase = ({
             {note.audioUri && (
               <View style={[stylesGrid.audioBadge, { backgroundColor: isDark ? '#4A5568' : '#EBF8FF' }]}>
                 <Text style={{ fontSize: 9 }}>🎙️</Text>
+              </View>
+            )}
+            {hasImage && (
+              <View style={[stylesGrid.audioBadge, { backgroundColor: isDark ? '#4A5568' : '#EBF8FF' }]}>
+                <Text style={{ fontSize: 9 }}>📷</Text>
               </View>
             )}
             <Text style={[stylesGrid.date, { color: COLORS.textMuted }]}>{formatDate(note.createdAt)}</Text>
@@ -249,6 +259,16 @@ const NoteCardBase = ({
           {note.audioUri && (
             <View style={[stylesList.audioBadge, { backgroundColor: isDark ? '#4A5568' : '#EBF8FF', borderColor: isDark ? '#4A5568' : '#BEE3F8', borderWidth: 1 }]}>
               <Text style={[stylesList.audioText, { color: isDark ? '#E2E8F0' : '#2B6CB0' }]}>🎙️ Nota de Audio</Text>
+            </View>
+          )}
+          {hasImage && (
+            <View style={[stylesList.audioBadge, { backgroundColor: isDark ? '#4A5568' : '#EBF8FF', borderColor: isDark ? '#4A5568' : '#BEE3F8', borderWidth: 1, flexDirection: 'row', alignItems: 'center' }]}>
+              {imgUri && !note.isSecure ? (
+                <Image source={{ uri: imgUri }} style={{ width: 14, height: 14, borderRadius: 3, marginRight: 4 }} />
+              ) : (
+                <Text style={{ fontSize: 11, marginRight: 4 }}>📷</Text>
+              )}
+              <Text style={[stylesList.audioText, { color: isDark ? '#E2E8F0' : '#2B6CB0' }]}>Imagen</Text>
             </View>
           )}
           <Text style={[stylesList.date, { color: COLORS.textMuted }]}>{formatDate(note.createdAt)}</Text>
