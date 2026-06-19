@@ -289,95 +289,100 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   }, [newNoteTitle, newNoteContent, newNoteSecure, newNoteColor, newNoteIllustration, recordedAudioUri, editingNoteId, showCreateModal]);
 
   const performAutosave = async () => {
-    const { title, content, isSecure, color, illustration, audioUri, editingNoteId: currentEditingId, showCreateModal: isModalVisible } = noteStateRef.current;
-
-    // Si el modal ya no está visible, no autoguardamos
-    if (!isModalVisible) return;
-
-    // Si el título, contenido y audio están completamente vacíos y no hay un ID de edición aún, no guardamos para evitar crear notas vacías
-    if (!title.trim() && !content.trim() && !audioUri && !currentEditingId) {
-      return;
-    }
-
-    let finalAudioUri = audioUri;
-    let finalContent = content.trim();
-
-    if (isSecure) {
-      // 1. Encriptar audio si no está encriptado
-      if (audioUri && !audioUri.endsWith('.enc')) {
-        try {
-          const encPath = await encryptFile(audioUri);
-          finalAudioUri = encPath;
-          setRecordedAudioUri(encPath);
-        } catch (e) {
-          console.error('[Autosave] Error encriptando audio:', e);
-        }
-      }
-
-      // 2. Encriptar imágenes en markdown content si no están encriptadas
-      const matches = finalContent.match(/!\[.*?\]\((file:\/\/.*?)\)/g);
-      if (matches) {
-        for (const match of matches) {
-          const urlMatch = match.match(/\((file:\/\/.*?)\)/);
-          if (urlMatch && urlMatch[1] && !urlMatch[1].endsWith('.enc')) {
-            const plainUri = urlMatch[1];
-            try {
-              const encPath = await encryptFile(plainUri);
-              finalContent = finalContent.replace(plainUri, encPath);
-            } catch (e) {
-              console.error('[Autosave] Error encriptando imagen:', plainUri, e);
-            }
-          }
-        }
-        if (finalContent !== content.trim()) {
-          setNewNoteContent(finalContent);
-        }
-      }
-    } else {
-      // 1. Desencriptar audio si el usuario quita el candado
-      if (audioUri && audioUri.endsWith('.enc')) {
-        try {
-          const decPath = await decryptFile(audioUri);
-          const extension = audioUri.match(/\.([a-zA-Z0-9]+)\.enc$/)?.[1] || 'm4a';
-          const permanentPath = FileSystem.documentDirectory + `audio_${Date.now()}.${extension}`;
-          await FileSystem.moveAsync({ from: decPath, to: permanentPath });
-          finalAudioUri = permanentPath;
-          setRecordedAudioUri(permanentPath);
-          await FileSystem.deleteAsync(audioUri, { idempotent: true });
-        } catch (e) {
-          console.error('[Autosave] Error desencriptando audio al quitar seguridad:', e);
-        }
-      }
-
-      // 2. Desencriptar imágenes en markdown content si el usuario quita el candado
-      const matches = finalContent.match(/!\[.*?\]\((file:\/\/.*?\.enc)\)/g);
-      if (matches) {
-        for (const match of matches) {
-          const urlMatch = match.match(/\((file:\/\/.*?\.enc)\)/);
-          if (urlMatch && urlMatch[1]) {
-            const encUri = urlMatch[1];
-            try {
-              const decPath = await decryptFile(encUri);
-              const extension = encUri.match(/\.([a-zA-Z0-9]+)\.enc$/)?.[1] || 'jpg';
-              const permanentPath = FileSystem.documentDirectory + `image_${Date.now()}.${extension}`;
-              await FileSystem.moveAsync({ from: decPath, to: permanentPath });
-              finalContent = finalContent.replace(encUri, permanentPath);
-              await FileSystem.deleteAsync(encUri, { idempotent: true });
-            } catch (e) {
-              console.error('[Autosave] Error desencriptando imagen al quitar seguridad:', encUri, e);
-            }
-          }
-        }
-        if (finalContent !== content.trim()) {
-          setNewNoteContent(finalContent);
-        }
-      }
-    }
-
-    const titleToStore = title.trim() || 'Sin título';
-    const contentToStore = isSecure ? encryption.encrypt(finalContent) : finalContent;
-
     try {
+      const { title, content, isSecure, color, illustration, audioUri, editingNoteId: currentEditingId, showCreateModal: isModalVisible } = noteStateRef.current;
+
+      // Si el modal ya no está visible, no autoguardamos
+      if (!isModalVisible) return;
+
+      // Si el título, contenido y audio están completamente vacíos y no hay un ID de edición aún, no guardamos para evitar crear notas vacías
+      if (!title.trim() && !content.trim() && !audioUri && !currentEditingId) {
+        return;
+      }
+
+      let finalAudioUri = audioUri;
+      let finalContent = content.trim();
+
+      if (isSecure) {
+        // Validar clave de encriptación activa
+        if (!encryption.hasSessionKey()) {
+          throw new Error('No encryption key in session. Please unlock the app first.');
+        }
+
+        // 1. Encriptar audio si no está encriptado
+        if (audioUri && !audioUri.endsWith('.enc')) {
+          try {
+            const encPath = await encryptFile(audioUri);
+            finalAudioUri = encPath;
+            setRecordedAudioUri(encPath);
+          } catch (e) {
+            console.error('[Autosave] Error encriptando audio:', e);
+          }
+        }
+
+        // 2. Encriptar imágenes en markdown content si no están encriptadas
+        const matches = finalContent.match(/!\[.*?\]\((file:\/\/.*?)\)/g);
+        if (matches) {
+          for (const match of matches) {
+            const urlMatch = match.match(/\((file:\/\/.*?)\)/);
+            if (urlMatch && urlMatch[1] && !urlMatch[1].endsWith('.enc')) {
+              const plainUri = urlMatch[1];
+              try {
+                const encPath = await encryptFile(plainUri);
+                finalContent = finalContent.replace(plainUri, encPath);
+              } catch (e) {
+                console.error('[Autosave] Error encriptando imagen:', plainUri, e);
+              }
+            }
+          }
+          if (finalContent !== content.trim()) {
+            setNewNoteContent(finalContent);
+          }
+        }
+      } else {
+        // 1. Desencriptar audio si el usuario quita el candado
+        if (audioUri && audioUri.endsWith('.enc')) {
+          try {
+            const decPath = await decryptFile(audioUri);
+            const extension = audioUri.match(/\.([a-zA-Z0-9]+)\.enc$/)?.[1] || 'm4a';
+            const permanentPath = FileSystem.documentDirectory + `audio_${Date.now()}.${extension}`;
+            await FileSystem.moveAsync({ from: decPath, to: permanentPath });
+            finalAudioUri = permanentPath;
+            setRecordedAudioUri(permanentPath);
+            await FileSystem.deleteAsync(audioUri, { idempotent: true });
+          } catch (e) {
+            console.error('[Autosave] Error desencriptando audio al quitar seguridad:', e);
+          }
+        }
+
+        // 2. Desencriptar imágenes en markdown content si el usuario quita el candado
+        const matches = finalContent.match(/!\[.*?\]\((file:\/\/.*?\.enc)\)/g);
+        if (matches) {
+          for (const match of matches) {
+            const urlMatch = match.match(/\((file:\/\/.*?\.enc)\)/);
+            if (urlMatch && urlMatch[1]) {
+              const encUri = urlMatch[1];
+              try {
+                const decPath = await decryptFile(encUri);
+                const extension = encUri.match(/\.([a-zA-Z0-9]+)\.enc$/)?.[1] || 'jpg';
+                const permanentPath = FileSystem.documentDirectory + `image_${Date.now()}.${extension}`;
+                await FileSystem.moveAsync({ from: decPath, to: permanentPath });
+                finalContent = finalContent.replace(encUri, permanentPath);
+                await FileSystem.deleteAsync(encUri, { idempotent: true });
+              } catch (e) {
+                console.error('[Autosave] Error desencriptando imagen al quitar seguridad:', encUri, e);
+              }
+            }
+          }
+          if (finalContent !== content.trim()) {
+            setNewNoteContent(finalContent);
+          }
+        }
+      }
+
+      const titleToStore = title.trim() || 'Sin título';
+      const contentToStore = isSecure ? encryption.encrypt(finalContent) : finalContent;
+
       await database.write(async () => {
         if (currentEditingId) {
           const note = await database.get<NoteModel>('notes').find(currentEditingId);
@@ -406,6 +411,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       });
     } catch (err) {
       console.error('[Autosave] Error al guardar en DB:', err);
+      throw err;
     }
   };
 
@@ -698,13 +704,45 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     setSelectedNote(null);
   };
 
+  const toggleSecureNote = () => {
+    if (!newNoteSecure) {
+      if (!encryption.hasSessionKey()) {
+        Alert.alert(
+          'Acceso no configurado',
+          'Para encriptar esta nota, primero debes desbloquear la sesión de seguridad o configurar un PIN.'
+        );
+        return;
+      }
+      setNewNoteSecure(true);
+    } else {
+      setNewNoteSecure(false);
+    }
+  };
+
   const handleCloseCreateModal = async () => {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
     
-    // Guardamos sincrónicamente/inmediatamente antes de resetear estados
-    await performAutosave();
+    try {
+      // Guardamos sincrónicamente/inmediatamente antes de resetear estados
+      await performAutosave();
+    } catch (err) {
+      console.error('[CloseModal] Error guardando la nota al cerrar:', err);
+      Alert.alert(
+        'Error al Guardar',
+        'Hubo un problema al guardar la nota de forma segura. ¿Deseas salir de todas formas?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Salir sin Guardar', style: 'destructive', onPress: async () => {
+              await cleanupAudio();
+              closeCreateModal();
+            }
+          }
+        ]
+      );
+      return;
+    }
 
     // Si la nota guardada quedó totalmente vacía (sin título ni contenido ni audio), y tiene id, la borramos para no dejar basura
     const { title, content, audioUri, editingNoteId: finalEditingId } = noteStateRef.current;
@@ -1661,7 +1699,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   <View style={{ flexDirection: 'row', gap: 8 }}>
                     <TouchableOpacity 
                       style={{ padding: 8, backgroundColor: newNoteSecure ? COLORS.bunkerAccent : 'transparent', borderRadius: 8 }}
-                      onPress={() => setNewNoteSecure(!newNoteSecure)}
+                      onPress={toggleSecureNote}
                     >
                       <MaterialIcons name={newNoteSecure ? "lock" : "lock-outline"} size={26} color={newNoteSecure ? "#fff" : COLORS.bunkerAccent} />
                     </TouchableOpacity>
