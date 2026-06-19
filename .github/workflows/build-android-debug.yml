@@ -44,18 +44,19 @@ jobs:
             keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           fi
 
-      - name: Build Release APK with Gradle
+      - name: Build Debug APK with Gradle
         run: |
           cd frontend/android
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon
+          ./gradlew assembleDebug --no-daemon
 
       - name: List APK output directory
-        run: ls -la frontend/android/app/build/outputs/apk/release/ || true
+        run: ls -la frontend/android/app/build/outputs/apk/debug/ || true
 
-      - name: Upload Release APK Artifact
+      - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BunkerNotes-Release-APK
-          path: frontend/android/app/build/outputs/apk/release/*.apk
+          name: app-debug
+          path: frontend/android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+

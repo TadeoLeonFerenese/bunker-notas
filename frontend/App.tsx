@@ -1673,7 +1673,9 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                     onFocus={handleInputFocus}
                     onSelectionChange={(e) => {
                       currentSelectionRef.current = e.nativeEvent.selection;
-                      setTextSelection(undefined);
+                      if (textSelection !== undefined) {
+                        setTextSelection(undefined);
+                      }
                     }}
                     {...(textSelection ? { selection: textSelection } : {})}
                   />
