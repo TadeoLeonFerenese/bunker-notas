@@ -1682,11 +1682,11 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     </View>
 
     {/* CREATE MODAL */}
-      <Modal visible={showCreateModal} animationType="slide" transparent={false} presentationStyle="fullScreen" onRequestClose={handleCloseCreateModal}>
+      <Modal visible={showCreateModal} animationType="slide" transparent={false} presentationStyle="fullScreen" onRequestClose={handleCloseCreateModal} statusBarTranslucent={true}>
         <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.surface }}>
           <KeyboardAvoidingView 
             style={{ flex: 1 }}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           >
             {showCreateModal && (
               <View style={[styles.modalContent, { backgroundColor: COLORS.surface, flex: 1, padding: 0 }]}>
