@@ -1698,8 +1698,14 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
                   <View style={{ flexDirection: 'row', gap: 8 }}>
                     <TouchableOpacity 
-                      style={{ padding: 8, backgroundColor: newNoteSecure ? COLORS.bunkerAccent : 'transparent', borderRadius: 8 }}
+                      style={{ 
+                        padding: 8, 
+                        backgroundColor: newNoteSecure ? COLORS.bunkerAccent : 'transparent', 
+                        borderRadius: 8,
+                        opacity: (editingNoteId && notes.find(n => n.id === editingNoteId)?.isSecure) ? 0.4 : 1
+                      }}
                       onPress={toggleSecureNote}
+                      disabled={!!(editingNoteId && notes.find(n => n.id === editingNoteId)?.isSecure)}
                     >
                       <MaterialIcons name={newNoteSecure ? "lock" : "lock-outline"} size={26} color={newNoteSecure ? "#fff" : COLORS.bunkerAccent} />
                     </TouchableOpacity>
