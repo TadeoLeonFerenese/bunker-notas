@@ -87,9 +87,15 @@ describe('BackupService - MVP Punto 4: Portabilidad', () => {
     );
   });
 
-  it('should pick and import notes from a file', async () => {
+  it('should pick and import notes from a file and preserve dates', async () => {
     const count = await backupService.pickAndImport();
     expect(count).toBe(2);
+
+    const all = await database.collections.get('notes').query().fetch();
+    const imported = all.find(n => (n as any).title === 'Nota pública') as any;
+    expect(imported).toBeDefined();
+    expect(new Date(imported.createdAt).getTime()).toBe(1710000000000);
+    expect(new Date(imported.updatedAt).getTime()).toBe(1710000000000);
   });
 
   it('should return 0 if document picker is canceled', async () => {

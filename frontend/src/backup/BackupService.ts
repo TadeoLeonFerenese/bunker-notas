@@ -99,6 +99,13 @@ export const backupService = {
           note.audioUri = noteData.audioUri || '';
           note.color = noteData.color || 'default';
           note.illustration = noteData.illustration || 'none';
+          
+          if (noteData.createdAt) {
+            note._raw.created_at = noteData.createdAt;
+          }
+          if (noteData.updatedAt) {
+            note._raw.updated_at = noteData.updatedAt;
+          }
         });
         imported++;
       }
