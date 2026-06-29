@@ -65,6 +65,21 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       }
     }).catch(e => console.log('Error loading view mode', e));
   }, []);
+
+  useEffect(() => {
+    const loadAiConfig = async () => {
+      try {
+        const { getSecureCredential } = require('./src/notes/encryption');
+        const storedProvider = await getSecureCredential('app_ai_provider') as AIProvider;
+        const storedKey = await getSecureCredential('app_ai_key');
+        if (storedProvider) setAiProvider(storedProvider);
+        if (storedKey) setAiKey(storedKey);
+      } catch (e) {
+        console.log('Error loading AI config', e);
+      }
+    };
+    loadAiConfig();
+  }, []);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedNote, setSelectedNote] = useState<NoteModel | null>(null);
   const [decryptedAudioUri, setDecryptedAudioUri] = useState<string | null>(null);

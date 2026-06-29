@@ -94,12 +94,12 @@ export async function storeSecureCredential(key: string, value: string): Promise
       return true;
     }
     await Keychain.setGenericPassword(key, value, {
-      service: 'bunker-notas',
+      service: 'bunker-notas-' + key,
       accessible: Keychain.ACCESSIBLE ? Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY : undefined,
     });
     return true;
   } catch (error) {
-    console.warn('Keychain nativo no disponible en Expo Go, usando fallback en memoria');
+    console.warn('Keychain nativo no disponible, usando fallback en memoria');
     memoryStore[key] = value;
     return true;
   }
@@ -117,13 +117,13 @@ export async function getSecureCredential(key: string): Promise<string | null> {
     if (!Keychain || !Keychain.getGenericPassword) {
       return memoryStore[key] || null;
     }
-    const result = await Keychain.getGenericPassword({ service: 'bunker-notas' });
+    const result = await Keychain.getGenericPassword({ service: 'bunker-notas-' + key });
     if (result) {
       return result.password;
     }
     return memoryStore[key] || null;
   } catch (error) {
-    console.warn('Keychain nativo no disponible en Expo Go, usando fallback en memoria');
+    console.warn('Keychain nativo no disponible, usando fallback en memoria');
     return memoryStore[key] || null;
   }
 }
