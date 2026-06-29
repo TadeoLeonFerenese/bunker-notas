@@ -1,14 +1,12 @@
 import { Database } from '@nozbe/watermelondb';
-import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
+import LokiJSAdapter from '@nozbe/watermelondb/adapters/lokijs';
 import schema from './schema';
 import Note from './Note';
 
-const adapter = new SQLiteAdapter({
+const adapter = new LokiJSAdapter({
   schema,
-  jsi: false,
-  onSetUpError: error => {
-    console.error("WatermelonDB Error", error);
-  }
+  useWebWorker: false,
+  useIncrementalIndexedDB: true,
 });
 
 export const database = new Database({

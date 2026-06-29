@@ -89,26 +89,28 @@ export const backupService = {
     }
 
     let imported = 0;
+    const batchOps: any[] = [];
+    
+    for (const noteData of data.notes) {
+      const rawNote = {
+        title: noteData.title,
+        content: noteData.content,
+        is_secure: noteData.isSecure,
+        is_marked: noteData.isMarked,
+        audio_uri: noteData.audioUri || '',
+        color: noteData.color || 'default',
+        illustration: noteData.illustration || 'none',
+        created_at: noteData.createdAt || Date.now(),
+        updated_at: noteData.updatedAt || Date.now(),
+      };
+      
+      const newNote = database.collections.get<Note>('notes').prepareCreateFromDirtyRaw(rawNote);
+      batchOps.push(newNote);
+      imported++;
+    }
+
     await database.write(async () => {
-      for (const noteData of data.notes) {
-        await database.collections.get<Note>('notes').create((note: any) => {
-          note.title = noteData.title;
-          note.content = noteData.content;
-          note.isSecure = noteData.isSecure;
-          note.isMarked = noteData.isMarked;
-          note.audioUri = noteData.audioUri || '';
-          note.color = noteData.color || 'default';
-          note.illustration = noteData.illustration || 'none';
-          
-          if (noteData.createdAt) {
-            note._raw.created_at = noteData.createdAt;
-          }
-          if (noteData.updatedAt) {
-            note._raw.updated_at = noteData.updatedAt;
-          }
-        });
-        imported++;
-      }
+      await database.batch(...batchOps);
     });
     return imported;
   },

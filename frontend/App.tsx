@@ -42,8 +42,10 @@ import RenderHtml from 'react-native-render-html';
 import { ThemeProvider, useTheme, ThemeType } from './src/theme/ThemeContext';
 import { encryption, encryptFile, decryptFile } from './src/notes/encryption';
 import { backupService } from './src/backup/BackupService';
+import { AIService, AIProvider } from './src/ai/AIService';
 import * as Linking from 'expo-linking';
 import { useShareIntent, ShareIntentProvider } from 'expo-share-intent';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type FilterType = 'all' | 'marked' | 'secure';
 type ViewMode = 'list' | 'grid';
@@ -55,6 +57,14 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [filter, setFilter] = useState<FilterType>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
+
+  useEffect(() => {
+    AsyncStorage.getItem('@bunker_view_mode').then(mode => {
+      if (mode === 'grid' || mode === 'list') {
+        setViewMode(mode);
+      }
+    }).catch(e => console.log('Error loading view mode', e));
+  }, []);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedNote, setSelectedNote] = useState<NoteModel | null>(null);
   const [decryptedAudioUri, setDecryptedAudioUri] = useState<string | null>(null);
@@ -64,6 +74,13 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [showBurgerMenu, setShowBurgerMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [backupModalVisible, setBackupModalVisible] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiConfigModal, setAiConfigModal] = useState(false);
+  const [aiProvider, setAiProvider] = useState<AIProvider>('gemini');
+  const [aiKey, setAiKey] = useState('');
+  const [isAiRecording, setIsAiRecording] = useState(false);
+  const [aiRecording, setAiRecording] = useState<Audio.Recording | null>(null);
   const authActionRef = useRef<'open' | 'delete'>('open');
   const contentInputRef = useRef<any>(null);
   const [textSelection, setTextSelection] = useState<{ start: number; end: number } | undefined>(undefined);
@@ -250,7 +267,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [newNoteSecure, setNewNoteSecure] = useState(false);
   const [newNoteColor, setNewNoteColor] = useState('default');
   const [newNoteIllustration, setNewNoteIllustration] = useState('none');
-  const [activeToolbar, setActiveToolbar] = useState<'format' | 'color' | 'doodle' | null>(null);
+  const [activeToolbar, setActiveToolbar] = useState<'format' | 'color' | 'doodle' | 'ai' | null>(null);
   // Audio State & Refs
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -1092,6 +1109,115 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     await setCustomBackground(null);
   };
 
+  const handleAiSubmit = async () => {
+    if (!aiPrompt.trim()) return;
+    setIsAiLoading(true);
+    
+    try {
+      const { getSecureCredential } = require('./src/notes/encryption');
+      const storedKey = await getSecureCredential('app_ai_key');
+      const storedProvider = await getSecureCredential('app_ai_provider') as AIProvider || 'gemini';
+      
+      if (!storedKey) {
+        Alert.alert('Configuración IA', 'Debes configurar tu API Key de IA primero en el menú hamburguesa.');
+        setAiConfigModal(true);
+        setIsAiLoading(false);
+        return;
+      }
+
+      const res = await AIService.ask(aiPrompt, storedKey, storedProvider);
+      if (res.error) {
+        Alert.alert('Error IA', res.error);
+      } else if (res.text) {
+        setNewNoteContent(prev => prev + (prev ? '\n\n' : '') + res.text);
+        setAiPrompt('');
+        setActiveToolbar(null);
+      }
+    } catch (e: any) {
+      console.log('Error AI', e);
+      Alert.alert('Error', 'Hubo un error de red al contactar al servidor de IA.');
+    }
+    setIsAiLoading(false);
+  };
+
+  const startAiRecording = async () => {
+    try {
+      const permission = await Audio.requestPermissionsAsync();
+      if (permission.status !== 'granted') {
+        Alert.alert('Permiso denegado', 'Se necesita acceso al micrófono para grabar audios.');
+        return;
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const newRecording = new Audio.Recording();
+      await newRecording.prepareToRecordAsync({
+        android: {
+          extension: '.m4a',
+          outputFormat: 2, // MPEG_4
+          audioEncoder: 3, // AAC
+          sampleRate: 44100,
+          numberOfChannels: 2,
+          bitRate: 128000,
+        },
+        ios: {
+          extension: '.m4a',
+          audioQuality: 127,
+          sampleRate: 44100,
+          numberOfChannels: 2,
+          bitRate: 128000,
+          linearPCMBitDepth: 16,
+          linearPCMIsBigEndian: false,
+          linearPCMIsFloat: false,
+        },
+        web: {},
+      });
+      await newRecording.startAsync();
+      setAiRecording(newRecording);
+      setIsAiRecording(true);
+    } catch (err) {
+      console.error('Failed to start AI recording', err);
+      Alert.alert('Error', 'No se pudo iniciar la grabación de audio.');
+    }
+  };
+
+  const stopAiRecording = async () => {
+    try {
+      if (!aiRecording) return;
+      setIsAiRecording(false);
+      setIsAiLoading(true);
+      await aiRecording.stopAndUnloadAsync();
+      const uri = aiRecording.getURI();
+      setAiRecording(null);
+
+      if (uri) {
+        const { getSecureCredential } = require('./src/notes/encryption');
+        const storedKey = await getSecureCredential('app_ai_key');
+        const storedProvider = await getSecureCredential('app_ai_provider') as AIProvider || 'gemini';
+
+        if (!storedKey) {
+          Alert.alert('Configuración IA', 'Debes configurar tu API Key de IA primero.');
+          setAiConfigModal(true);
+          setIsAiLoading(false);
+          return;
+        }
+
+        const res = await AIService.transcribe(uri, storedKey, storedProvider);
+        if (res.error) {
+          Alert.alert('Error de Transcripción', res.error);
+        } else if (res.text) {
+          setAiPrompt(res.text);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to stop AI recording', err);
+    }
+    setIsAiLoading(false);
+  };
+
   const handleInsertImage = async () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -1418,7 +1544,9 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                       marginBottom: 4
                     }}
                     onPress={() => {
-                      setViewMode(viewMode === 'list' ? 'grid' : 'list');
+                      const newMode = viewMode === 'list' ? 'grid' : 'list';
+                      setViewMode(newMode);
+                      AsyncStorage.setItem('@bunker_view_mode', newMode).catch(e => console.log(e));
                       setShowBurgerMenu(false);
                     }}
                   >
@@ -1448,6 +1576,29 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                     <MaterialIcons name="backup" size={18} color={COLORS.bunkerDark} />
                     <Text style={{ color: COLORS.bunkerDark, fontSize: 13, fontFamily: COLORS.fontFamily, fontWeight: '500' }}>
                       Respaldar / Importar
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* AI Config */}
+                  <TouchableOpacity
+                    style={{
+                      paddingVertical: 10,
+                      paddingHorizontal: 8,
+                      borderRadius: 8,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 10,
+                      backgroundColor: 'transparent',
+                      marginBottom: 8
+                    }}
+                    onPress={() => {
+                      setShowBurgerMenu(false);
+                      setAiConfigModal(true);
+                    }}
+                  >
+                    <MaterialIcons name="smart-toy" size={18} color={COLORS.bunkerDark} />
+                    <Text style={{ color: COLORS.bunkerDark, fontSize: 13, fontFamily: COLORS.fontFamily, fontWeight: '500' }}>
+                      Configurar IA
                     </Text>
                   </TouchableOpacity>
 
@@ -1873,6 +2024,36 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   </View>
                 )}
 
+                {activeToolbar === 'ai' && (
+                  <View style={{ paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.bunkerBg }}>
+                    <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, marginBottom: 8 }}>Asistente IA (Zero-Knowledge):</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <TextInput 
+                         style={{ flex: 1, backgroundColor: COLORS.surface, borderRadius: 8, padding: 8, color: COLORS.text, fontFamily: COLORS.fontFamily }} 
+                         placeholder={isAiRecording ? "Escuchando audio..." : "Ej: Escribe un resumen de la reunión..."} 
+                         placeholderTextColor={COLORS.textMuted}
+                         value={aiPrompt}
+                         onChangeText={setAiPrompt}
+                         editable={!isAiLoading && !isAiRecording}
+                      />
+                      <TouchableOpacity 
+                         style={{ marginLeft: 8, padding: 8, backgroundColor: isAiRecording ? '#E53E3E' : COLORS.bunkerBg, borderRadius: 8, width: 40, height: 40, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: COLORS.border }}
+                         onPress={isAiRecording ? stopAiRecording : startAiRecording}
+                         disabled={isAiLoading}
+                      >
+                         <MaterialIcons name={isAiRecording ? "stop" : "mic"} size={20} color={isAiRecording ? "#fff" : COLORS.bunkerDark} />
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                         style={{ marginLeft: 8, padding: 8, backgroundColor: COLORS.bunkerAccent, borderRadius: 8, width: 40, height: 40, justifyContent: 'center', alignItems: 'center' }}
+                         onPress={handleAiSubmit}
+                         disabled={isAiLoading || isAiRecording || !aiPrompt.trim()}
+                      >
+                         {isAiLoading ? <ActivityIndicator size="small" color="#fff" /> : <MaterialIcons name="send" size={20} color="#fff" />}
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+
                 {/* Bottom Action Bar */}
                 <View style={{ paddingHorizontal: 16, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: COLORS.surface, borderTopWidth: 1, borderColor: COLORS.border }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -1895,6 +2076,13 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                       onPress={() => setActiveToolbar(activeToolbar === 'doodle' ? null : 'doodle')}
                     >
                       <MaterialIcons name="emoji-emotions" size={26} color={activeToolbar === 'doodle' ? "#fff" : COLORS.bunkerAccent} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                      style={{ padding: 8, marginLeft: 8, marginBottom: 5, backgroundColor: activeToolbar === 'ai' ? COLORS.bunkerAccent : 'transparent', borderRadius: 8 }}
+                      onPress={() => setActiveToolbar(activeToolbar === 'ai' ? null : 'ai')}
+                    >
+                      <MaterialIcons name="smart-toy" size={26} color={activeToolbar === 'ai' ? "#fff" : COLORS.bunkerAccent} />
                     </TouchableOpacity>
                   </View>
 
@@ -2173,6 +2361,55 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
             </TouchableOpacity>
           </Pressable>
         </Pressable>
+      </Modal>
+
+      {/* AI CONFIG MODAL */}
+      <Modal visible={aiConfigModal} transparent animationType="fade" onRequestClose={() => setAiConfigModal(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 }}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setAiConfigModal(false)} />
+          <View style={{ backgroundColor: COLORS.surface, width: '100%', maxWidth: 340, borderRadius: 20, padding: 24, borderWidth: 1, borderColor: COLORS.border }}>
+            <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 20, color: COLORS.text, fontWeight: '700', marginBottom: 16, textAlign: 'center' }}>Configuración de IA</Text>
+            
+            <Text style={{ color: COLORS.textMuted, marginBottom: 8, fontFamily: COLORS.fontFamily, fontSize: 13, fontWeight: '600', textTransform: 'uppercase' }}>Proveedor</Text>
+            <View style={{ flexDirection: 'row', marginBottom: 16, gap: 8 }}>
+              <TouchableOpacity onPress={() => setAiProvider('gemini')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'gemini' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'gemini' ? 'transparent' : COLORS.border }}>
+                <Text style={{ color: aiProvider === 'gemini' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700' }}>Gemini</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setAiProvider('openai')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'openai' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'openai' ? 'transparent' : COLORS.border }}>
+                <Text style={{ color: aiProvider === 'openai' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700' }}>OpenAI</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={{ color: COLORS.textMuted, marginBottom: 8, fontFamily: COLORS.fontFamily, fontSize: 13, fontWeight: '600', textTransform: 'uppercase' }}>API Key (Local y Cifrada)</Text>
+            <TextInput 
+              style={{ backgroundColor: COLORS.bunkerBg, color: COLORS.text, padding: 14, borderRadius: 12, fontFamily: COLORS.fontFamily, marginBottom: 20, borderWidth: 1, borderColor: COLORS.border, fontSize: 15 }}
+              placeholder="Pegá tu API Key acá"
+              placeholderTextColor={COLORS.textMuted}
+              secureTextEntry
+              value={aiKey}
+              onChangeText={setAiKey}
+            />
+
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity onPress={() => setAiConfigModal(false)} style={{ flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center', backgroundColor: COLORS.bunkerBg, borderWidth: 1, borderColor: COLORS.border }}>
+                <Text style={{ color: COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '600' }}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={async () => {
+                try {
+                  const { storeSecureCredential } = require('./src/notes/encryption');
+                  await storeSecureCredential('app_ai_provider', aiProvider);
+                  if (aiKey) await storeSecureCredential('app_ai_key', aiKey);
+                  setAiConfigModal(false);
+                  Alert.alert('Éxito', 'Configuración de IA guardada de forma segura.');
+                } catch (e: any) {
+                  Alert.alert('Error', 'No se pudo guardar la configuración.');
+                }
+              }} style={{ flex: 1, paddingVertical: 14, backgroundColor: COLORS.bunkerAccent, borderRadius: 12, alignItems: 'center' }}>
+                <Text style={{ color: '#fff', fontFamily: COLORS.fontFamily, fontWeight: '700' }}>Guardar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       </Modal>
 
     </>
