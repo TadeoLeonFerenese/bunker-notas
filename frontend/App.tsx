@@ -1596,7 +1596,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                       setAiConfigModal(true);
                     }}
                   >
-                    <MaterialIcons name="smart-toy" size={18} color={COLORS.bunkerDark} />
+                    <MaterialIcons name="android" size={18} color={COLORS.bunkerDark} />
                     <Text style={{ color: COLORS.bunkerDark, fontSize: 13, fontFamily: COLORS.fontFamily, fontWeight: '500' }}>
                       Configurar IA
                     </Text>
@@ -2082,7 +2082,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                       style={{ padding: 8, marginLeft: 8, marginBottom: 5, backgroundColor: activeToolbar === 'ai' ? COLORS.bunkerAccent : 'transparent', borderRadius: 8 }}
                       onPress={() => setActiveToolbar(activeToolbar === 'ai' ? null : 'ai')}
                     >
-                      <MaterialIcons name="smart-toy" size={26} color={activeToolbar === 'ai' ? "#fff" : COLORS.bunkerAccent} />
+                      <MaterialIcons name="android" size={26} color={activeToolbar === 'ai' ? "#fff" : COLORS.bunkerAccent} />
                     </TouchableOpacity>
                   </View>
 
