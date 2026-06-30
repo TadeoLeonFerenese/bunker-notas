@@ -21,8 +21,8 @@ El objetivo de esta fase fue establecer un gestor de notas sólido, responsive y
 
 ---
 
-## 2. Soporte para Imágenes, Audios y Cifrado Real (MVP 2 - Estado Actual ✅)
-Permitir la carga, visualización y recepción (vía Share Intent o local) de imágenes y audios de manera segura, performante y con cifrado real.
+## 2. Soporte para Imágenes, Audios, IA y Cifrado Real (MVP 2 - Estado Actual ✅)
+Permitir la carga, visualización y recepción (vía Share Intent o local) de imágenes y audios, e integrar un Asistente de IA bajo esquema de seguridad real.
 
 * **La Decisión de Arquitectura Criptográfica:**
   1. **Librería de Cifrado:** Se implementó criptografía real mediante `crypto-js` en puro JavaScript, manteniendo compatibilidad total con el cliente genérico de **Expo Go** y con la suite de tests unitarios en **Jest** sin requerir dependencias nativas pesadas de linkeo.
@@ -36,21 +36,20 @@ Permitir la carga, visualización y recepción (vía Share Intent o local) de im
   * La app intercepta texto, imágenes y audios compartidos desde otras aplicaciones (`expo-share-intent`).
   * **Ajuste de Intents en la APK:** Se modificó `app.json` agregando `"singleShareMimeTypes": ["text/plain", "image/*", "audio/*"]` para asegurar que el sistema operativo Android registre la app en la lista nativa de compartir cuando el usuario selecciona fotos o archivos de voz en aplicaciones externas.
 
+* **Asistente de IA Integrado (BYOK & Zero-Knowledge):**
+  * **Estrategia BYOK (Bring Your Own Key):** La app incluye un panel de configuración seguro (con enlaces de obtención de API Keys en el modal) donde el usuario inserta su propia API Key (Gemini o OpenAI).
+  * **Privacidad Absoluta:** Las llamadas a la IA (transcripción por voz y prompts de chat) van directo desde el celular del usuario al proveedor (OpenAI/Google). No hay un servidor intermedio que audite los datos.
+  * **UX Robusta en Celulares:** Validación previa de la API Key antes de activar la grabación o el envío de prompts para evitar errores nativos del Keystore de Android. Interfaz con iconos dinámicos de robot minimalista (`robot-outline` / `robot`).
+
+* **Portabilidad y Preservación de Historial:**
+  * Respaldos encriptados locales con extensión `.bunker`.
+  * **Preservación de Fechas en Backup:** `BackupService.ts` respeta los timestamps originales (`createdAt`/`updatedAt`) de las notas al importarse desde el archivo `.bunker` modificando el `_raw` de WatermelonDB en la transacción batch.
+
 ---
 
-## 3. Asistente de IA Integrado (Largo Plazo)
-Implementar una Inteligencia Artificial directamente en la app capaz de redactar o transcribir notas por voz o texto de manera privada.
-
-* **Estrategia BYOK (Bring Your Own Key):**
-  * La app incluirá un panel de configuración donde el usuario inserta su propia API Key (ej. OpenAI, Anthropic, Gemini).
-  * **Zero-Knowledge Respetado:** Las llamadas a la IA (HTTPS) van directo desde el celular del usuario al proveedor (OpenAI/Google). No hay un servidor intermedio de Bunker Notas auditando o recopilando los datos.
-
----
-
-## 4. Próximos Pasos Identificados
-1. **Reemplazar LokiJSAdapter por SQLiteAdapter en WatermelonDB:** Migrar a la base de datos nativa SQLite en producción para mayor velocidad con bases de datos grandes (requerirá Development Builds nativas).
-2. **Preservación de Fechas en Backup:** Ajustar el `BackupService.ts` para respetar los timestamps originales (`createdAt`/`updatedAt`) de las notas importadas desde el archivo `.bunker` en vez de reescribirlas con la fecha actual.
-3. **Modo Sincronización Local-First:** Desarrollar el sistema de sincronización selectiva con el backend remoto.
+## 3. Próximos Pasos Identificados
+1. **Reemplazar LokiJSAdapter por SQLiteAdapter en WatermelonDB:** Migrar a la base de datos nativa SQLite en producción para mayor velocidad con bases de datos grandes (requerirá compilación nativa de EAS Build).
+2. **Modo Sincronización Local-First:** Desarrollar el sistema de sincronización selectiva con el backend remoto.
 
 ---
 

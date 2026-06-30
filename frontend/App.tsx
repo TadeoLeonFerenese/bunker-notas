@@ -29,7 +29,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 import { StatusBar } from 'expo-status-bar';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -1133,7 +1133,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       const storedKey = await getSecureCredential('app_ai_key');
       const storedProvider = await getSecureCredential('app_ai_provider') as AIProvider || 'gemini';
       
-      if (!storedKey) {
+      if (!storedKey || storedKey.trim() === '' || storedKey === 'null' || storedKey === 'undefined') {
         Alert.alert('Configuración IA', 'Debes configurar tu API Key de IA primero en el menú hamburguesa.');
         setAiConfigModal(true);
         setIsAiLoading(false);
@@ -1157,6 +1157,14 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
   const startAiRecording = async () => {
     try {
+      const { getSecureCredential } = require('./src/notes/encryption');
+      const storedKey = await getSecureCredential('app_ai_key');
+      if (!storedKey || storedKey.trim() === '' || storedKey === 'null' || storedKey === 'undefined') {
+        Alert.alert('Configuración IA', 'Debes configurar tu API Key de IA primero.');
+        setAiConfigModal(true);
+        return;
+      }
+
       const permission = await Audio.requestPermissionsAsync();
       if (permission.status !== 'granted') {
         Alert.alert('Permiso denegado', 'Se necesita acceso al micrófono para grabar audios.');
@@ -1213,7 +1221,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
         const storedKey = await getSecureCredential('app_ai_key');
         const storedProvider = await getSecureCredential('app_ai_provider') as AIProvider || 'gemini';
 
-        if (!storedKey) {
+        if (!storedKey || storedKey.trim() === '' || storedKey === 'null' || storedKey === 'undefined') {
           Alert.alert('Configuración IA', 'Debes configurar tu API Key de IA primero.');
           setAiConfigModal(true);
           setIsAiLoading(false);
@@ -1611,7 +1619,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                       setAiConfigModal(true);
                     }}
                   >
-                    <MaterialIcons name="android" size={18} color={COLORS.bunkerDark} />
+                    <MaterialCommunityIcons name="robot-outline" size={18} color={COLORS.bunkerDark} />
                     <Text style={{ color: COLORS.bunkerDark, fontSize: 13, fontFamily: COLORS.fontFamily, fontWeight: '500' }}>
                       Configurar IA
                     </Text>
@@ -2097,7 +2105,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                       style={{ padding: 8, marginLeft: 8, marginBottom: 5, backgroundColor: activeToolbar === 'ai' ? COLORS.bunkerAccent : 'transparent', borderRadius: 8 }}
                       onPress={() => setActiveToolbar(activeToolbar === 'ai' ? null : 'ai')}
                     >
-                      <MaterialIcons name="android" size={26} color={activeToolbar === 'ai' ? "#fff" : COLORS.bunkerAccent} />
+                      <MaterialCommunityIcons name={activeToolbar === 'ai' ? "robot" : "robot-outline"} size={26} color={activeToolbar === 'ai' ? "#fff" : COLORS.bunkerAccent} />
                     </TouchableOpacity>
                   </View>
 
@@ -2397,13 +2405,27 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
             <Text style={{ color: COLORS.textMuted, marginBottom: 8, fontFamily: COLORS.fontFamily, fontSize: 13, fontWeight: '600', textTransform: 'uppercase' }}>API Key (Local y Cifrada)</Text>
             <TextInput 
-              style={{ backgroundColor: COLORS.bunkerBg, color: COLORS.text, padding: 14, borderRadius: 12, fontFamily: COLORS.fontFamily, marginBottom: 20, borderWidth: 1, borderColor: COLORS.border, fontSize: 15 }}
+              style={{ backgroundColor: COLORS.bunkerBg, color: COLORS.text, padding: 14, borderRadius: 12, fontFamily: COLORS.fontFamily, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border, fontSize: 15 }}
               placeholder="Pegá tu API Key acá"
               placeholderTextColor={COLORS.textMuted}
               secureTextEntry
               value={aiKey}
               onChangeText={setAiKey}
             />
+
+            <TouchableOpacity 
+              onPress={() => {
+                const url = aiProvider === 'gemini' 
+                  ? 'https://aistudio.google.com/app/apikey' 
+                  : 'https://platform.openai.com/api-keys';
+                Linking.openURL(url).catch(err => console.error("Error opening API Key link", err));
+              }}
+              style={{ marginBottom: 20, alignSelf: 'center' }}
+            >
+              <Text style={{ color: COLORS.bunkerAccent, fontFamily: COLORS.fontFamily, fontSize: 13, textDecorationLine: 'underline', fontWeight: '500' }}>
+                {aiProvider === 'gemini' ? 'Obtener API Key de Gemini ↗' : 'Obtener API Key de OpenAI ↗'}
+              </Text>
+            </TouchableOpacity>
 
             <View style={{ flexDirection: 'row', gap: 12 }}>
               <TouchableOpacity onPress={() => setAiConfigModal(false)} style={{ flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center', backgroundColor: COLORS.bunkerBg, borderWidth: 1, borderColor: COLORS.border }}>

@@ -105,6 +105,12 @@ export const backupService = {
       };
       
       const newNote = database.collections.get<Note>('notes').prepareCreateFromDirtyRaw(rawNote);
+      if (noteData.createdAt) {
+        newNote._raw.created_at = noteData.createdAt;
+      }
+      if (noteData.updatedAt) {
+        newNote._raw.updated_at = noteData.updatedAt;
+      }
       batchOps.push(newNote);
       imported++;
     }

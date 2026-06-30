@@ -116,3 +116,29 @@ jest.mock('expo-constants', () => ({
   },
   appOwnership: 'guest',
 }), { virtual: true });
+
+// Mock react-native-async-storage
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock')
+);
+
+// Mock WatermelonDB database to run on pure in-memory LokiJS without IndexedDB (avoids native DB errors and timers leaks in Jest)
+jest.mock('./src/database/index.ts', () => {
+  const { Database } = require('@nozbe/watermelondb');
+  const LokiJSAdapter = require('@nozbe/watermelondb/adapters/lokijs').default;
+  const schema = require('./src/database/schema').default;
+  const Note = require('./src/database/Note').default;
+
+  const adapter = new LokiJSAdapter({
+    schema,
+    useWebWorker: false,
+    useIncrementalIndexedDB: false,
+  });
+
+  return {
+    database: new Database({
+      adapter,
+      modelClasses: [Note],
+    }),
+  };
+});

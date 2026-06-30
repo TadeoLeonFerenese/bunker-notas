@@ -34,7 +34,7 @@ describe('AGENTS.md Manifesto Architectural Constraints', () => {
 
     const srcFiles = getFiles(srcDir)
       .filter(f => f.endsWith('.ts') || f.endsWith('.tsx'))
-      .filter(f => !f.endsWith('index.ts') && !f.endsWith('types.ts') && !f.includes('types/'));
+      .filter(f => !f.endsWith('index.ts') && !f.endsWith('index.web.ts') && !f.endsWith('types.ts') && !f.includes('types/'));
 
     const testFiles = getFiles(testsDir);
 
