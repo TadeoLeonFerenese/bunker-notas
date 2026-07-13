@@ -56,6 +56,7 @@ Permitir la carga, visualización y recepción (vía Share Intent o local) de im
 ## 3. Próximos Pasos Identificados
 1. **Reemplazar LokiJSAdapter por SQLiteAdapter en WatermelonDB:** Migrar a la base de datos nativa SQLite en producción para mayor velocidad con bases de datos grandes (requerirá compilación nativa de EAS Build).
 2. **Modo Sincronización Local-First:** Desarrollar el sistema de sincronización selectiva con el backend remoto.
+3. **Soporte para Motores de IA Gratuitos/Open-Source:** Integrar proveedores como Groq, OpenRouter o HuggingFace para permitir el uso de modelos gratuitos (como DeepSeek, Mixtral o Llama) mitigando la dependencia de APIs pagas y bloqueos por saturación en proveedores corporativos.
 
 ---
 
