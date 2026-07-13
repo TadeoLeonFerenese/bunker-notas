@@ -2320,79 +2320,84 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
       {/* PIN MODAL ESTILO BANCO GALICIA */}
       <Modal visible={pinModalVisible} animationType="slide" transparent onRequestClose={() => setPinModalVisible(false)}>
-        <Pressable style={styles.pinModalOverlay} onPress={() => setPinModalVisible(false)}>
-          <Pressable style={[styles.pinModalContent, { backgroundColor: COLORS.surface }]} onPress={() => {}}>
-            <Text style={[styles.pinModalTitle, { color: COLORS.bunkerDark }]}>
-              {hasStoredPin ? '🔐 Ingresá tu PIN' : '🛡️ ¡Creá tu PIN Maestro!'}
-            </Text>
-            <Text style={[styles.pinModalSubtitle, { color: COLORS.bunkerGray }]}>
-              {hasStoredPin 
-                ? 'Ingresá tu PIN de seguridad para las notas.' 
-                : 'Aún no tenés un PIN. Ingresá exactamente 6 dígitos para definirlo ahora:'
-              }
-            </Text>
-            
-            {/* Contenedor Visual de PIN Boxes (Responsive) */}
-            <View style={styles.pinModalBoxContainer}>
-              {Array.from({ length: 6 }).map((_, index) => {
-                const isDigitEntered = index < pinInput.length;
-                return (
-                  <View
-                    key={index}
-                    style={[
-                      styles.pinModalBox,
-                      { borderColor: COLORS.border, backgroundColor: COLORS.surface },
-                      isDigitEntered && { borderColor: COLORS.bunkerDark },
-                    ]}
-                  >
-                    <Text style={[styles.pinModalBoxText, isDigitEntered && { color: COLORS.bunkerDark }]}>
-                      {isDigitEntered ? '•' : ''}
-                    </Text>
-                  </View>
-                );
-              })}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <Pressable style={styles.pinModalOverlay} onPress={() => setPinModalVisible(false)}>
+            <Pressable style={[styles.pinModalContent, { backgroundColor: COLORS.surface }]} onPress={() => {}}>
+              <Text style={[styles.pinModalTitle, { color: COLORS.bunkerDark }]}>
+                {hasStoredPin ? '🔐 Ingresá tu PIN' : '🛡️ ¡Creá tu PIN Maestro!'}
+              </Text>
+              <Text style={[styles.pinModalSubtitle, { color: COLORS.bunkerGray }]}>
+                {hasStoredPin 
+                  ? 'Ingresá tu PIN de seguridad para las notas.' 
+                  : 'Aún no tenés un PIN. Ingresá exactamente 6 dígitos para definirlo ahora:'
+                }
+              </Text>
+              
+              {/* Contenedor Visual de PIN Boxes (Responsive) */}
+              <View style={styles.pinModalBoxContainer}>
+                {Array.from({ length: 6 }).map((_, index) => {
+                  const isDigitEntered = index < pinInput.length;
+                  return (
+                    <View
+                      key={index}
+                      style={[
+                        styles.pinModalBox,
+                        { borderColor: COLORS.border, backgroundColor: COLORS.surface },
+                        isDigitEntered && { borderColor: COLORS.bunkerDark },
+                      ]}
+                    >
+                      <Text style={[styles.pinModalBoxText, isDigitEntered && { color: COLORS.bunkerDark }]}>
+                        {isDigitEntered ? '•' : ''}
+                      </Text>
+                    </View>
+                  );
+                })}
 
-              <TextInput
-                style={styles.pinModalHiddenInput}
-                value={pinInput}
-                onChangeText={(text) => setPinInput(text.replace(/[^0-9]/g, '').slice(0, 6))}
-                keyboardType="numeric"
-                secureTextEntry
-                maxLength={6}
-                autoFocus
-              />
-            </View>
+                <TextInput
+                  style={styles.pinModalHiddenInput}
+                  value={pinInput}
+                  onChangeText={(text) => setPinInput(text.replace(/[^0-9]/g, '').slice(0, 6))}
+                  keyboardType="numeric"
+                  secureTextEntry
+                  maxLength={6}
+                  autoFocus
+                />
+              </View>
 
-            {isBiometricAvailable && (
-              <TouchableOpacity
-                testID="biometric-trigger-button"
-                style={[styles.pinModalBiometricBtn, { backgroundColor: COLORS.surface, borderColor: COLORS.border }]}
-                onPress={() => pendingNote && tryBiometricAuth(pendingNote)}
-              >
-                <MaterialIcons name="fingerprint" size={24} color={COLORS.bunkerAccent} />
-                <Text style={[styles.pinModalBiometricText, { color: COLORS.bunkerDark }]}>Desbloquear con Biometría</Text>
-              </TouchableOpacity>
-            )}
+              {isBiometricAvailable && (
+                <TouchableOpacity
+                  testID="biometric-trigger-button"
+                  style={[styles.pinModalBiometricBtn, { backgroundColor: COLORS.surface, borderColor: COLORS.border }]}
+                  onPress={() => pendingNote && tryBiometricAuth(pendingNote)}
+                >
+                  <MaterialIcons name="fingerprint" size={24} color={COLORS.bunkerAccent} />
+                  <Text style={[styles.pinModalBiometricText, { color: COLORS.bunkerDark }]}>Desbloquear con Biometría</Text>
+                </TouchableOpacity>
+              )}
 
-            <View style={styles.pinModalActions}>
-              <TouchableOpacity 
-                style={[styles.pinModalCancel, { backgroundColor: COLORS.bunkerBg }]} 
-                onPress={() => {
-                  setPinModalVisible(false);
-                  setPendingNote(null);
-                }}
-              >
-                <Text style={[styles.pinModalCancelText, { color: COLORS.bunkerGray }]}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.pinModalVerify, { backgroundColor: COLORS.bunkerAccent }]}
-                onPress={validatePinAndOpen}
-              >
-                <Text style={styles.pinModalVerifyText}>Confirmar</Text>
-              </TouchableOpacity>
-            </View>
+              <View style={styles.pinModalActions}>
+                <TouchableOpacity 
+                  style={[styles.pinModalCancel, { backgroundColor: COLORS.bunkerBg }]} 
+                  onPress={() => {
+                    setPinModalVisible(false);
+                    setPendingNote(null);
+                  }}
+                >
+                  <Text style={[styles.pinModalCancelText, { color: COLORS.bunkerGray }]}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.pinModalVerify, { backgroundColor: COLORS.bunkerAccent }]}
+                  onPress={validatePinAndOpen}
+                >
+                  <Text style={styles.pinModalVerifyText}>Confirmar</Text>
+                </TouchableOpacity>
+              </View>
+            </Pressable>
           </Pressable>
-        </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* DASHBOARD AI MODAL */}
@@ -2406,83 +2411,109 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
           }
         }}
       >
-        <Pressable 
-          style={styles.aiModalOverlay} 
-          onPress={() => {
-            if (!isAiLoading && !isAiRecording) {
-              setShowDashboardAiModal(false);
-            }
-          }}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
         >
           <Pressable 
-            style={[styles.aiModalContent, { backgroundColor: COLORS.surface }]}
-            onPress={() => {}}
+            style={styles.aiModalOverlay} 
+            onPress={() => {
+              if (!isAiLoading && !isAiRecording) {
+                setShowDashboardAiModal(false);
+              }
+            }}
           >
-            <View style={styles.aiModalHeader}>
-              <View style={styles.aiModalIconContainer}>
-                <MaterialCommunityIcons name="robot" size={28} color="#fff" />
+            <Pressable 
+              style={[styles.aiModalContent, { backgroundColor: COLORS.surface }]}
+              onPress={() => {}}
+            >
+              <View style={styles.aiModalHeader}>
+                <View style={styles.aiModalIconContainer}>
+                  <MaterialCommunityIcons name="robot" size={28} color="#fff" />
+                </View>
+                <View>
+                  <Text style={[styles.aiModalTitle, { color: COLORS.bunkerDark, fontFamily: COLORS.fontFamily }]}>Asistente IA</Text>
+                  <Text style={[styles.aiModalSubtitle, { color: COLORS.bunkerGray, fontFamily: COLORS.fontFamily }]}>Creá una nota dictando o escribiendo</Text>
+                </View>
               </View>
-              <View>
-                <Text style={[styles.aiModalTitle, { color: COLORS.bunkerDark, fontFamily: COLORS.fontFamily }]}>Asistente IA</Text>
-                <Text style={[styles.aiModalSubtitle, { color: COLORS.bunkerGray, fontFamily: COLORS.fontFamily }]}>Creá una nota dictando o escribiendo</Text>
-              </View>
-            </View>
 
-            <View style={styles.aiModalInputContainer}>
-              <TextInput
-                style={[
-                  styles.aiModalInput, 
-                  { 
-                    backgroundColor: COLORS.bunkerBg, 
-                    color: COLORS.bunkerDark,
-                    borderColor: COLORS.border,
-                    fontFamily: COLORS.fontFamily
-                  }
-                ]}
-                placeholder={isAiRecording ? "Escuchando audio..." : "Ej: Escribí un resumen de la reunión de hoy..."}
-                placeholderTextColor={COLORS.bunkerGray}
-                value={aiPrompt}
-                onChangeText={setAiPrompt}
-                multiline
-                numberOfLines={3}
-                editable={!isAiLoading && !isAiRecording}
-              />
-            </View>
-
-            <View style={styles.aiModalActions}>
-              <TouchableOpacity
-                style={[
-                  styles.aiModalMicBtn,
-                  isAiRecording ? styles.aiModalMicBtnActive : { backgroundColor: COLORS.bunkerBg, borderColor: COLORS.border }
-                ]}
-                onPress={isAiRecording ? stopAiRecording : startAiRecording}
-                disabled={isAiLoading}
-              >
-                <MaterialIcons 
-                  name={isAiRecording ? "stop" : "mic"} 
-                  size={24} 
-                  color={isAiRecording ? "#fff" : COLORS.bunkerDark} 
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                <TextInput
+                  style={[
+                    styles.aiModalInput, 
+                    { 
+                      flex: 1,
+                      backgroundColor: COLORS.bunkerBg, 
+                      color: COLORS.bunkerDark,
+                      borderColor: COLORS.border,
+                      fontFamily: COLORS.fontFamily,
+                      height: 80,
+                    }
+                  ]}
+                  placeholder={isAiRecording ? "Escuchando audio..." : "Ej: Escribí un resumen de la reunión de hoy..."}
+                  placeholderTextColor={COLORS.bunkerGray}
+                  value={aiPrompt}
+                  onChangeText={setAiPrompt}
+                  multiline
+                  numberOfLines={3}
+                  editable={!isAiLoading && !isAiRecording}
                 />
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.aiModalMicBtn,
+                    isAiRecording ? styles.aiModalMicBtnActive : { backgroundColor: COLORS.bunkerBg, borderColor: COLORS.border },
+                    { height: 80, width: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1 }
+                  ]}
+                  onPress={isAiRecording ? stopAiRecording : startAiRecording}
+                  disabled={isAiLoading}
+                >
+                  <MaterialIcons 
+                    name={isAiRecording ? "stop" : "mic"} 
+                    size={24} 
+                    color={isAiRecording ? "#fff" : COLORS.bunkerDark} 
+                  />
+                </TouchableOpacity>
+              </View>
 
-              <TouchableOpacity
-                style={[
-                  styles.aiModalSendBtn,
-                  { backgroundColor: COLORS.bunkerAccent },
-                  (isAiLoading || isAiRecording || !aiPrompt.trim()) && styles.aiModalSendBtnDisabled
-                ]}
-                onPress={handleDashboardAiSubmit}
-                disabled={isAiLoading || isAiRecording || !aiPrompt.trim()}
-              >
-                {isAiLoading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <MaterialIcons name="send" size={24} color="#fff" />
-                )}
-              </TouchableOpacity>
-            </View>
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <TouchableOpacity
+                  disabled={isAiLoading || isAiRecording}
+                  onPress={() => setShowDashboardAiModal(false)}
+                  style={{ 
+                    flex: 1, 
+                    paddingVertical: 14, 
+                    borderRadius: 12, 
+                    alignItems: 'center', 
+                    backgroundColor: COLORS.bunkerBg, 
+                    borderWidth: 1, 
+                    borderColor: COLORS.border,
+                    opacity: (isAiLoading || isAiRecording) ? 0.5 : 1
+                  }}
+                >
+                  <Text style={{ color: COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '600' }}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  disabled={isAiLoading || isAiRecording || !aiPrompt.trim()}
+                  onPress={handleDashboardAiSubmit}
+                  style={{ 
+                    flex: 1, 
+                    paddingVertical: 14, 
+                    backgroundColor: COLORS.bunkerAccent, 
+                    borderRadius: 12, 
+                    alignItems: 'center',
+                    opacity: (isAiLoading || isAiRecording || !aiPrompt.trim()) ? 0.5 : 1
+                  }}
+                >
+                  {isAiLoading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={{ color: '#fff', fontFamily: COLORS.fontFamily, fontWeight: '700' }}>Generar</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </Pressable>
           </Pressable>
-        </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* BACKUP MODAL */}
@@ -2639,10 +2670,70 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                       setAiConfigModal(false);
                       Alert.alert('Éxito', 'La configuración de la IA es correcta y se guardó de forma segura.');
                     } else {
-                      Alert.alert('Error de Validación', 'No se pudo configurar la IA.\n\nDetalle: ' + (validation.error || 'Respuesta inesperada. Verificá que la API Key sea correcta.'));
+                      Alert.alert(
+                        'Error de Validación',
+                        `[LOG DE ERROR DE CONFIGURACIÓN]\n` +
+                        `---------------------------\n` +
+                        `Proveedor: ${aiProvider.toUpperCase()}\n` +
+                        `Resultado: Validación fallida\n` +
+                        `Detalle: ${validation.error || 'Respuesta inesperada.'}\n` +
+                        `---------------------------\n\n` +
+                        `¿Querés corregir la API Key o preferís guardarla de todos modos?`,
+                        [
+                          {
+                            text: 'Corregir Key',
+                            style: 'cancel'
+                          },
+                          {
+                            text: 'Guardar de todos modos',
+                            style: 'destructive',
+                            onPress: async () => {
+                              try {
+                                const { storeSecureCredential } = require('./src/notes/encryption');
+                                await storeSecureCredential('app_ai_provider', aiProvider);
+                                await storeSecureCredential('app_ai_key', aiKey);
+                                setAiConfigModal(false);
+                                Alert.alert('Guardado', 'Se guardó la configuración de la IA sin validar.');
+                              } catch (errSave) {
+                                Alert.alert('Error', 'No se pudo guardar la configuración.');
+                              }
+                            }
+                          }
+                        ]
+                      );
                     }
                   } catch (e: any) {
-                    Alert.alert('Error de Configuración', 'Ocurrió un error inesperado al validar la key: ' + (e.message || e));
+                    Alert.alert(
+                      'Error de Conexión',
+                      `[LOG DE EXCEPCIÓN DE RED]\n` +
+                      `---------------------------\n` +
+                      `Proveedor: ${aiProvider.toUpperCase()}\n` +
+                      `Excepción: ${e.message || e}\n` +
+                      `Sugerencia: Revisá tu conexión a internet o VPN.\n` +
+                      `---------------------------\n\n` +
+                      `¿Querés corregir la API Key o preferís guardarla de todos modos?`,
+                      [
+                        {
+                          text: 'Corregir Key',
+                          style: 'cancel'
+                        },
+                        {
+                          text: 'Guardar de todos modos',
+                          style: 'destructive',
+                          onPress: async () => {
+                            try {
+                              const { storeSecureCredential } = require('./src/notes/encryption');
+                              await storeSecureCredential('app_ai_provider', aiProvider);
+                              await storeSecureCredential('app_ai_key', aiKey);
+                              setAiConfigModal(false);
+                              Alert.alert('Guardado', 'Se guardó la configuración de la IA sin validar.');
+                            } catch (errSave) {
+                              Alert.alert('Error', 'No se pudo guardar la configuración.');
+                            }
+                          }
+                        }
+                      ]
+                    );
                   } finally {
                     setIsValidatingKey(false);
                   }
@@ -2767,7 +2858,7 @@ const styles = StyleSheet.create({
   viewerText: { fontSize: 18, lineHeight: 28 },
   viewerFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16, borderTopWidth: 1, paddingBottom: 20 },
   viewerDate: { fontSize: 14 },
-  pinModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-start', alignItems: 'center', paddingHorizontal: 20, paddingTop: 80 },
+  pinModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },
   pinModalContent: { width: '100%', maxWidth: 340, borderRadius: 20, padding: 24, alignItems: 'center' },
   pinModalTitle: { fontSize: 22, fontWeight: '700', marginBottom: 8 },
   pinModalSubtitle: { fontSize: 14, marginBottom: 24 },
@@ -2866,27 +2957,15 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: 2,
   },
-  aiModalInputContainer: {
-    marginBottom: 20,
-  },
   aiModalInput: {
     borderRadius: 16,
     borderWidth: 1,
     padding: 16,
     fontSize: 15,
-    height: 96,
+    height: 80,
     textAlignVertical: 'top',
   },
-  aiModalActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 12,
-  },
   aiModalMicBtn: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
@@ -2894,23 +2973,5 @@ const styles = StyleSheet.create({
   aiModalMicBtnActive: {
     backgroundColor: '#E53E3E',
     borderColor: 'transparent',
-  },
-  aiModalSendBtn: {
-    flex: 1,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'row',
-    shadowColor: '#E94560',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  aiModalSendBtnDisabled: {
-    opacity: 0.5,
-    elevation: 0,
-    shadowOpacity: 0,
   },
 });

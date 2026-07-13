@@ -123,6 +123,7 @@ export const AIService = {
     try {
       if (provider === 'gemini') {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        console.log(`[AIService Gemini Request] Sending ask prompt to Gemini...`);
         const response = await fetch(url, {
           method: 'POST',
           headers: {
@@ -134,13 +135,16 @@ export const AIService = {
         });
 
         const data = await response.json();
+        console.log(`[AIService Gemini Response] Status: ${response.status}`, JSON.stringify(data));
+        
         if (!response.ok) {
-          return { error: data.error?.message || 'Error en Gemini API' };
+          return { error: data.error?.message || `HTTP ${response.status}: Error en Gemini API` };
         }
 
         return { text: data.candidates[0]?.content?.parts[0]?.text || '' };
       } else {
         const url = 'https://api.openai.com/v1/chat/completions';
+        console.log(`[AIService OpenAI Request] Sending ask prompt to OpenAI...`);
         const response = await fetch(url, {
           method: 'POST',
           headers: {
@@ -154,14 +158,17 @@ export const AIService = {
         });
 
         const data = await response.json();
+        console.log(`[AIService OpenAI Response] Status: ${response.status}`, JSON.stringify(data));
+
         if (!response.ok) {
-          return { error: data.error?.message || 'Error en OpenAI API' };
+          return { error: data.error?.message || `HTTP ${response.status}: Error en OpenAI API` };
         }
 
         return { text: data.choices[0]?.message?.content || '' };
       }
     } catch (e: any) {
-      return { error: e.message };
+      console.error('[AIService Request Exception]', e);
+      return { error: e.message || 'Error de red / excepción de fetch' };
     }
   },
 

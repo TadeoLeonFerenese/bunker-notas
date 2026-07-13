@@ -39,7 +39,13 @@ Permitir la carga, visualización y recepción (vía Share Intent o local) de im
 * **Asistente de IA Integrado (BYOK & Zero-Knowledge):**
   * **Estrategia BYOK (Bring Your Own Key):** La app incluye un panel de configuración seguro (con enlaces de obtención de API Keys en el modal) donde el usuario inserta su propia API Key (Gemini o OpenAI).
   * **Privacidad Absoluta:** Las llamadas a la IA (transcripción por voz y prompts de chat) van directo desde el celular del usuario al proveedor (OpenAI/Google). No hay un servidor intermedio que audite los datos.
-  * **UX Robusta en Celulares:** Validación previa de la API Key antes de activar la grabación o el envío de prompts para evitar errores nativos del Keystore de Android. Interfaz con iconos dinámicos de robot minimalista (`robot-outline` / `robot`).
+  * **Acceso y UX en Dashboard:** Se desvinculó el Asistente del editor de notas, ubicándose como un botón de acción flotante (FAB) simétrico en el margen izquierdo inferior del Dashboard principal (con fondo de acento y robot blanco). Abre un modal flotante responsive (`KeyboardAvoidingView`) con botones de acción simétricos ("Cancelar" / "Generar") y el botón de micrófono reubicado al lado del input de texto. Al completarse la respuesta de la IA, se crea una nota y se abre en modo editor de forma transparente.
+  * **Validación de Keys con Diagnóstico y Bypass:** Al configurar la API Key se valida mediante un "ping" al servicio. Si la validación falla (sea por credenciales incorrectas o restricciones de red/VPN corporativas), la app muestra un **Mini Log Técnico Estructurado** detallando el error y ofrece un bypass de **"Guardar de todos modos"** para evitar bloqueos por problemas de conexión locales.
+
+* **Seguridad y Centrado de Modales:**
+  * **Modal de PIN Centrado y Responsive:** Se modificó la interfaz de solicitud de PIN (al abrir o borrar notas seguras) para centrarse verticalmente en pantalla de forma idéntica a las demás alertas. Se le incorporó `KeyboardAvoidingView` para evitar que el teclado numérico de ingreso obstruya los botones o la caja del PIN en dispositivos medianos.
+  * **Fijación de PIN a 6 Dígitos:** Para evitar espacios vacíos confusos en la UI de entrada, se fijó el PIN de seguridad del usuario en exactamente 6 dígitos para el registro y validación.
+  * **Iconografía en Login:** Se actualizó el diseño de la pantalla de Login reemplazando el escudo de seguridad por el icono nativo de la aplicación (`icon.png`), mejorando la identidad visual.
 
 * **Portabilidad y Preservación de Historial:**
   * Respaldos encriptados locales con extensión `.bunker`.
