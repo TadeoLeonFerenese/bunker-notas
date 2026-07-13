@@ -114,8 +114,8 @@ describe('BiometricLogin - Punto 1: Control de Acceso', () => {
   });
 
   describe('GIVEN: El usuario elige usar PIN de respaldo', () => {
-    describe('WHEN: Ingresa un PIN de 4 a 6 dígitos', () => {
-      it('THEN: El input acepta exactamente 4 dígitos', () => {
+    describe('WHEN: Ingresa un PIN de hasta 6 dígitos', () => {
+      it('THEN: El input acepta entrada parcial de 4 dígitos', () => {
         const { getByTestId } = render(
           <BiometricLogin onAuthSuccess={jest.fn()} onAuthError={jest.fn()} />
         );
@@ -137,41 +137,34 @@ describe('BiometricLogin - Punto 1: Control de Acceso', () => {
         expect(pinInput.props.value).toBe('123456');
       });
 
-      it('THEN: Rechaza PIN de menos de 4 dígitos al presionar submit', () => {
+      it('THEN: Rechaza PIN de menos de 6 dígitos al presionar submit', () => {
         const onAuthError = jest.fn();
         const { getByTestId } = render(
           <BiometricLogin onAuthSuccess={jest.fn()} onAuthError={onAuthError} />
         );
 
         const pinInput = getByTestId('pin-input');
-        fireEvent.changeText(pinInput, '123');
+        fireEvent.changeText(pinInput, '12345');
 
         // Press submit button if exists
         const submitButton = screen.getByTestId('pin-submit-button');
         if (submitButton) {
           fireEvent.press(submitButton);
           expect(onAuthError).toHaveBeenCalledWith(
-            expect.objectContaining({ error: expect.stringContaining('4') })
+            expect.objectContaining({ error: expect.stringContaining('exactamente') })
           );
         }
       });
 
-      it('THEN: Rechaza PIN de más de 6 dígitos al presionar submit', () => {
-        const onAuthError = jest.fn();
+      it('THEN: El input trunca la entrada a un máximo de 6 dígitos', () => {
         const { getByTestId } = render(
-          <BiometricLogin onAuthSuccess={jest.fn()} onAuthError={onAuthError} />
+          <BiometricLogin onAuthSuccess={jest.fn()} onAuthError={jest.fn()} />
         );
 
         const pinInput = getByTestId('pin-input');
         fireEvent.changeText(pinInput, '1234567');
 
-        const submitButton = screen.getByTestId('pin-submit-button');
-        if (submitButton) {
-          fireEvent.press(submitButton);
-          expect(onAuthError).toHaveBeenCalledWith(
-            expect.objectContaining({ error: expect.stringContaining('6') })
-          );
-        }
+        expect(pinInput.props.value).toBe('123456');
       });
     });
 

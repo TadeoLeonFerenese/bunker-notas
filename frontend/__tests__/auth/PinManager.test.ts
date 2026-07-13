@@ -24,7 +24,7 @@ describe('PinManager Unit Tests', () => {
     it('should return true if credentials exist in Keychain', async () => {
       mockGetGenericPassword.mockResolvedValueOnce({
         username: 'bunker_user',
-        password: '1234',
+        password: '123456',
       });
       const result = await PinManager.hasPin();
       expect(result).toBe(true);
@@ -51,15 +51,13 @@ describe('PinManager Unit Tests', () => {
   });
 
   describe('setPin', () => {
-    it('should save PIN successfully if format is valid (4 digits)', async () => {
-      mockSetGenericPassword.mockResolvedValueOnce(true);
+    it('should reject PIN if it is too short (4 digits)', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
       const result = await PinManager.setPin('1234');
-      expect(result).toBe(true);
-      expect(mockSetGenericPassword).toHaveBeenCalledWith(
-        'bunker_user',
-        '1234',
-        { service: 'com.tadeoleon.bunkernotas.pin' }
-      );
+      expect(result).toBe(false);
+      expect(mockSetGenericPassword).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).toHaveBeenCalled();
+      consoleErrorSpy.mockRestore();
     });
 
     it('should save PIN successfully if format is valid (6 digits)', async () => {
@@ -73,9 +71,9 @@ describe('PinManager Unit Tests', () => {
       );
     });
 
-    it('should reject PIN if it is too short (3 digits)', async () => {
+    it('should reject PIN if it is too short (5 digits)', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      const result = await PinManager.setPin('123');
+      const result = await PinManager.setPin('12345');
       expect(result).toBe(false);
       expect(mockSetGenericPassword).not.toHaveBeenCalled();
       expect(consoleErrorSpy).toHaveBeenCalled();
@@ -93,7 +91,7 @@ describe('PinManager Unit Tests', () => {
 
     it('should reject PIN if it contains non-numeric characters', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      const result = await PinManager.setPin('12a4');
+      const result = await PinManager.setPin('12345a');
       expect(result).toBe(false);
       expect(mockSetGenericPassword).not.toHaveBeenCalled();
       expect(consoleErrorSpy).toHaveBeenCalled();
@@ -103,7 +101,7 @@ describe('PinManager Unit Tests', () => {
     it('should return false if keychain save throws an error', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
       mockSetGenericPassword.mockRejectedValueOnce(new Error('Write error'));
-      const result = await PinManager.setPin('9999');
+      const result = await PinManager.setPin('999999');
       expect(result).toBe(false);
       expect(consoleErrorSpy).toHaveBeenCalled();
       consoleErrorSpy.mockRestore();
@@ -114,31 +112,31 @@ describe('PinManager Unit Tests', () => {
     it('should return true if input matches stored PIN', async () => {
       mockGetGenericPassword.mockResolvedValueOnce({
         username: 'bunker_user',
-        password: '4321',
+        password: '432109',
       });
-      const result = await PinManager.verifyPin('4321');
+      const result = await PinManager.verifyPin('432109');
       expect(result).toBe(true);
     });
 
     it('should return false if input does not match stored PIN', async () => {
       mockGetGenericPassword.mockResolvedValueOnce({
         username: 'bunker_user',
-        password: '4321',
+        password: '432109',
       });
-      const result = await PinManager.verifyPin('1111');
+      const result = await PinManager.verifyPin('111111');
       expect(result).toBe(false);
     });
 
     it('should return false if there is no PIN stored', async () => {
       mockGetGenericPassword.mockResolvedValueOnce(false);
-      const result = await PinManager.verifyPin('1234');
+      const result = await PinManager.verifyPin('123456');
       expect(result).toBe(false);
     });
 
     it('should return false and log error on exception', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
       mockGetGenericPassword.mockRejectedValueOnce(new Error('Read error'));
-      const result = await PinManager.verifyPin('1234');
+      const result = await PinManager.verifyPin('123456');
       expect(result).toBe(false);
       expect(consoleErrorSpy).toHaveBeenCalled();
       consoleErrorSpy.mockRestore();

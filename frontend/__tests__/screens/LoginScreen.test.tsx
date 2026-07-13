@@ -104,7 +104,7 @@ describe('LoginScreen - Autenticación Híbrida y Fallback de PIN', () => {
     it('Debe mostrar botón de huella y opción de fallback a PIN', async () => {
       LocalAuthentication.getEnrolledLevelAsync.mockResolvedValue(3);
       LocalAuthentication.authenticateAsync.mockResolvedValue({ success: false, error: 'user_cancel' });
-      getSecureCredential.mockResolvedValue('stored_hash_1234');
+      getSecureCredential.mockResolvedValue('stored_hash_123456');
 
       const { getByText, getByTestId } = render(<LoginScreen onLoginSuccess={jest.fn()} />);
 
@@ -117,7 +117,7 @@ describe('LoginScreen - Autenticación Híbrida y Fallback de PIN', () => {
     it('Debe cambiar a modo PIN al presionar "Preferís usar tu PIN"', async () => {
       LocalAuthentication.getEnrolledLevelAsync.mockResolvedValue(3);
       LocalAuthentication.authenticateAsync.mockResolvedValue({ success: false, error: 'user_cancel' });
-      getSecureCredential.mockResolvedValue('stored_hash_1234');
+      getSecureCredential.mockResolvedValue('stored_hash_123456');
 
       const { getByText, getByTestId } = render(<LoginScreen onLoginSuccess={jest.fn()} />);
 
@@ -136,7 +136,7 @@ describe('LoginScreen - Autenticación Híbrida y Fallback de PIN', () => {
   describe('Modo PIN — Sin biometría pero con PIN registrado', () => {
     it('Debe solicitar el PIN e iniciar sesión si es correcto', async () => {
       LocalAuthentication.getEnrolledLevelAsync.mockResolvedValue(0);
-      getSecureCredential.mockResolvedValue('stored_hash_1234');
+      getSecureCredential.mockResolvedValue('stored_hash_123456');
       verifyPin.mockResolvedValue(true);
 
       const onLoginSuccessMock = jest.fn();
@@ -144,25 +144,25 @@ describe('LoginScreen - Autenticación Híbrida y Fallback de PIN', () => {
 
       await waitFor(() => expect(getByText('Ingresá tu PIN del Bunker')).toBeTruthy());
 
-      fireEvent.changeText(getByTestId('pin-input'), '1234');
+      fireEvent.changeText(getByTestId('pin-input'), '123456');
       fireEvent.press(getByTestId('pin-submit-button'));
 
       await waitFor(() => {
-        expect(verifyPin).toHaveBeenCalledWith('1234', 'stored_hash_1234');
+        expect(verifyPin).toHaveBeenCalledWith('123456', 'stored_hash_123456');
         expect(onLoginSuccessMock).toHaveBeenCalled();
       });
     });
 
     it('Debe mostrar error si el PIN es incorrecto', async () => {
       LocalAuthentication.getEnrolledLevelAsync.mockResolvedValue(0);
-      getSecureCredential.mockResolvedValue('stored_hash_1234');
+      getSecureCredential.mockResolvedValue('stored_hash_123456');
       verifyPin.mockResolvedValue(false);
 
       const { getByText, getByTestId } = render(<LoginScreen onLoginSuccess={jest.fn()} />);
 
       await waitFor(() => expect(getByText('Ingresá tu PIN del Bunker')).toBeTruthy());
 
-      fireEvent.changeText(getByTestId('pin-input'), '9999');
+      fireEvent.changeText(getByTestId('pin-input'), '999999');
       fireEvent.press(getByTestId('pin-submit-button'));
 
       await waitFor(() => {

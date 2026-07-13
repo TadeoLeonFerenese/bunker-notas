@@ -81,6 +81,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     loadAiConfig();
   }, []);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDashboardAiModal, setShowDashboardAiModal] = useState(false);
   const [selectedNote, setSelectedNote] = useState<NoteModel | null>(null);
   const [decryptedAudioUri, setDecryptedAudioUri] = useState<string | null>(null);
   const [decryptedImages, setDecryptedImages] = useState<Record<string, string>>({});
@@ -94,6 +95,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [aiConfigModal, setAiConfigModal] = useState(false);
   const [aiProvider, setAiProvider] = useState<AIProvider>('gemini');
   const [aiKey, setAiKey] = useState('');
+  const [isValidatingKey, setIsValidatingKey] = useState(false);
   const [isAiRecording, setIsAiRecording] = useState(false);
   const [aiRecording, setAiRecording] = useState<Audio.Recording | null>(null);
   const authActionRef = useRef<'open' | 'delete'>('open');
@@ -910,8 +912,8 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   };
 
   const validatePinAndOpen = async () => {
-    if (pinInput.length < 4 || pinInput.length > 6) {
-      Alert.alert('PIN inválido', 'El PIN debe tener entre 4 y 6 dígitos.');
+    if (pinInput.length !== 6) {
+      Alert.alert('PIN inválido', 'El PIN debe tener exactamente 6 dígitos.');
       return;
     }
 
@@ -960,6 +962,13 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       Alert.alert('Error', 'No se pudo validar el PIN de seguridad.');
     }
   };
+
+  // Auto-submit en el modal de nota cuando el PIN llega a 6 dígitos
+  useEffect(() => {
+    if (pinInput.length === 6) {
+      validatePinAndOpen();
+    }
+  }, [pinInput]);
 
   // Note Operations (WatermelonDB)
   const handleNoteLongPress = (noteId: string) => {
@@ -1150,6 +1159,65 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       }
     } catch (e: any) {
       console.log('Error AI', e);
+      Alert.alert('Error', 'Hubo un error de red al contactar al servidor de IA.');
+    }
+    setIsAiLoading(false);
+  };
+
+  const handleDashboardAiSubmit = async () => {
+    if (!aiPrompt.trim()) return;
+    setIsAiLoading(true);
+    
+    try {
+      const { getSecureCredential } = require('./src/notes/encryption');
+      const storedKey = await getSecureCredential('app_ai_key');
+      const storedProvider = await getSecureCredential('app_ai_provider') as AIProvider || 'gemini';
+      
+      if (!storedKey || storedKey.trim() === '' || storedKey === 'null' || storedKey === 'undefined') {
+        Alert.alert('Configuración IA', 'Debes configurar tu API Key de IA primero en el menú hamburguesa.');
+        setAiConfigModal(true);
+        setIsAiLoading(false);
+        return;
+      }
+
+      const res = await AIService.ask(aiPrompt, storedKey, storedProvider);
+      if (res.error) {
+        Alert.alert('Error IA', res.error);
+      } else if (res.text) {
+        // 1. Crear la nota en base de datos
+        const titleText = aiPrompt.substring(0, 30).trim() || 'Nota de IA';
+        let newNoteId: string | null = null;
+        
+        await database.write(async () => {
+          const newNote = await database.get<NoteModel>('notes').create((note: any) => {
+            note.title = titleText;
+            note.content = res.text;
+            note.isSecure = false;
+            note.color = 'default';
+            note.illustration = 'none';
+            note.isMarked = false;
+          });
+          newNoteId = newNote.id;
+        });
+
+        // 2. Limpiar el prompt de IA y cerrar el modal de IA del dashboard
+        setAiPrompt('');
+        setShowDashboardAiModal(false);
+
+        // 3. Abrir la nota creada en el editor principal
+        if (newNoteId) {
+          setEditingNoteId(newNoteId);
+          setNewNoteTitle(titleText);
+          setNewNoteContent(res.text);
+          setNewNoteSecure(false);
+          setNewNoteColor('default');
+          setNewNoteIllustration('none');
+          setRecordedAudioUri(null);
+          setShowCreateModal(true);
+        }
+      }
+    } catch (e: any) {
+      console.log('Error AI Dashboard', e);
       Alert.alert('Error', 'Hubo un error de red al contactar al servidor de IA.');
     }
     setIsAiLoading(false);
@@ -1839,6 +1907,25 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
           <View style={styles.bottomSpacer} />
         </ScrollView>
 
+        {/* AI Floating Button (Bottom Left) */}
+        <TouchableOpacity
+          style={[
+            styles.aiFab,
+            { 
+              backgroundColor: COLORS.bunkerAccent, 
+              shadowColor: COLORS.bunkerAccent,
+              shadowOpacity: 0.4,
+            }
+          ]}
+          onPress={() => {
+            setAiPrompt('');
+            setShowDashboardAiModal(true);
+          }}
+          testID="dashboard-ai-button"
+        >
+          <MaterialCommunityIcons name="robot" size={26} color="#fff" />
+        </TouchableOpacity>
+
         {/* FAB */}
         <TouchableOpacity
           style={[styles.fab, { backgroundColor: COLORS.bunkerAccent, shadowColor: COLORS.bunkerAccent }]}
@@ -2241,7 +2328,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
             <Text style={[styles.pinModalSubtitle, { color: COLORS.bunkerGray }]}>
               {hasStoredPin 
                 ? 'Ingresá tu PIN de seguridad para las notas.' 
-                : 'Aún no tenés un PIN. Ingresá entre 4 y 6 dígitos para definirlo ahora:'
+                : 'Aún no tenés un PIN. Ingresá exactamente 6 dígitos para definirlo ahora:'
               }
             </Text>
             
@@ -2302,6 +2389,96 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                 onPress={validatePinAndOpen}
               >
                 <Text style={styles.pinModalVerifyText}>Confirmar</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* DASHBOARD AI MODAL */}
+      <Modal
+        visible={showDashboardAiModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => {
+          if (!isAiLoading && !isAiRecording) {
+            setShowDashboardAiModal(false);
+          }
+        }}
+      >
+        <Pressable 
+          style={styles.aiModalOverlay} 
+          onPress={() => {
+            if (!isAiLoading && !isAiRecording) {
+              setShowDashboardAiModal(false);
+            }
+          }}
+        >
+          <Pressable 
+            style={[styles.aiModalContent, { backgroundColor: COLORS.surface }]}
+            onPress={() => {}}
+          >
+            <View style={styles.aiModalHeader}>
+              <View style={styles.aiModalIconContainer}>
+                <MaterialCommunityIcons name="robot" size={28} color="#fff" />
+              </View>
+              <View>
+                <Text style={[styles.aiModalTitle, { color: COLORS.bunkerDark, fontFamily: COLORS.fontFamily }]}>Asistente IA</Text>
+                <Text style={[styles.aiModalSubtitle, { color: COLORS.bunkerGray, fontFamily: COLORS.fontFamily }]}>Creá una nota dictando o escribiendo</Text>
+              </View>
+            </View>
+
+            <View style={styles.aiModalInputContainer}>
+              <TextInput
+                style={[
+                  styles.aiModalInput, 
+                  { 
+                    backgroundColor: COLORS.bunkerBg, 
+                    color: COLORS.bunkerDark,
+                    borderColor: COLORS.border,
+                    fontFamily: COLORS.fontFamily
+                  }
+                ]}
+                placeholder={isAiRecording ? "Escuchando audio..." : "Ej: Escribí un resumen de la reunión de hoy..."}
+                placeholderTextColor={COLORS.bunkerGray}
+                value={aiPrompt}
+                onChangeText={setAiPrompt}
+                multiline
+                numberOfLines={3}
+                editable={!isAiLoading && !isAiRecording}
+              />
+            </View>
+
+            <View style={styles.aiModalActions}>
+              <TouchableOpacity
+                style={[
+                  styles.aiModalMicBtn,
+                  isAiRecording ? styles.aiModalMicBtnActive : { backgroundColor: COLORS.bunkerBg, borderColor: COLORS.border }
+                ]}
+                onPress={isAiRecording ? stopAiRecording : startAiRecording}
+                disabled={isAiLoading}
+              >
+                <MaterialIcons 
+                  name={isAiRecording ? "stop" : "mic"} 
+                  size={24} 
+                  color={isAiRecording ? "#fff" : COLORS.bunkerDark} 
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.aiModalSendBtn,
+                  { backgroundColor: COLORS.bunkerAccent },
+                  (isAiLoading || isAiRecording || !aiPrompt.trim()) && styles.aiModalSendBtnDisabled
+                ]}
+                onPress={handleDashboardAiSubmit}
+                disabled={isAiLoading || isAiRecording || !aiPrompt.trim()}
+              >
+                {isAiLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <MaterialIcons name="send" size={24} color="#fff" />
+                )}
               </TouchableOpacity>
             </View>
           </Pressable>
@@ -2428,21 +2605,62 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
             </TouchableOpacity>
 
             <View style={{ flexDirection: 'row', gap: 12 }}>
-              <TouchableOpacity onPress={() => setAiConfigModal(false)} style={{ flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center', backgroundColor: COLORS.bunkerBg, borderWidth: 1, borderColor: COLORS.border }}>
+              <TouchableOpacity 
+                disabled={isValidatingKey}
+                onPress={() => setAiConfigModal(false)} 
+                style={{ 
+                  flex: 1, 
+                  paddingVertical: 14, 
+                  borderRadius: 12, 
+                  alignItems: 'center', 
+                  backgroundColor: COLORS.bunkerBg, 
+                  borderWidth: 1, 
+                  borderColor: COLORS.border,
+                  opacity: isValidatingKey ? 0.5 : 1
+                }}
+              >
                 <Text style={{ color: COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '600' }}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={async () => {
-                try {
-                  const { storeSecureCredential } = require('./src/notes/encryption');
-                  await storeSecureCredential('app_ai_provider', aiProvider);
-                  if (aiKey) await storeSecureCredential('app_ai_key', aiKey);
-                  setAiConfigModal(false);
-                  Alert.alert('Éxito', 'Configuración de IA guardada de forma segura.');
-                } catch (e: any) {
-                  Alert.alert('Error', 'No se pudo guardar la configuración.');
-                }
-              }} style={{ flex: 1, paddingVertical: 14, backgroundColor: COLORS.bunkerAccent, borderRadius: 12, alignItems: 'center' }}>
-                <Text style={{ color: '#fff', fontFamily: COLORS.fontFamily, fontWeight: '700' }}>Guardar</Text>
+              <TouchableOpacity 
+                disabled={isValidatingKey}
+                onPress={async () => {
+                  if (!aiKey.trim()) {
+                    Alert.alert('Falta Información', 'Por favor, ingresá una API Key de IA antes de guardar.');
+                    return;
+                  }
+                  
+                  setIsValidatingKey(true);
+                  try {
+                    const validation = await AIService.validateKey(aiKey, aiProvider);
+                    if (validation.success) {
+                      const { storeSecureCredential } = require('./src/notes/encryption');
+                      await storeSecureCredential('app_ai_provider', aiProvider);
+                      await storeSecureCredential('app_ai_key', aiKey);
+                      setAiConfigModal(false);
+                      Alert.alert('Éxito', 'La configuración de la IA es correcta y se guardó de forma segura.');
+                    } else {
+                      Alert.alert('Error de Validación', 'No se pudo configurar la IA.\n\nDetalle: ' + (validation.error || 'Respuesta inesperada. Verificá que la API Key sea correcta.'));
+                    }
+                  } catch (e: any) {
+                    Alert.alert('Error de Configuración', 'Ocurrió un error inesperado al validar la key: ' + (e.message || e));
+                  } finally {
+                    setIsValidatingKey(false);
+                  }
+                }} 
+                style={{ 
+                  flex: 1, 
+                  paddingVertical: 14, 
+                  backgroundColor: COLORS.bunkerAccent, 
+                  borderRadius: 12, 
+                  alignItems: 'center',
+                  opacity: isValidatingKey ? 0.7 : 1
+                }}
+              >
+                {isValidatingKey ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={{ color: '#fff', fontFamily: COLORS.fontFamily, fontWeight: '700' }}>Guardar</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -2590,4 +2808,109 @@ const styles = StyleSheet.create({
   progressFill: { height: '100%', borderRadius: 3 },
   progressLabels: { flexDirection: 'row', justifyContent: 'space-between' },
   progressTime: { fontSize: 10 },
+
+  // Dashboard AI Styles
+  aiFab: { 
+    position: 'absolute', 
+    bottom: 24, 
+    left: 24, 
+    width: 60, 
+    height: 60, 
+    borderRadius: 30, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    shadowOffset: { width: 0, height: 4 }, 
+    shadowOpacity: 0.15, 
+    shadowRadius: 8, 
+    elevation: 8 
+  },
+  aiModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  aiModalContent: {
+    width: '100%',
+    maxWidth: 500,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 24,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 20,
+  },
+  aiModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 20,
+  },
+  aiModalIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: '#E94560',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  aiModalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  aiModalSubtitle: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  aiModalInputContainer: {
+    marginBottom: 20,
+  },
+  aiModalInput: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    fontSize: 15,
+    height: 96,
+    textAlignVertical: 'top',
+  },
+  aiModalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+  },
+  aiModalMicBtn: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  aiModalMicBtnActive: {
+    backgroundColor: '#E53E3E',
+    borderColor: 'transparent',
+  },
+  aiModalSendBtn: {
+    flex: 1,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+    shadowColor: '#E94560',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  aiModalSendBtnDisabled: {
+    opacity: 0.5,
+    elevation: 0,
+    shadowOpacity: 0,
+  },
 });

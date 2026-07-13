@@ -163,5 +163,20 @@ export const AIService = {
     } catch (e: any) {
       return { error: e.message };
     }
+  },
+
+  async validateKey(apiKey: string, provider: AIProvider): Promise<{ success: boolean; error?: string }> {
+    try {
+      const res = await this.ask('ping', apiKey, provider);
+      if (res.error) {
+        return { success: false, error: res.error };
+      }
+      if (res.text && res.text.trim().length > 0) {
+        return { success: true };
+      }
+      return { success: false, error: 'Respuesta vacía del servicio' };
+    } catch (e: any) {
+      return { success: false, error: e.message || 'Error de red inesperado' };
+    }
   }
 };

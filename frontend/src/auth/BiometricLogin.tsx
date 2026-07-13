@@ -43,6 +43,13 @@ export function BiometricLogin({ onAuthSuccess, onAuthError }: BiometricLoginPro
     return () => subscription.remove();
   }, [authState]);
 
+  // Auto-submit cuando el PIN tiene exactamente 6 dígitos
+  useEffect(() => {
+    if (pin.length === 6 && !isLoading) {
+      handlePinSubmit();
+    }
+  }, [pin]);
+
   // Verificar disponibilidad de biometría al montar
   useEffect(() => {
     checkBiometricAvailability();
@@ -53,28 +60,17 @@ export function BiometricLogin({ onAuthSuccess, onAuthError }: BiometricLoginPro
       const compatible = await LocalAuthentication.hasHardwareAsync();
       const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
       setIsBiometricAvailable(compatible && types.length > 0);
-
-      // Si no hay biometría disponible, mostrar PIN directamente
-      if (!compatible || types.length === 0) {
-        setShowPinInput(true);
-        setAuthState('pin_input');
-      }
-    } catch (error) {
-      console.error('Error checking biometric:', error);
+    } catch (e) {
       setIsBiometricAvailable(false);
-      setShowPinInput(true);
-      setAuthState('pin_input');
     }
   };
 
   const handleBiometricAuth = async () => {
-    setIsLoading(true);
-    setAuthState('biometric_prompt');
     try {
+      setIsLoading(true);
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: 'Autenticarse para acceder al Bunker',
+        promptMessage: 'Autenticación con Biometría',
         fallbackLabel: 'Usar PIN de respaldo',
-        cancelLabel: 'Cancelar',
         disableDeviceFallback: false,
       });
 
@@ -84,17 +80,14 @@ export function BiometricLogin({ onAuthSuccess, onAuthError }: BiometricLoginPro
       } else {
         setAuthState('pin_input');
         setShowPinInput(true);
-        if (result.error === 'lockout' || result.error === 'user_cancel') {
+        if (result.error === 'lockout' || result.error === 'lockout_permanent') {
           onAuthError({ success: false, error: 'Biometría bloqueda. Use PIN.' });
         } else {
-          onAuthError({ success: false, error: result.error });
+          onAuthError({ success: false, error: 'Biometría cancelada o fallida' });
         }
-        // En entorno de Jest, enfocar directo
-        if (Platform.OS === 'web' || process.env.NODE_ENV === 'test') {
-          setTimeout(() => pinInputRef.current?.focus(), 50);
-        }
+        setTimeout(() => pinInputRef.current?.focus(), 50);
       }
-    } catch (error) {
+    } catch (e) {
       setAuthState('pin_input');
       setShowPinInput(true);
       onAuthError({ success: false, error: 'Error de autenticación' });
@@ -104,11 +97,8 @@ export function BiometricLogin({ onAuthSuccess, onAuthError }: BiometricLoginPro
   };
 
   const validatePin = (pinValue: string): { valid: boolean; error?: string } => {
-    if (pinValue.length < 4) {
-      return { valid: false, error: 'PIN debe tener al menos 4 dígitos' };
-    }
-    if (pinValue.length > 6) {
-      return { valid: false, error: 'PIN debe tener máximo 6 dígitos' };
+    if (pinValue.length !== 6) {
+      return { valid: false, error: 'PIN debe tener exactamente 6 dígitos' };
     }
     return { valid: true };
   };
@@ -157,8 +147,8 @@ export function BiometricLogin({ onAuthSuccess, onAuthError }: BiometricLoginPro
             testID="pin-input"
             style={styles.pinInput}
             value={pin}
-            onChangeText={setPin}
-            placeholder="Ingrese PIN (4-6 dígitos)"
+            onChangeText={(text) => setPin(text.replace(/[^0-9]/g, '').slice(0, 6))}
+            placeholder="Ingrese PIN (6 dígitos)"
             placeholderTextColor="#999"
             keyboardType="numeric"
             secureTextEntry
@@ -166,7 +156,7 @@ export function BiometricLogin({ onAuthSuccess, onAuthError }: BiometricLoginPro
           />
           <TouchableOpacity
             testID="pin-submit-button"
-            style={styles.pinSubmitButton}
+            style={[styles.pinSubmitButton, pin.length !== 6 && { opacity: 0.5 }]}
             onPress={handlePinSubmit}
           >
             <Text style={styles.pinSubmitText}>Validar PIN</Text>

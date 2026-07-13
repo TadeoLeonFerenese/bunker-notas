@@ -22,6 +22,7 @@ import {
   Keyboard,
   Animated,
   useWindowDimensions,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -102,6 +103,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     };
   }, []);
 
+  // Auto-submit cuando el PIN tiene exactamente 6 dígitos
+  useEffect(() => {
+    if (pin.length === 6 && !isLoading) {
+      handlePinSubmit();
+    }
+  }, [pin]);
+
   // ─── BIOMETRÍA ─────────────────────────────────────────────────────────────
   const triggerBiometricAuth = async () => {
     try {
@@ -137,7 +145,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
   // ─── LOGIN CON PIN ─────────────────────────────────────────────────────────
   const handlePinSubmit = async () => {
-    if (pin.length < 4 || pin.length > 6) return;
+    if (pin.length !== 6) return;
 
     setIsLoading(true);
     setHint(null);
@@ -305,9 +313,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       {/* Botón principal */}
       <TouchableOpacity
         activeOpacity={0.8}
-        style={[styles.button, (pin.length < 4 || isLoading) && styles.buttonDisabled]}
+        style={[styles.button, (pin.length !== 6 || isLoading) && styles.buttonDisabled]}
         onPress={handlePinSubmit}
-        disabled={pin.length < 4 || isLoading}
+        disabled={pin.length !== 6 || isLoading}
         testID="pin-submit-button"
       >
         <Text style={styles.buttonText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
@@ -352,7 +360,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             {/* Header */}
             <View style={styles.header}>
               <View style={styles.logoContainer}>
-                <Text style={styles.logoEmoji}>🛡️</Text>
+                <Image
+                  source={require('../../assets/icon.png')}
+                  style={styles.logoImage}
+                  resizeMode="contain"
+                />
               </View>
               <Text style={styles.title}>Bunker Notas</Text>
               <Text style={styles.subtitle}>Seguridad Zero-Knowledge</Text>
@@ -412,20 +424,19 @@ const styles = StyleSheet.create({
   logoContainer: {
     width: 88,
     height: 88,
-    backgroundColor: COLORS.surface,
     borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.12,
     shadowRadius: 16,
     elevation: 6,
-    borderWidth: 1,
-    borderColor: COLORS.border,
   },
-  logoEmoji: {
-    fontSize: 42,
+  logoImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 28,
   },
   title: {
     fontSize: 28,

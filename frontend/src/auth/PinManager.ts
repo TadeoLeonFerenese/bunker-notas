@@ -23,9 +23,9 @@ export class PinManager {
    */
   static async setPin(pin: string): Promise<boolean> {
     try {
-      // Validamos formato estricto: numérico y longitud
-      if (!/^\d{4,6}$/.test(pin)) {
-        throw new Error('El PIN debe ser numérico y contener entre 4 y 6 dígitos.');
+      // Validamos formato estricto: numérico y longitud (exactamente 6 dígitos)
+      if (!/^\d{6}$/.test(pin)) {
+        throw new Error('El PIN debe ser numérico y contener exactamente 6 dígitos.');
       }
       
       await Keychain.setGenericPassword(USERNAME, pin, { service: PIN_SERVICE });
