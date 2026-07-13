@@ -35,7 +35,7 @@ export const AIService = {
   async transcribeGemini(audioUri: string, apiKey: string): Promise<AIResponse> {
     try {
       const base64Data = await this.getAudioBase64(audioUri);
-      const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey.trim()}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash:generateContent?key=${apiKey.trim()}`;
       
       const response = await fetch(url, {
         method: 'POST',
@@ -122,7 +122,7 @@ export const AIService = {
   async ask(prompt: string, apiKey: string, provider: AIProvider): Promise<AIResponse> {
     try {
       if (provider === 'gemini') {
-        const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey.trim()}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash:generateContent?key=${apiKey.trim()}`;
         console.log(`[AIService Gemini Request] Sending ask prompt to Gemini...`);
         const response = await fetch(url, {
           method: 'POST',

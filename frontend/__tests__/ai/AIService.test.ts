@@ -41,7 +41,7 @@ describe('AIService - Integración con IAs (Gemini y OpenAI)', () => {
       const response = await AIService.ask('Hola', 'fake-api-key', 'gemini');
       expect(response.text).toBe('Respuesta simulada de Gemini');
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('v1/models/gemini-1.5-flash:generateContent?key=fake-api-key'),
+        expect.stringContaining('v1beta/models/gemini-3.1-flash:generateContent?key=fake-api-key'),
         expect.any(Object)
       );
     });
