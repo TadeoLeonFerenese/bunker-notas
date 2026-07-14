@@ -31,6 +31,7 @@ Permitir la carga, visualización y recepción (vía Share Intent o local) de im
   4. **Biometría Segura:** Al iniciar sesión por huella, la app recupera de forma segura el PIN del usuario almacenado en el Keychain nativo (`'app_user_pin'`) para derivar la clave criptográfica en segundo plano de manera transparente.
   5. **Cifrado de Archivos Locales:** Si la nota es segura (`isSecure: true`), los archivos multimedia (fotos y grabaciones de audio) se cifran físicamente en disco (`.enc`) usando AES-256. El visor de la app los descifra en memoria temporal de caché al abrir la nota y los destruye inmediatamente al cerrarla.
   6. **Inmutabilidad de la Seguridad en Notas Existentes:** Una vez que una nota ha sido creada y guardada como segura (`isSecure: true`), no se permite desactivar su cifrado desde el editor. Esto previene condiciones de carrera en el sistema de archivos del dispositivo al intentar desencriptar en caliente fotos o audios asincrónicamente durante el bucle de autoguardado (autosave debounce). Una nota normal sí se puede encriptar más tarde si el usuario lo desea.
+  7. **Corrección de Validación de PIN (PBKDF2 + Salt):** Se alinearon las funciones `hashPin` y `verifyPin` en `encryption.ts` para usar PBKDF2 con salting real al registrar y validar el acceso de usuario en `LoginScreen.tsx` y `App.tsx`, eliminando un hash bitwise legacy inseguro. Se incluyó un mecanismo de fallback para hashes antiguos menores a 20 caracteres para evitar cierres patronales de usuarios existentes.
 
 * **Recepción Nativa en la APK (Share Intent):**
   * La app intercepta texto, imágenes y audios compartidos desde otras aplicaciones (`expo-share-intent`).
@@ -54,9 +55,8 @@ Permitir la carga, visualización y recepción (vía Share Intent o local) de im
 ---
 
 ## 3. Próximos Pasos Identificados
-1. **Reemplazar LokiJSAdapter por SQLiteAdapter en WatermelonDB:** Migrar a la base de datos nativa SQLite en producción para mayor velocidad con bases de datos grandes (requerirá compilación nativa de EAS Build).
-2. **Modo Sincronización Local-First:** Desarrollar el sistema de sincronización selectiva con el backend remoto.
-3. **Soporte para Motores de IA Gratuitos/Open-Source:** Integrar proveedores como Groq, OpenRouter o HuggingFace para permitir el uso de modelos gratuitos (como DeepSeek, Mixtral o Llama) mitigando la dependencia de APIs pagas y bloqueos por saturación en proveedores corporativos.
+1. **Modo Sincronización Local-First:** Desarrollar el sistema de sincronización selectiva con el backend remoto.
+2. **Soporte para Motores de IA Gratuitos/Open-Source:** Integrar proveedores como Groq, OpenRouter o HuggingFace para permitir el uso de modelos gratuitos (como DeepSeek, Mixtral o Llama) mitigando la dependencia de APIs pagas y bloqueos por saturación en proveedores corporativos.
 
 ---
 

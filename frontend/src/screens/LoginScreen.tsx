@@ -165,8 +165,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         } else {
           // Paso 2: Confirmar
           if (pin === pinConfirm) {
-            const hash = await hashPin(pin);
             const salt = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+            const hash = await hashPin(pin, salt);
             await storeSecureCredential('app_encryption_salt', salt);
             await storeSecureCredential('app_user_pin', pin);
             await storeSecureCredential('app_pin_hash', hash);
@@ -185,7 +185,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         // Modo PIN: validar contra el llavero
         const storedHash = await getSecureCredential('app_pin_hash');
         if (storedHash) {
-          const isValid = await verifyPin(pin, storedHash);
+          let salt = await getSecureCredential('app_encryption_salt');
+          if (!salt) {
+            salt = 'bunker-default-salt-value-for-device-migrations';
+          }
+          const isValid = await verifyPin(pin, storedHash, salt);
           setIsLoading(false);
           if (isValid) {
             onLoginSuccess(pin);

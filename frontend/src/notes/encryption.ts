@@ -59,23 +59,29 @@ export const encryption = {
 };
 
 /**
- * Genera hash de PIN para almacenamiento seguro
+ * Genera hash de PIN para almacenamiento seguro usando PBKDF2
  */
-export async function hashPin(pin: string): Promise<string> {
-  let hash = 0;
-  for (let i = 0; i < pin.length; i++) {
-    const char = pin.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return Math.abs(hash).toString(16);
+export async function hashPin(pin: string, salt: string): Promise<string> {
+  const CryptoJS = require('crypto-js');
+  return CryptoJS.PBKDF2(pin, salt, { keySize: 256/32, iterations: 1000 }).toString();
 }
 
 /**
- * Verifica PIN contra hash almacenado
+ * Verifica PIN contra hash almacenado (soporta legacy bitwise)
  */
-export async function verifyPin(pin: string, hash: string): Promise<boolean> {
-  const pinHash = await hashPin(pin);
+export async function verifyPin(pin: string, hash: string, salt: string): Promise<boolean> {
+  if (hash.length < 20) {
+    // Legacy bitwise hash fallback
+    let oldHash = 0;
+    for (let i = 0; i < pin.length; i++) {
+      const char = pin.charCodeAt(i);
+      oldHash = ((oldHash << 5) - oldHash) + char;
+      oldHash = oldHash & oldHash;
+    }
+    return Math.abs(oldHash).toString(16) === hash;
+  }
+  
+  const pinHash = await hashPin(pin, salt);
   return pinHash === hash;
 }
 

@@ -923,8 +923,8 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
       if (!storedHash) {
         // Registro dinámico del primer PIN
-        const hash = await hashPin(pinInput);
         const salt = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+        const hash = await hashPin(pinInput, salt);
         await storeSecureCredential('app_encryption_salt', salt);
         await storeSecureCredential('app_user_pin', pinInput);
         await storeSecureCredential('app_pin_hash', hash);
@@ -940,7 +940,11 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
         }
       } else {
         // Validar PIN real contra llavero seguro
-        const isValid = await verifyPin(pinInput, storedHash);
+        let salt = await getSecureCredential('app_encryption_salt');
+        if (!salt) {
+          salt = 'bunker-default-salt-value-for-device-migrations';
+        }
+        const isValid = await verifyPin(pinInput, storedHash, salt);
         if (isValid) {
           let salt = await getSecureCredential('app_encryption_salt');
           if (!salt) {
