@@ -69,9 +69,20 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   useEffect(() => {
     const loadAiConfig = async () => {
       try {
-        const { getSecureCredential } = require('./src/notes/encryption');
-        const storedProvider = await getSecureCredential('app_ai_provider') as AIProvider;
-        const storedKey = await getSecureCredential('app_ai_key');
+        const { getSecureCredential, storeSecureCredential } = require('./src/notes/encryption');
+        const storedProvider = await getSecureCredential('app_ai_provider') as AIProvider || 'gemini';
+        
+        let storedKey = await getSecureCredential(`app_ai_key_${storedProvider}`);
+        
+        // Retrocompatibilidad: Migración de la clave legacy
+        const legacyKey = await getSecureCredential('app_ai_key');
+        if (legacyKey) {
+          if (!storedKey) {
+            await storeSecureCredential(`app_ai_key_${storedProvider}`, legacyKey);
+            storedKey = legacyKey;
+          }
+        }
+
         if (storedProvider) setAiProvider(storedProvider);
         if (storedKey) setAiKey(storedKey);
       } catch (e) {
@@ -98,6 +109,33 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [isValidatingKey, setIsValidatingKey] = useState(false);
   const [isAiRecording, setIsAiRecording] = useState(false);
   const [aiRecording, setAiRecording] = useState<Audio.Recording | null>(null);
+
+  const handleSelectAiProvider = async (provider: AIProvider) => {
+    setAiProvider(provider);
+    try {
+      const { getSecureCredential } = require('./src/notes/encryption');
+      const key = await getSecureCredential(`app_ai_key_${provider}`);
+      setAiKey(key || '');
+    } catch (e) {
+      console.log('Error switching AI provider credentials', e);
+      setAiKey('');
+    }
+  };
+
+  useEffect(() => {
+    if (aiConfigModal) {
+      const loadProviderKey = async () => {
+        try {
+          const { getSecureCredential } = require('./src/notes/encryption');
+          const key = await getSecureCredential(`app_ai_key_${aiProvider}`);
+          setAiKey(key || '');
+        } catch (e) {
+          console.log('Error loading provider key on modal open', e);
+        }
+      };
+      loadProviderKey();
+    }
+  }, [aiConfigModal]);
   const authActionRef = useRef<'open' | 'delete'>('open');
   const contentInputRef = useRef<any>(null);
   const [textSelection, setTextSelection] = useState<{ start: number; end: number } | undefined>(undefined);
@@ -1143,8 +1181,8 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     
     try {
       const { getSecureCredential } = require('./src/notes/encryption');
-      const storedKey = await getSecureCredential('app_ai_key');
       const storedProvider = await getSecureCredential('app_ai_provider') as AIProvider || 'gemini';
+      const storedKey = await getSecureCredential(`app_ai_key_${storedProvider}`);
       
       if (!storedKey || storedKey.trim() === '' || storedKey === 'null' || storedKey === 'undefined') {
         Alert.alert('Configuración IA', 'Debes configurar tu API Key de IA primero en el menú hamburguesa.');
@@ -1174,8 +1212,8 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     
     try {
       const { getSecureCredential } = require('./src/notes/encryption');
-      const storedKey = await getSecureCredential('app_ai_key');
       const storedProvider = await getSecureCredential('app_ai_provider') as AIProvider || 'gemini';
+      const storedKey = await getSecureCredential(`app_ai_key_${storedProvider}`);
       
       if (!storedKey || storedKey.trim() === '' || storedKey === 'null' || storedKey === 'undefined') {
         Alert.alert('Configuración IA', 'Debes configurar tu API Key de IA primero en el menú hamburguesa.');
@@ -1230,7 +1268,8 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const startAiRecording = async () => {
     try {
       const { getSecureCredential } = require('./src/notes/encryption');
-      const storedKey = await getSecureCredential('app_ai_key');
+      const storedProvider = await getSecureCredential('app_ai_provider') as AIProvider || 'gemini';
+      const storedKey = await getSecureCredential(`app_ai_key_${storedProvider}`);
       if (!storedKey || storedKey.trim() === '' || storedKey === 'null' || storedKey === 'undefined') {
         Alert.alert('Configuración IA', 'Debes configurar tu API Key de IA primero.');
         setAiConfigModal(true);
@@ -1290,8 +1329,8 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
       if (uri) {
         const { getSecureCredential } = require('./src/notes/encryption');
-        const storedKey = await getSecureCredential('app_ai_key');
         const storedProvider = await getSecureCredential('app_ai_provider') as AIProvider || 'gemini';
+        const storedKey = await getSecureCredential(`app_ai_key_${storedProvider}`);
 
         if (!storedKey || storedKey.trim() === '' || storedKey === 'null' || storedKey === 'undefined') {
           Alert.alert('Configuración IA', 'Debes configurar tu API Key de IA primero.');
@@ -2441,7 +2480,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                 </View>
               </View>
 
-              <View style={{ flexDirection: 'row', alignItems: 'stretch', height: 80, gap: 12, marginBottom: 20 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'stretch', minHeight: 80, gap: 12, marginBottom: 20 }}>
                 <TextInput
                   style={[
                     styles.aiModalInput, 
@@ -2451,7 +2490,10 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                       color: COLORS.bunkerDark,
                       borderColor: COLORS.border,
                       fontFamily: COLORS.fontFamily,
-                      height: '100%',
+                      minHeight: 80,
+                      maxHeight: 160,
+                      paddingTop: 12,
+                      paddingBottom: 12,
                     }
                   ]}
                   placeholder={isAiRecording ? "Escuchando audio..." : "Ej: Escribí un resumen de la reunión de hoy..."}
@@ -2465,16 +2507,18 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                 <TouchableOpacity
                   style={[
                     styles.aiModalMicBtn,
-                    isAiRecording ? styles.aiModalMicBtnActive : { backgroundColor: COLORS.bunkerBg, borderColor: COLORS.border },
-                    { height: '100%', width: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1 }
+                    isAiRecording 
+                      ? { backgroundColor: COLORS.bunkerAccent, borderColor: 'transparent' } 
+                      : { backgroundColor: COLORS.bunkerBg, borderColor: COLORS.border },
+                    { width: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1 }
                   ]}
                   onPress={isAiRecording ? stopAiRecording : startAiRecording}
                   disabled={isAiLoading}
                 >
                   <MaterialIcons 
-                    name={isAiRecording ? "stop" : "mic"} 
-                    size={24} 
-                    color={isAiRecording ? "#fff" : COLORS.bunkerDark} 
+                    name={isAiRecording ? "stop" : "mic-none"} 
+                    size={26} 
+                    color={isAiRecording ? "#fff" : COLORS.bunkerAccent} 
                   />
                 </TouchableOpacity>
               </View>
@@ -2607,18 +2651,18 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
             
             <Text style={{ color: COLORS.textMuted, marginBottom: 8, fontFamily: COLORS.fontFamily, fontSize: 13, fontWeight: '600', textTransform: 'uppercase' }}>Proveedor</Text>
             <View style={{ flexDirection: 'row', marginBottom: 8, gap: 8 }}>
-              <TouchableOpacity onPress={() => setAiProvider('gemini')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'gemini' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'gemini' ? 'transparent' : COLORS.border }}>
+              <TouchableOpacity onPress={() => handleSelectAiProvider('gemini')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'gemini' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'gemini' ? 'transparent' : COLORS.border }}>
                 <Text style={{ color: aiProvider === 'gemini' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700' }}>Gemini</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => setAiProvider('openai')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'openai' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'openai' ? 'transparent' : COLORS.border }}>
+              <TouchableOpacity onPress={() => handleSelectAiProvider('openai')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'openai' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'openai' ? 'transparent' : COLORS.border }}>
                 <Text style={{ color: aiProvider === 'openai' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700' }}>OpenAI</Text>
               </TouchableOpacity>
             </View>
             <View style={{ flexDirection: 'row', marginBottom: 16, gap: 8 }}>
-              <TouchableOpacity onPress={() => setAiProvider('openrouter')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'openrouter' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'openrouter' ? 'transparent' : COLORS.border }}>
+              <TouchableOpacity onPress={() => handleSelectAiProvider('openrouter')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'openrouter' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'openrouter' ? 'transparent' : COLORS.border }}>
                 <Text style={{ color: aiProvider === 'openrouter' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700', fontSize: 12 }}>OpenRouter</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => setAiProvider('groq')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'groq' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'groq' ? 'transparent' : COLORS.border }}>
+              <TouchableOpacity onPress={() => handleSelectAiProvider('groq')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'groq' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'groq' ? 'transparent' : COLORS.border }}>
                 <Text style={{ color: aiProvider === 'groq' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700' }}>Groq</Text>
               </TouchableOpacity>
             </View>
@@ -2687,6 +2731,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                       const { storeSecureCredential } = require('./src/notes/encryption');
                       await storeSecureCredential('app_ai_provider', aiProvider);
                       await storeSecureCredential('app_ai_key', aiKey);
+                      await storeSecureCredential(`app_ai_key_${aiProvider}`, aiKey);
                       setAiConfigModal(false);
                       Alert.alert('Éxito', 'La configuración de la IA es correcta y se guardó de forma segura.');
                     } else {
@@ -2712,6 +2757,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                                 const { storeSecureCredential } = require('./src/notes/encryption');
                                 await storeSecureCredential('app_ai_provider', aiProvider);
                                 await storeSecureCredential('app_ai_key', aiKey);
+                                await storeSecureCredential(`app_ai_key_${aiProvider}`, aiKey);
                                 setAiConfigModal(false);
                                 Alert.alert('Guardado', 'Se guardó la configuración de la IA sin validar.');
                               } catch (errSave) {
@@ -2745,6 +2791,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                               const { storeSecureCredential } = require('./src/notes/encryption');
                               await storeSecureCredential('app_ai_provider', aiProvider);
                               await storeSecureCredential('app_ai_key', aiKey);
+                              await storeSecureCredential(`app_ai_key_${aiProvider}`, aiKey);
                               setAiConfigModal(false);
                               Alert.alert('Guardado', 'Se guardó la configuración de la IA sin validar.');
                             } catch (errSave) {
