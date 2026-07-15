@@ -2480,7 +2480,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                 </View>
               </View>
 
-              <View style={{ flexDirection: 'row', alignItems: 'stretch', minHeight: 80, gap: 12, marginBottom: 20 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
                 <TextInput
                   style={[
                     styles.aiModalInput, 
@@ -2490,10 +2490,10 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                       color: COLORS.bunkerDark,
                       borderColor: COLORS.border,
                       fontFamily: COLORS.fontFamily,
-                      minHeight: 80,
-                      maxHeight: 160,
-                      paddingTop: 12,
-                      paddingBottom: 12,
+                      minHeight: 120,
+                      maxHeight: 220,
+                      paddingTop: 16,
+                      paddingBottom: 16,
                     }
                   ]}
                   placeholder={isAiRecording ? "Escuchando audio..." : "Ej: Escribí un resumen de la reunión de hoy..."}
@@ -2501,23 +2501,22 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   value={aiPrompt}
                   onChangeText={setAiPrompt}
                   multiline
-                  numberOfLines={3}
+                  numberOfLines={4}
                   editable={!isAiLoading && !isAiRecording}
                 />
                 <TouchableOpacity
                   style={[
                     styles.aiModalMicBtn,
                     isAiRecording 
-                      ? { backgroundColor: COLORS.bunkerAccent, borderColor: 'transparent' } 
-                      : { backgroundColor: COLORS.bunkerBg, borderColor: COLORS.border },
-                    { width: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1 }
+                      ? { backgroundColor: COLORS.bunkerAccent, width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center' } 
+                      : { backgroundColor: 'transparent', padding: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 0 },
                   ]}
                   onPress={isAiRecording ? stopAiRecording : startAiRecording}
                   disabled={isAiLoading}
                 >
                   <MaterialIcons 
                     name={isAiRecording ? "stop" : "mic-none"} 
-                    size={26} 
+                    size={28} 
                     color={isAiRecording ? "#fff" : COLORS.bunkerAccent} 
                   />
                 </TouchableOpacity>
