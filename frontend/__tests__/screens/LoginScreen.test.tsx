@@ -148,7 +148,7 @@ describe('LoginScreen - Autenticación Híbrida y Fallback de PIN', () => {
       fireEvent.press(getByTestId('pin-submit-button'));
 
       await waitFor(() => {
-        expect(verifyPin).toHaveBeenCalledWith('123456', 'stored_hash_123456');
+        expect(verifyPin).toHaveBeenCalledWith('123456', 'stored_hash_123456', 'stored_hash_123456');
         expect(onLoginSuccessMock).toHaveBeenCalled();
       });
     });

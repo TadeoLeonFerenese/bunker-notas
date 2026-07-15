@@ -1,4 +1,4 @@
-export type AIProvider = 'gemini' | 'openai';
+export type AIProvider = 'gemini' | 'openai' | 'openrouter' | 'groq';
 
 export interface AIResponse {
   text?: string;
@@ -112,9 +112,53 @@ export const AIService = {
     }
   },
 
+  async transcribeGroq(audioUri: string, apiKey: string): Promise<AIResponse> {
+    try {
+      const formData = new FormData();
+      if (audioUri.startsWith('http') || audioUri.startsWith('blob:')) {
+        const response = await fetch(audioUri);
+        const blob = await response.blob();
+        formData.append('file', blob, 'audio.m4a');
+      } else {
+        formData.append('file', {
+          uri: audioUri,
+          name: 'audio.m4a',
+          type: 'audio/m4a'
+        } as any);
+      }
+      
+      formData.append('model', 'whisper-large-v3');
+      formData.append('language', 'es');
+
+      const url = 'https://api.groq.com/openai/v1/audio/transcriptions';
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        return { error: data.error?.message || 'Error en Groq API' };
+      }
+
+      return { text: data.text?.trim() || '' };
+    } catch (e: any) {
+      return { error: e.message };
+    }
+  },
+
   async transcribe(audioUri: string, apiKey: string, provider: AIProvider): Promise<AIResponse> {
     if (provider === 'gemini') {
       return this.transcribeGemini(audioUri, apiKey);
+    }
+    if (provider === 'groq') {
+      return this.transcribeGroq(audioUri, apiKey);
+    }
+    if (provider === 'openrouter') {
+      return { error: 'El proveedor OpenRouter no soporta transcripción de audio. Por favor usá Groq, OpenAI o Gemini.' };
     }
     return this.transcribeOpenAI(audioUri, apiKey);
   },
@@ -142,7 +186,7 @@ export const AIService = {
         }
 
         return { text: data.candidates[0]?.content?.parts[0]?.text || '' };
-      } else {
+      } else if (provider === 'openai') {
         const url = 'https://api.openai.com/v1/chat/completions';
         console.log(`[AIService OpenAI Request] Sending ask prompt to OpenAI...`);
         const response = await fetch(url, {
@@ -162,6 +206,53 @@ export const AIService = {
 
         if (!response.ok) {
           return { error: data.error?.message || `HTTP ${response.status}: Error en OpenAI API` };
+        }
+
+        return { text: data.choices[0]?.message?.content || '' };
+      } else if (provider === 'groq') {
+        const url = 'https://api.groq.com/openai/v1/chat/completions';
+        console.log(`[AIService Groq Request] Sending ask prompt to Groq...`);
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: 'llama-3.1-8b-instant',
+            messages: [{ role: 'user', content: prompt }],
+          }),
+        });
+
+        const data = await response.json();
+        console.log(`[AIService Groq Response] Status: ${response.status}`, JSON.stringify(data));
+
+        if (!response.ok) {
+          return { error: data.error?.message || `HTTP ${response.status}: Error en Groq API` };
+        }
+
+        return { text: data.choices[0]?.message?.content || '' };
+      } else {
+        // OpenRouter
+        const url = 'https://openrouter.ai/api/v1/chat/completions';
+        console.log(`[AIService OpenRouter Request] Sending ask prompt to OpenRouter...`);
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: 'google/gemma-2-9b-it:free',
+            messages: [{ role: 'user', content: prompt }],
+          }),
+        });
+
+        const data = await response.json();
+        console.log(`[AIService OpenRouter Response] Status: ${response.status}`, JSON.stringify(data));
+
+        if (!response.ok) {
+          return { error: data.error?.message || `HTTP ${response.status}: Error en OpenRouter API` };
         }
 
         return { text: data.choices[0]?.message?.content || '' };

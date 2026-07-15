@@ -2441,7 +2441,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                 </View>
               </View>
 
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'stretch', height: 80, gap: 12, marginBottom: 20 }}>
                 <TextInput
                   style={[
                     styles.aiModalInput, 
@@ -2451,7 +2451,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                       color: COLORS.bunkerDark,
                       borderColor: COLORS.border,
                       fontFamily: COLORS.fontFamily,
-                      height: 80,
+                      height: '100%',
                     }
                   ]}
                   placeholder={isAiRecording ? "Escuchando audio..." : "Ej: Escribí un resumen de la reunión de hoy..."}
@@ -2466,7 +2466,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   style={[
                     styles.aiModalMicBtn,
                     isAiRecording ? styles.aiModalMicBtnActive : { backgroundColor: COLORS.bunkerBg, borderColor: COLORS.border },
-                    { height: 80, width: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1 }
+                    { height: '100%', width: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1 }
                   ]}
                   onPress={isAiRecording ? stopAiRecording : startAiRecording}
                   disabled={isAiLoading}
@@ -2606,12 +2606,20 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
             <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 20, color: COLORS.text, fontWeight: '700', marginBottom: 16, textAlign: 'center' }}>Configuración de IA</Text>
             
             <Text style={{ color: COLORS.textMuted, marginBottom: 8, fontFamily: COLORS.fontFamily, fontSize: 13, fontWeight: '600', textTransform: 'uppercase' }}>Proveedor</Text>
-            <View style={{ flexDirection: 'row', marginBottom: 16, gap: 8 }}>
+            <View style={{ flexDirection: 'row', marginBottom: 8, gap: 8 }}>
               <TouchableOpacity onPress={() => setAiProvider('gemini')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'gemini' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'gemini' ? 'transparent' : COLORS.border }}>
                 <Text style={{ color: aiProvider === 'gemini' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700' }}>Gemini</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setAiProvider('openai')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'openai' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'openai' ? 'transparent' : COLORS.border }}>
                 <Text style={{ color: aiProvider === 'openai' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700' }}>OpenAI</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={{ flexDirection: 'row', marginBottom: 16, gap: 8 }}>
+              <TouchableOpacity onPress={() => setAiProvider('openrouter')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'openrouter' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'openrouter' ? 'transparent' : COLORS.border }}>
+                <Text style={{ color: aiProvider === 'openrouter' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700', fontSize: 12 }}>OpenRouter</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setAiProvider('groq')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'groq' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'groq' ? 'transparent' : COLORS.border }}>
+                <Text style={{ color: aiProvider === 'groq' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700' }}>Groq</Text>
               </TouchableOpacity>
             </View>
 
@@ -2627,15 +2635,23 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
             <TouchableOpacity 
               onPress={() => {
-                const url = aiProvider === 'gemini' 
-                  ? 'https://aistudio.google.com/app/apikey' 
-                  : 'https://platform.openai.com/api-keys';
+                let url = 'https://aistudio.google.com/app/apikey';
+                if (aiProvider === 'openai') {
+                  url = 'https://platform.openai.com/api-keys';
+                } else if (aiProvider === 'openrouter') {
+                  url = 'https://openrouter.ai/keys';
+                } else if (aiProvider === 'groq') {
+                  url = 'https://console.groq.com/keys';
+                }
                 Linking.openURL(url).catch(err => console.error("Error opening API Key link", err));
               }}
               style={{ marginBottom: 20, alignSelf: 'center' }}
             >
               <Text style={{ color: COLORS.bunkerAccent, fontFamily: COLORS.fontFamily, fontSize: 13, textDecorationLine: 'underline', fontWeight: '500' }}>
-                {aiProvider === 'gemini' ? 'Obtener API Key de Gemini ↗' : 'Obtener API Key de OpenAI ↗'}
+                {aiProvider === 'gemini' && 'Obtener API Key de Gemini ↗'}
+                {aiProvider === 'openai' && 'Obtener API Key de OpenAI ↗'}
+                {aiProvider === 'openrouter' && 'Obtener API Key de OpenRouter ↗'}
+                {aiProvider === 'groq' && 'Obtener API Key de Groq ↗'}
               </Text>
             </TouchableOpacity>
 

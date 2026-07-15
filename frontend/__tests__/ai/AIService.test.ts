@@ -68,6 +68,56 @@ describe('AIService - Integración con IAs (Gemini y OpenAI)', () => {
       );
     });
 
+    it('debe consultar Groq correctamente y devolver el texto', async () => {
+      const mockResponse = {
+        choices: [
+          {
+            message: { content: 'Respuesta simulada de Groq' },
+          },
+        ],
+      };
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const response = await AIService.ask('Hola', 'fake-api-key', 'groq');
+      expect(response.text).toBe('Respuesta simulada de Groq');
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('api.groq.com/openai/v1/chat/completions'),
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('llama-3.1-8b-instant'),
+        })
+      );
+    });
+
+    it('debe consultar OpenRouter correctamente y devolver el texto', async () => {
+      const mockResponse = {
+        choices: [
+          {
+            message: { content: 'Respuesta simulada de OpenRouter' },
+          },
+        ],
+      };
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const response = await AIService.ask('Hola', 'fake-api-key', 'openrouter');
+      expect(response.text).toBe('Respuesta simulada de OpenRouter');
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('openrouter.ai/api/v1/chat/completions'),
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('google/gemma-2-9b-it:free'),
+        })
+      );
+    });
+
     it('debe capturar errores de la API', async () => {
       const mockErrorResponse = {
         error: { message: 'API Key inválida' },
@@ -125,6 +175,34 @@ describe('AIService - Integración con IAs (Gemini y OpenAI)', () => {
           }),
         })
       );
+    });
+
+    it('debe transcribir con Groq enviando FormData', async () => {
+      const mockResponse = {
+        text: 'Texto transcrito por Groq Whisper',
+      };
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const response = await AIService.transcribe('file:///audio.m4a', 'fake-key', 'groq');
+      expect(response.text).toBe('Texto transcrito por Groq Whisper');
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('api.groq.com/openai/v1/audio/transcriptions'),
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            Authorization: 'Bearer fake-key',
+          }),
+        })
+      );
+    });
+
+    it('debe devolver error al intentar transcribir con OpenRouter', async () => {
+      const response = await AIService.transcribe('file:///audio.m4a', 'fake-key', 'openrouter');
+      expect(response.error).toContain('OpenRouter no soporta transcripción');
     });
   });
 });
