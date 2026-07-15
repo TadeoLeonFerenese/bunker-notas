@@ -67,6 +67,7 @@ Permitir la carga, visualización y recepción (vía Share Intent o local) de im
 
 ## 3. Próximos Pasos Identificados
 1. **Modo Sincronización Local-First:** Desarrollar el sistema de sincronización selectiva con el backend remoto.
+2. **Implementación de GitHub Models (Prioritario):** Debido a fallos o bloqueos de red locales reportados con Gemini y Cohere, se planifica integrar **GitHub Models** (usando Personal Access Tokens a través del endpoint compatible con OpenAI de Azure Inference) como la alternativa gratuita principal de IA.
 
 ---
 
