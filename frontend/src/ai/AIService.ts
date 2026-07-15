@@ -1,4 +1,4 @@
-export type AIProvider = 'gemini' | 'openai' | 'deepseek' | 'groq';
+export type AIProvider = 'gemini' | 'openai' | 'cohere' | 'groq';
 
 export interface AIResponse {
   text?: string;
@@ -157,8 +157,8 @@ export const AIService = {
     if (provider === 'groq') {
       return this.transcribeGroq(audioUri, apiKey);
     }
-    if (provider === 'deepseek') {
-      return { error: 'El proveedor DeepSeek no soporta transcripción de audio. Por favor usá Groq, OpenAI o Gemini.' };
+    if (provider === 'cohere') {
+      return { error: 'El proveedor Cohere no soporta transcripción de audio. Por favor usá Groq, OpenAI o Gemini.' };
     }
     return this.transcribeOpenAI(audioUri, apiKey);
   },
@@ -233,29 +233,30 @@ export const AIService = {
 
         return { text: data.choices[0]?.message?.content || '' };
       } else {
-        // DeepSeek
-        const url = 'https://api.deepseek.com/chat/completions';
-        console.log(`[AIService DeepSeek Request] Sending ask prompt to DeepSeek...`);
+        // Cohere
+        const url = 'https://api.cohere.com/v1/chat';
+        console.log(`[AIService Cohere Request] Sending ask prompt to Cohere...`);
         const response = await fetch(url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
             'Authorization': `Bearer ${apiKey}`,
           },
           body: JSON.stringify({
-            model: 'deepseek-chat',
-            messages: [{ role: 'user', content: prompt }],
+            model: 'command-r',
+            message: prompt,
           }),
         });
 
         const data = await response.json();
-        console.log(`[AIService DeepSeek Response] Status: ${response.status}`, JSON.stringify(data));
+        console.log(`[AIService Cohere Response] Status: ${response.status}`, JSON.stringify(data));
 
         if (!response.ok) {
-          return { error: data.error?.message || `HTTP ${response.status}: Error en DeepSeek API` };
+          return { error: data.message || `HTTP ${response.status}: Error en Cohere API` };
         }
 
-        return { text: data.choices[0]?.message?.content || '' };
+        return { text: data.text?.trim() || '' };
       }
     } catch (e: any) {
       console.error('[AIService Request Exception]', e);

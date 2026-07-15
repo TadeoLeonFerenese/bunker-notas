@@ -93,13 +93,9 @@ describe('AIService - Integración con IAs (Gemini y OpenAI)', () => {
       );
     });
 
-    it('debe consultar DeepSeek correctamente y devolver el texto', async () => {
+    it('debe consultar Cohere correctamente y devolver el texto', async () => {
       const mockResponse = {
-        choices: [
-          {
-            message: { content: 'Respuesta simulada de DeepSeek' },
-          },
-        ],
+        text: 'Respuesta simulada de Cohere',
       };
 
       global.fetch = jest.fn().mockResolvedValue({
@@ -107,13 +103,13 @@ describe('AIService - Integración con IAs (Gemini y OpenAI)', () => {
         json: async () => mockResponse,
       });
 
-      const response = await AIService.ask('Hola', 'fake-api-key', 'deepseek');
-      expect(response.text).toBe('Respuesta simulada de DeepSeek');
+      const response = await AIService.ask('Hola', 'fake-api-key', 'cohere');
+      expect(response.text).toBe('Respuesta simulada de Cohere');
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('api.deepseek.com/chat/completions'),
+        expect.stringContaining('api.cohere.com/v1/chat'),
         expect.objectContaining({
           method: 'POST',
-          body: expect.stringContaining('deepseek-chat'),
+          body: expect.stringContaining('command-r'),
         })
       );
     });
@@ -200,9 +196,9 @@ describe('AIService - Integración con IAs (Gemini y OpenAI)', () => {
       );
     });
 
-    it('debe devolver error al intentar transcribir con DeepSeek', async () => {
-      const response = await AIService.transcribe('file:///audio.m4a', 'fake-key', 'deepseek');
-      expect(response.error).toContain('DeepSeek no soporta transcripción');
+    it('debe devolver error al intentar transcribir con Cohere', async () => {
+      const response = await AIService.transcribe('file:///audio.m4a', 'fake-key', 'cohere');
+      expect(response.error).toContain('Cohere no soporta transcripción');
     });
   });
 });

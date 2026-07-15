@@ -2657,8 +2657,8 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
               </TouchableOpacity>
             </View>
             <View style={{ flexDirection: 'row', marginBottom: 16, gap: 8 }}>
-              <TouchableOpacity onPress={() => handleSelectAiProvider('deepseek')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'deepseek' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'deepseek' ? 'transparent' : COLORS.border }}>
-                <Text style={{ color: aiProvider === 'deepseek' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700', fontSize: 12 }}>DeepSeek</Text>
+              <TouchableOpacity onPress={() => handleSelectAiProvider('cohere')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'cohere' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'cohere' ? 'transparent' : COLORS.border }}>
+                <Text style={{ color: aiProvider === 'cohere' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700' }}>Cohere</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => handleSelectAiProvider('groq')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'groq' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'groq' ? 'transparent' : COLORS.border }}>
                 <Text style={{ color: aiProvider === 'groq' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700' }}>Groq</Text>
@@ -2680,8 +2680,8 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                 let url = 'https://aistudio.google.com/app/apikey';
                 if (aiProvider === 'openai') {
                   url = 'https://platform.openai.com/api-keys';
-                } else if (aiProvider === 'deepseek') {
-                  url = 'https://platform.deepseek.com/api_keys';
+                } else if (aiProvider === 'cohere') {
+                  url = 'https://dashboard.cohere.com/api-keys';
                 } else if (aiProvider === 'groq') {
                   url = 'https://console.groq.com/keys';
                 }
@@ -2692,7 +2692,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
               <Text style={{ color: COLORS.bunkerAccent, fontFamily: COLORS.fontFamily, fontSize: 13, textDecorationLine: 'underline', fontWeight: '500' }}>
                 {aiProvider === 'gemini' && 'Obtener API Key de Gemini ↗'}
                 {aiProvider === 'openai' && 'Obtener API Key de OpenAI ↗'}
-                {aiProvider === 'deepseek' && 'Obtener API Key de DeepSeek ↗'}
+                {aiProvider === 'cohere' && 'Obtener API Key de Cohere ↗'}
                 {aiProvider === 'groq' && 'Obtener API Key de Groq ↗'}
               </Text>
             </TouchableOpacity>
