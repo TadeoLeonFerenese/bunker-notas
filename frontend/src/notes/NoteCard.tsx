@@ -130,7 +130,7 @@ const NoteCardBase = ({
         ]}
         activeOpacity={0.7}
       >
-        {illustrationEmoji && (
+        {!!illustrationEmoji && (
           <Text style={{
             position: 'absolute',
             bottom: 8,
@@ -161,7 +161,7 @@ const NoteCardBase = ({
           ) : null}
           <View style={stylesGrid.footer}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              {note.audioUri && (
+              {!!note.audioUri && (
                 <View style={[stylesGrid.audioBadge, { backgroundColor: isDark ? '#4A5568' : '#EBF8FF' }]}>
                   <Text style={{ fontSize: 9 }}>🎙️</Text>
                 </View>
@@ -207,7 +207,7 @@ const NoteCardBase = ({
       ]}
       activeOpacity={0.7}
     >
-      {illustrationEmoji && (
+      {!!illustrationEmoji && (
         <Text style={{
           position: 'absolute',
           bottom: 10,
@@ -258,7 +258,7 @@ const NoteCardBase = ({
 
         <View style={stylesList.footer}>
           <View style={stylesList.meta}>
-            {note.audioUri && (
+            {!!note.audioUri && (
               <View style={[stylesList.audioBadge, { backgroundColor: isDark ? '#4A5568' : '#EBF8FF', borderColor: isDark ? '#4A5568' : '#BEE3F8', borderWidth: 1 }]}>
                 <Text style={[stylesList.audioText, { color: isDark ? '#E2E8F0' : '#2B6CB0' }]}>🎙️ Nota de Audio</Text>
               </View>

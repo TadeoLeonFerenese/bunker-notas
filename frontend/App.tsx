@@ -51,7 +51,7 @@ type FilterType = 'all' | 'marked' | 'secure';
 type ViewMode = 'list' | 'grid';
 
 export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const { COLORS, isDark, theme, setTheme, customBackground, setCustomBackground } = useTheme();
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -2467,20 +2467,35 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
             }}
           >
             <Pressable 
-              style={[styles.aiModalContent, { backgroundColor: COLORS.surface }]}
+              style={[styles.aiModalContent, { backgroundColor: COLORS.surface, height: height * 0.48 }]}
               onPress={() => {}}
             >
-              <View style={styles.aiModalHeader}>
-                <View style={styles.aiModalIconContainer}>
-                  <MaterialCommunityIcons name="robot" size={28} color="#fff" />
+              <View style={[styles.aiModalHeader, { justifyContent: 'space-between', alignItems: 'center', width: '100%' }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={styles.aiModalIconContainer}>
+                    <MaterialCommunityIcons name="robot" size={28} color="#fff" />
+                  </View>
+                  <Text style={[styles.aiModalTitle, { color: COLORS.bunkerDark, fontFamily: COLORS.fontFamily, fontSize: 20, fontWeight: '700' }]}>Asistente IA</Text>
                 </View>
-                <View>
-                  <Text style={[styles.aiModalTitle, { color: COLORS.bunkerDark, fontFamily: COLORS.fontFamily }]}>Asistente IA</Text>
-                  <Text style={[styles.aiModalSubtitle, { color: COLORS.bunkerGray, fontFamily: COLORS.fontFamily }]}>Creá una nota dictando o escribiendo</Text>
-                </View>
+                <TouchableOpacity
+                  style={[
+                    styles.aiModalMicBtn,
+                    isAiRecording 
+                      ? { backgroundColor: COLORS.bunkerAccent, width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' } 
+                      : { backgroundColor: 'transparent', padding: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 0 },
+                  ]}
+                  onPress={isAiRecording ? stopAiRecording : startAiRecording}
+                  disabled={isAiLoading}
+                >
+                  <MaterialIcons 
+                    name={isAiRecording ? "stop" : "mic-none"} 
+                    size={26} 
+                    color={isAiRecording ? "#fff" : COLORS.bunkerAccent} 
+                  />
+                </TouchableOpacity>
               </View>
 
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+              <View style={{ flex: 1, width: '100%', marginBottom: 20 }}>
                 <TextInput
                   style={[
                     styles.aiModalInput, 
@@ -2490,8 +2505,8 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                       color: COLORS.bunkerDark,
                       borderColor: COLORS.border,
                       fontFamily: COLORS.fontFamily,
-                      minHeight: 120,
-                      maxHeight: 220,
+                      height: '100%',
+                      textAlignVertical: 'top',
                       paddingTop: 16,
                       paddingBottom: 16,
                     }
@@ -2504,22 +2519,6 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   numberOfLines={4}
                   editable={!isAiLoading && !isAiRecording}
                 />
-                <TouchableOpacity
-                  style={[
-                    styles.aiModalMicBtn,
-                    isAiRecording 
-                      ? { backgroundColor: COLORS.bunkerAccent, width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center' } 
-                      : { backgroundColor: 'transparent', padding: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 0 },
-                  ]}
-                  onPress={isAiRecording ? stopAiRecording : startAiRecording}
-                  disabled={isAiLoading}
-                >
-                  <MaterialIcons 
-                    name={isAiRecording ? "stop" : "mic-none"} 
-                    size={28} 
-                    color={isAiRecording ? "#fff" : COLORS.bunkerAccent} 
-                  />
-                </TouchableOpacity>
               </View>
 
               <View style={{ flexDirection: 'row', gap: 12 }}>
@@ -2658,8 +2657,8 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
               </TouchableOpacity>
             </View>
             <View style={{ flexDirection: 'row', marginBottom: 16, gap: 8 }}>
-              <TouchableOpacity onPress={() => handleSelectAiProvider('openrouter')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'openrouter' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'openrouter' ? 'transparent' : COLORS.border }}>
-                <Text style={{ color: aiProvider === 'openrouter' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700', fontSize: 12 }}>OpenRouter</Text>
+              <TouchableOpacity onPress={() => handleSelectAiProvider('deepseek')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'deepseek' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'deepseek' ? 'transparent' : COLORS.border }}>
+                <Text style={{ color: aiProvider === 'deepseek' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700', fontSize: 12 }}>DeepSeek</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => handleSelectAiProvider('groq')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'groq' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'groq' ? 'transparent' : COLORS.border }}>
                 <Text style={{ color: aiProvider === 'groq' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700' }}>Groq</Text>
@@ -2681,8 +2680,8 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                 let url = 'https://aistudio.google.com/app/apikey';
                 if (aiProvider === 'openai') {
                   url = 'https://platform.openai.com/api-keys';
-                } else if (aiProvider === 'openrouter') {
-                  url = 'https://openrouter.ai/keys';
+                } else if (aiProvider === 'deepseek') {
+                  url = 'https://platform.deepseek.com/api_keys';
                 } else if (aiProvider === 'groq') {
                   url = 'https://console.groq.com/keys';
                 }
@@ -2693,7 +2692,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
               <Text style={{ color: COLORS.bunkerAccent, fontFamily: COLORS.fontFamily, fontSize: 13, textDecorationLine: 'underline', fontWeight: '500' }}>
                 {aiProvider === 'gemini' && 'Obtener API Key de Gemini ↗'}
                 {aiProvider === 'openai' && 'Obtener API Key de OpenAI ↗'}
-                {aiProvider === 'openrouter' && 'Obtener API Key de OpenRouter ↗'}
+                {aiProvider === 'deepseek' && 'Obtener API Key de DeepSeek ↗'}
                 {aiProvider === 'groq' && 'Obtener API Key de Groq ↗'}
               </Text>
             </TouchableOpacity>
@@ -2984,7 +2983,7 @@ const styles = StyleSheet.create({
   aiModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
     alignItems: 'center',
   },
   aiModalContent: {
@@ -2992,12 +2991,12 @@ const styles = StyleSheet.create({
     maxWidth: 380,
     borderRadius: 24,
     padding: 24,
+    marginBottom: Platform.OS === 'ios' ? 40 : 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.15,
     shadowRadius: 16,
     elevation: 20,
-    transform: [{ translateY: 16 }],
   },
   aiModalHeader: {
     flexDirection: 'row',
