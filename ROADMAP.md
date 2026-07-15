@@ -42,6 +42,8 @@ Permitir la carga, visualización y recepción (vía Share Intent o local) de im
   * **Privacidad Absoluta:** Las llamadas a la IA (transcripción por voz y prompts de chat) van directo desde el celular del usuario al proveedor (OpenAI/Google). No hay un servidor intermedio que audite los datos.
   * **Acceso y UX en Dashboard:** Se desvinculó el Asistente del editor de notas, ubicándose como un botón de acción flotante (FAB) simétrico en el margen izquierdo inferior del Dashboard principal (con fondo de acento y robot blanco). Abre un modal flotante responsive (`KeyboardAvoidingView`) con botones de acción simétricos ("Cancelar" / "Generar") y el botón de micrófono reubicado al lado del input de texto. Al completarse la respuesta de la IA, se crea una nota y se abre en modo editor de forma transparente.
   * **Validación de Keys con Diagnóstico y Bypass:** Al configurar la API Key se valida mediante un "ping" al servicio. Si la validación falla (sea por credenciales incorrectas o restricciones de red/VPN corporativas), la app muestra un **Mini Log Técnico Estructurado** detallando el error y ofrece un bypass de **"Guardar de todos modos"** para evitar bloqueos por problemas de conexión locales.
+  * **Soporte para Motores Gratuitos y Open-Source (OpenRouter & Groq):** Se expandió el soporte de proveedores integrando **OpenRouter** (usando por defecto el modelo gratuito `google/gemma-2-9b-it:free`) y **Groq** (usando `llama-3.1-8b-instant` para chat, y transcripción de voz gratuita con Whisper `whisper-large-v3`). Esto mitiga las caídas o bloqueos de APIs corporativas.
+
 
 * **Seguridad y Centrado de Modales:**
   * **Modal de PIN Centrado y Responsive:** Se modificó la interfaz de solicitud de PIN (al abrir o borrar notas seguras) para centrarse verticalmente en pantalla de forma idéntica a las demás alertas. Se le incorporó `KeyboardAvoidingView` para evitar que el teclado numérico de ingreso obstruya los botones o la caja del PIN en dispositivos medianos.
@@ -56,7 +58,6 @@ Permitir la carga, visualización y recepción (vía Share Intent o local) de im
 
 ## 3. Próximos Pasos Identificados
 1. **Modo Sincronización Local-First:** Desarrollar el sistema de sincronización selectiva con el backend remoto.
-2. **Soporte para Motores de IA Gratuitos/Open-Source:** Integrar proveedores como Groq, OpenRouter o HuggingFace para permitir el uso de modelos gratuitos (como DeepSeek, Mixtral o Llama) mitigando la dependencia de APIs pagas y bloqueos por saturación en proveedores corporativos.
 
 ---
 
