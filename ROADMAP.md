@@ -50,6 +50,11 @@ Permitir la carga, visualización y recepción (vía Share Intent o local) de im
     * > [!IMPORTANT]
       > **Restricción Comercial de Cohere:** La clave de Cohere (Trial Key) tiene limitaciones estrictas para uso no comercial. Si el proyecto avanza a una fase comercial en producción, este proveedor deberá ser reemplazado por un endpoint con licencia comercial (como Cohere Production Key, OpenAI de pago, o Gemini API).
     * Se mantiene integrado **Groq** (usando `llama-3.1-8b-instant` para chat, y transcripción de voz con Whisper `whisper-large-v3` gratuita). Esto mitiga las caídas o bloqueos de APIs corporativas.
+  * **Optimización de Prompts y Formateo (Zero Hallucination):**
+    * **System Prompts Estrictos:** Se implementaron instrucciones a nivel de sistema para los motores de IA que impiden la generación de comentarios conversacionales, saludos o introducciones ruidosas.
+    * **Estructuración por JSON:** Al crear notas desde el Dashboard, la IA responde únicamente con un objeto JSON `{"title": "...", "content": "..."}`. Esto separa limpiamente el título del cuerpo y previene que se mezclen.
+    * **Reconocimiento de Títulos y Markdown:** El motor es capaz de interpretar indicaciones explícitas de títulos (ej: "el título es X") y genera formato enriquecido de listas (`- elemento`) y negritas (`**texto**`) automáticamente al detectar dictados de enumeraciones o elementos clave, los cuales se renderizan nativamente en la UI.
+
 
 * **Solución de Warning en React Native Web:**
   * **Advertencia de Nodos de Texto Inesperados:** Se resolvió el error de React Native Web `Unexpected text node: . A text node cannot be a child of a <View>` en `NoteCard.tsx` aplicando cast booleano explícito `!!` en cortocircuitos JSX de strings opcionales (`!!note.audioUri` y `!!illustrationEmoji`), previniendo fugas de cadenas vacías en contenedores del DOM.
