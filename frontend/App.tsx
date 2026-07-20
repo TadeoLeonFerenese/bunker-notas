@@ -1191,7 +1191,9 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
         return;
       }
 
-      const res = await AIService.ask(aiPrompt, storedKey, storedProvider);
+      const systemInstruction = 'Eres un asistente estricto que ayuda a editar notas. Reglas: 1) Escribe todo al pie de la letra sin agregados conversacionales, saludos ni explicaciones. 2) Si detectas que el usuario dicta una lista o varios elementos (ej: compras), dales formato de lista usando Markdown (- elemento). 3) Usa Markdown para resaltar en negrita (**texto**) palabras clave o subtítulos. 4) Responde ÚNICAMENTE con el texto que debe insertarse en la nota.';
+      const finalPrompt = `${systemInstruction}\n\nInstrucción del usuario: ${aiPrompt}`;
+      const res = await AIService.ask(finalPrompt, storedKey, storedProvider);
       if (res.error) {
         Alert.alert('Error IA', res.error);
       } else if (res.text) {
@@ -1222,18 +1224,32 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
         return;
       }
 
-      const res = await AIService.ask(aiPrompt, storedKey, storedProvider);
+      const systemInstruction = 'Eres un asistente estricto para crear notas. Reglas: 1) Si el usuario dicta un título (ej: "el título es..."), úsalo EXACTAMENTE en el campo title. 2) Escribe el contenido pedido al pie de la letra sin agregados conversacionales. 3) Usa formato Markdown en el contenido: si es una lista (ej: compras), usa viñetas (- elemento); usa negrita (**texto**) para resaltar partes importantes o subtítulos. 4) Responde ÚNICAMENTE con un JSON válido: {"title": "Título aquí", "content": "Contenido aquí"}. NO devuelvas texto fuera del JSON.';
+      const finalPrompt = `${systemInstruction}\n\nInstrucción del usuario: ${aiPrompt}`;
+      const res = await AIService.ask(finalPrompt, storedKey, storedProvider);
+      
       if (res.error) {
         Alert.alert('Error IA', res.error);
       } else if (res.text) {
+        let titleText = 'Nota de IA';
+        let contentText = res.text;
+
+        try {
+          const jsonStr = res.text.replace(/```json/g, '').replace(/```/g, '').trim();
+          const parsed = JSON.parse(jsonStr);
+          if (parsed.title) titleText = parsed.title;
+          if (parsed.content) contentText = parsed.content;
+        } catch (e) {
+          titleText = aiPrompt.substring(0, 30).trim() || 'Nota de IA';
+        }
+
         // 1. Crear la nota en base de datos
-        const titleText = aiPrompt.substring(0, 30).trim() || 'Nota de IA';
         let newNoteId: string | null = null;
         
         await database.write(async () => {
           const newNote = await database.get<NoteModel>('notes').create((note: any) => {
             note.title = titleText;
-            note.content = res.text;
+            note.content = contentText;
             note.isSecure = false;
             note.color = 'default';
             note.illustration = 'none';
@@ -1250,7 +1266,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
         if (newNoteId) {
           setEditingNoteId(newNoteId);
           setNewNoteTitle(titleText);
-          setNewNoteContent(res.text);
+          setNewNoteContent(contentText);
           setNewNoteSecure(false);
           setNewNoteColor('default');
           setNewNoteIllustration('none');
