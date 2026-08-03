@@ -5,6 +5,13 @@ export interface AIResponse {
   error?: string;
 }
 
+export const SYSTEM_INSTRUCTION = `Sos un asistente de notas preciso y directo. 
+REGLAS ESTRICTAS E INVIOLABLES:
+1. Generá ÚNICAMENTE el contenido solicitado por el usuario para la nota.
+2. NO incluyas saludos ("Hola", "Por supuesto"), NO incluyas introducciones ("Aquí tienes tu nota:"), NO incluyas comentarios de cierre ("Espero que te sirva") ni explicaciones metatextuales.
+3. Si el usuario te pide redactar, resumir, traducir o estructurar un texto, responde EXCLUSIVAMENTE con el resultado final sin agregados.
+4. Cumplí al pie de la letra lo solicitado sin inventar información fuera de contexto.`;
+
 export const AIService = {
   async getAudioBase64(uri: string): Promise<string> {
     try {
@@ -174,6 +181,9 @@ export const AIService = {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
+            systemInstruction: {
+              parts: [{ text: SYSTEM_INSTRUCTION }]
+            },
             contents: [{ parts: [{ text: prompt }] }],
           }),
         });
@@ -197,7 +207,10 @@ export const AIService = {
           },
           body: JSON.stringify({
             model: 'gpt-4o-mini',
-            messages: [{ role: 'user', content: prompt }],
+            messages: [
+              { role: 'system', content: SYSTEM_INSTRUCTION },
+              { role: 'user', content: prompt }
+            ],
           }),
         });
 
@@ -220,7 +233,10 @@ export const AIService = {
           },
           body: JSON.stringify({
             model: 'llama-3.1-8b-instant',
-            messages: [{ role: 'user', content: prompt }],
+            messages: [
+              { role: 'system', content: SYSTEM_INSTRUCTION },
+              { role: 'user', content: prompt }
+            ],
           }),
         });
 
@@ -245,6 +261,7 @@ export const AIService = {
           },
           body: JSON.stringify({
             model: 'command-r',
+            preamble: SYSTEM_INSTRUCTION,
             message: prompt,
           }),
         });

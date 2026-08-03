@@ -23,6 +23,7 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  Animated,
 } from 'react-native';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -57,6 +58,46 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [filter, setFilter] = useState<FilterType>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
+
+  // Estados para la animación de placeholder rotativo en la búsqueda (Eje X: Fade + Slide)
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [currentPlaceholderIndex, setCurrentPlaceholderIndex] = useState(0);
+  const placeholderOpacity = useRef(new Animated.Value(1)).current;
+  const placeholderTranslateX = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      Animated.parallel([
+        Animated.timing(placeholderOpacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(placeholderTranslateX, {
+          toValue: -15,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setCurrentPlaceholderIndex(prev => (prev === 0 ? 1 : 0));
+        placeholderTranslateX.setValue(15);
+        Animated.parallel([
+          Animated.timing(placeholderOpacity, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(placeholderTranslateX, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      });
+    }, 3800);
+
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     AsyncStorage.getItem('@bunker_view_mode').then(mode => {
@@ -1175,38 +1216,6 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     await setCustomBackground(null);
   };
 
-  const handleAiSubmit = async () => {
-    if (!aiPrompt.trim()) return;
-    setIsAiLoading(true);
-    
-    try {
-      const { getSecureCredential } = require('./src/notes/encryption');
-      const storedProvider = await getSecureCredential('app_ai_provider') as AIProvider || 'gemini';
-      const storedKey = await getSecureCredential(`app_ai_key_${storedProvider}`);
-      
-      if (!storedKey || storedKey.trim() === '' || storedKey === 'null' || storedKey === 'undefined') {
-        Alert.alert('Configuración IA', 'Debes configurar tu API Key de IA primero en el menú hamburguesa.');
-        setAiConfigModal(true);
-        setIsAiLoading(false);
-        return;
-      }
-
-      const systemInstruction = 'Eres un asistente estricto que ayuda a editar notas. Reglas: 1) Escribe todo al pie de la letra sin agregados conversacionales, saludos ni explicaciones. 2) Si detectas que el usuario dicta una lista o varios elementos (ej: compras), dales formato de lista usando Markdown (- elemento). 3) Usa Markdown para resaltar en negrita (**texto**) palabras clave o subtítulos. 4) Responde ÚNICAMENTE con el texto que debe insertarse en la nota.';
-      const finalPrompt = `${systemInstruction}\n\nInstrucción del usuario: ${aiPrompt}`;
-      const res = await AIService.ask(finalPrompt, storedKey, storedProvider);
-      if (res.error) {
-        Alert.alert('Error IA', res.error);
-      } else if (res.text) {
-        setNewNoteContent(prev => prev + (prev ? '\n\n' : '') + res.text);
-        setAiPrompt('');
-        setActiveToolbar(null);
-      }
-    } catch (e: any) {
-      console.log('Error AI', e);
-      Alert.alert('Error', 'Hubo un error de red al contactar al servidor de IA.');
-    }
-    setIsAiLoading(false);
-  };
 
   const handleDashboardAiSubmit = async () => {
     if (!aiPrompt.trim()) return;
@@ -1602,17 +1611,28 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
         {/* Header */}
         <View style={[styles.header, { backgroundColor: customBackground ? 'transparent' : COLORS.surface, borderBottomColor: customBackground ? 'transparent' : COLORS.border, paddingBottom: 10, paddingTop: Platform.OS === 'android' ? 48 : 24, marginTop: '10%' }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            {/* Logo de Bunker Notas (Image) */}
-            <Image 
-              source={require('./assets/icon.png')} 
-              style={{ 
-                width: 40, 
-                height: 40, 
-                borderRadius: 20,
-              }} 
-            />
+            {/* Logo de Bunker Notas (Contenedor con clipping para quitar bordes negros) */}
+            <View style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              overflow: 'hidden',
+              justifyContent: 'center',
+              alignItems: 'center',
+              backgroundColor: 'transparent',
+            }}>
+              <Image 
+                source={require('./assets/icon.png')} 
+                style={{ 
+                  width: 40, 
+                  height: 40,
+                  transform: [{ scale: 1.25 }]
+                }} 
+                resizeMode="cover"
+              />
+            </View>
 
-            {/* Barra de Búsqueda (Gray Input) */}
+            {/* Barra de Búsqueda (Gray Input con Placeholder Animado) */}
             <View style={{
               flex: 1,
               flexDirection: 'row',
@@ -1623,8 +1643,9 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
               borderColor: COLORS.border,
               paddingHorizontal: 12,
               height: 48,
+              position: 'relative',
             }}>
-              <MaterialIcons name="search" size={18} color={COLORS.bunkerGray} style={{ marginRight: 6 }} />
+              <MaterialIcons name="search" size={18} color={COLORS.bunkerGray} style={{ marginRight: 6, zIndex: 3 }} />
               <TextInput
                 style={{
                   flex: 1,
@@ -1632,14 +1653,49 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   fontSize: 15,
                   fontFamily: COLORS.fontFamily,
                   paddingVertical: 8,
+                  zIndex: 2,
                 }}
-                placeholder="Buscar Notas"
-                placeholderTextColor={COLORS.textMuted}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
+                onFocus={() => setIsSearchFocused(true)}
+                onBlur={() => setIsSearchFocused(false)}
               />
+              
+              {/* Placeholder Animado (Eje X: Horizontal Fade & Slide Centrado) */}
+              {!searchQuery && !isSearchFocused && (
+                <View 
+                  pointerEvents="none" 
+                  style={{
+                    position: 'absolute',
+                    left: 36,
+                    right: 36,
+                    top: 0,
+                    bottom: 0,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    zIndex: 1,
+                  }}
+                >
+                  <Animated.View style={{ 
+                    opacity: placeholderOpacity,
+                    transform: [{ translateX: placeholderTranslateX }],
+                    alignItems: 'center',
+                  }}>
+                    <Text style={{ 
+                      color: COLORS.textMuted, 
+                      fontSize: 15, 
+                      fontFamily: COLORS.fontFamily, 
+                      includeFontPadding: false,
+                      textAlign: 'center',
+                    }}>
+                      {currentPlaceholderIndex === 0 ? "Buscar Notas" : "Bunker Notas"}
+                    </Text>
+                  </Animated.View>
+                </View>
+              )}
+
               {searchQuery.trim().length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <TouchableOpacity onPress={() => setSearchQuery('')} style={{ zIndex: 3 }}>
                   <MaterialIcons name="cancel" size={16} color={COLORS.bunkerGray} />
                 </TouchableOpacity>
               )}
@@ -2193,36 +2249,6 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   </View>
                 )}
 
-                {activeToolbar === 'ai' && (
-                  <View style={{ paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.bunkerBg }}>
-                    <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, marginBottom: 8 }}>Asistente IA (Zero-Knowledge):</Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <TextInput 
-                         style={{ flex: 1, backgroundColor: COLORS.surface, borderRadius: 8, padding: 8, color: COLORS.text, fontFamily: COLORS.fontFamily }} 
-                         placeholder={isAiRecording ? "Escuchando audio..." : "Ej: Escribe un resumen de la reunión..."} 
-                         placeholderTextColor={COLORS.textMuted}
-                         value={aiPrompt}
-                         onChangeText={setAiPrompt}
-                         editable={!isAiLoading && !isAiRecording}
-                      />
-                      <TouchableOpacity 
-                         style={{ marginLeft: 8, padding: 8, backgroundColor: isAiRecording ? '#E53E3E' : COLORS.bunkerBg, borderRadius: 8, width: 40, height: 40, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: COLORS.border }}
-                         onPress={isAiRecording ? stopAiRecording : startAiRecording}
-                         disabled={isAiLoading}
-                      >
-                         <MaterialIcons name={isAiRecording ? "stop" : "mic"} size={20} color={isAiRecording ? "#fff" : COLORS.bunkerDark} />
-                      </TouchableOpacity>
-                      <TouchableOpacity 
-                         style={{ marginLeft: 8, padding: 8, backgroundColor: COLORS.bunkerAccent, borderRadius: 8, width: 40, height: 40, justifyContent: 'center', alignItems: 'center' }}
-                         onPress={handleAiSubmit}
-                         disabled={isAiLoading || isAiRecording || !aiPrompt.trim()}
-                      >
-                         {isAiLoading ? <ActivityIndicator size="small" color="#fff" /> : <MaterialIcons name="send" size={20} color="#fff" />}
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                )}
-
                 {/* Bottom Action Bar */}
                 <View style={{ paddingHorizontal: 16, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: COLORS.surface, borderTopWidth: 1, borderColor: COLORS.border }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -2245,13 +2271,6 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                       onPress={() => setActiveToolbar(activeToolbar === 'doodle' ? null : 'doodle')}
                     >
                       <MaterialIcons name="emoji-emotions" size={26} color={activeToolbar === 'doodle' ? "#fff" : COLORS.bunkerAccent} />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity 
-                      style={{ padding: 8, marginLeft: 8, marginBottom: 5, backgroundColor: activeToolbar === 'ai' ? COLORS.bunkerAccent : 'transparent', borderRadius: 8 }}
-                      onPress={() => setActiveToolbar(activeToolbar === 'ai' ? null : 'ai')}
-                    >
-                      <MaterialCommunityIcons name={activeToolbar === 'ai' ? "robot" : "robot-outline"} size={26} color={activeToolbar === 'ai' ? "#fff" : COLORS.bunkerAccent} />
                     </TouchableOpacity>
                   </View>
 

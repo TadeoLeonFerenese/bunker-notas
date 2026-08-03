@@ -64,19 +64,28 @@ Permitir la carga, visualización y recepción (vía Share Intent o local) de im
   * **Fijación de PIN a 6 Dígitos:** Para evitar espacios vacíos confusos en la UI de entrada, se fijó el PIN de seguridad del usuario en exactamente 6 dígitos para el registro y validación.
   * **Iconografía en Login:** Se actualizó el diseño de la pantalla de Login reemplazando el escudo de seguridad por el icono nativo de la aplicación (`icon.png`), mejorando la identidad visual.
 
-* **Portabilidad y Preservación de Historial:**
-  * Respaldos encriptados locales con extensión `.bunker`.
-  * **Preservación de Fechas en Backup:** `BackupService.ts` respeta los timestamps originales (`createdAt`/`updatedAt`) de las notas al importarse desde el archivo `.bunker` modificando el `_raw` de WatermelonDB en la transacción batch.
+* **Polishing de UI/UX y Endurecimiento de Prompts (Cierre MVP 2 ✅):**
+  * **Barra de Búsqueda Animada:** Rotación fluida en el eje X (Fade + Slide) entre "Buscar Notas" y "Bunker Notas" centrada horizontalmente.
+  * **System Instruction Unificado:** Inyección de `SYSTEM_INSTRUCTION` estricto en todos los proveedores de IA (`AIService.ts`) para eliminar respuestas conversacionales y asegurar generación al pie de la letra.
+  * **Recorte de Logo:** Centrado y clipping perfecto del icono en la cabecera mediante escalado `1.25` y `overflow: hidden`.
 
 ---
 
-## 3. Próximos Pasos Identificados
-1. **Modo Sincronización Local-First:** Desarrollar el sistema de sincronización selectiva con el backend remoto.
-2. **Implementación de GitHub Models (Prioritario):** Debido a fallos o bloqueos de red locales reportados con Gemini y Cohere, se planifica integrar **GitHub Models** (usando Personal Access Tokens a través del endpoint compatible con OpenAI de Azure Inference) como la alternativa gratuita principal de IA.
+## 3. MVP 3 (Planificación & Nuevas Funcionalidades 🚀)
+
+1. **Integración con Calendario Nativo y Recordatorios:**
+   * Permitir vincular notas con `expo-calendar` (eventos de agenda) y `expo-notifications` (alarmas/notificaciones locales en fecha y hora específicas).
+2. **Estrategia de Hosting de APK vs Google Play Store:**
+   * **Descarga Directa Gratuita:** Uso de **GitHub Releases** como CDN gratuito e ilimitado para la distribución de la `.apk`. (Aclaración: Vercel sirve solo para sitios web/politica de privacidad, no para alojar ejecutables Android).
+   * **Google Play Store:** Requisitos de publicación (Registro Dev $25 USD, formato `.aab`, firma de producción con EAS Build, Política de Privacidad en Vercel/GitHub Pages y prueba cerrada de 20 testers por 14 días).
+3. **Integración de Chatbot / Agente Remoto:**
+   * Vinculación con Bots personales (Telegram / WhatsApp) para enviar notas al bunker mediante mensajes de voz o texto.
+4. **Modo Sincronización Local-First:**
+   * Sistema de sincronización selectiva con el backend remoto.
 
 ---
 
-## 5. Descarga de APK compilada desde otra PC
+## 4. Descarga de APK compilada desde otra PC
 
 Para descargar la última versión de la APK (`app-debug.apk`) desde cualquier computadora sin tener que configurar ningún entorno de desarrollo local, seguí estos pasos sencillos:
 
