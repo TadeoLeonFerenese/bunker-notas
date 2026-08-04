@@ -11,6 +11,8 @@ export default class Note extends Model {
   @text('audio_uri') audioUri: string;
   @text('color') color: string;
   @text('illustration') illustration: string;
+  @field('reminder_at') reminderAt?: number;
+  @text('calendar_event_id') calendarEventId?: string;
 
   @readonly @date('created_at') createdAt: Date;
   @readonly @date('updated_at') updatedAt: Date;

@@ -47,10 +47,15 @@
         {
           "android": {
             "enabled": true,
-            "singleShareMimeTypes": ["text/plain", "image/*", "audio/*"]
+            "singleShareMimeTypes": [
+              "text/plain",
+              "image/*",
+              "audio/*"
+            ]
           }
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ]
   }
 }

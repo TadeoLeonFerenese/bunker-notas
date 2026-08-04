@@ -143,3 +143,37 @@ jest.mock('./src/database/index.ts', () => {
     }),
   };
 });
+
+// Mock expo-notifications
+jest.mock('expo-notifications', () => ({
+  setNotificationHandler: jest.fn(),
+  getPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
+  requestPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
+  scheduleNotificationAsync: jest.fn().mockResolvedValue('mock-notification-id'),
+  cancelScheduledNotificationAsync: jest.fn().mockResolvedValue(undefined),
+}));
+
+// Mock expo-calendar
+jest.mock('expo-calendar', () => ({
+  getCalendarPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
+  requestCalendarPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
+  getCalendarsAsync: jest.fn().mockResolvedValue([{ id: 'mock-calendar-id', name: 'Bunker Notes', allowsModifications: true }]),
+  createCalendarAsync: jest.fn().mockResolvedValue('mock-calendar-id'),
+  createEventAsync: jest.fn().mockResolvedValue('mock-event-id'),
+  deleteEventAsync: jest.fn().mockResolvedValue(undefined),
+  EntityTypes: {
+    EVENT: 'event',
+  },
+  CalendarAccessLevel: {
+    OWNER: 'owner',
+  },
+}));
+
+// Mock @react-native-community/datetimepicker
+jest.mock('@react-native-community/datetimepicker', () => {
+  const React = require('react');
+  return {
+    default: (props) => React.createElement('View', props),
+    __esModule: true,
+  };
+});

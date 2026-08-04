@@ -71,17 +71,26 @@ Permitir la carga, visualización y recepción (vía Share Intent o local) de im
 
 ---
 
-## 3. MVP 3 (Planificación & Nuevas Funcionalidades 🚀)
+## 3. MVP 3 (Fase 3: Notificaciones Locales y Calendario Nativo ✅)
 
-1. **Integración con Calendario Nativo y Recordatorios:**
-   * Permitir vincular notas con `expo-calendar` (eventos de agenda) y `expo-notifications` (alarmas/notificaciones locales en fecha y hora específicas).
-2. **Estrategia de Hosting de APK vs Google Play Store:**
-   * **Descarga Directa Gratuita:** Uso de **GitHub Releases** como CDN gratuito e ilimitado para la distribución de la `.apk`. (Aclaración: Vercel sirve solo para sitios web/politica de privacidad, no para alojar ejecutables Android).
-   * **Google Play Store:** Requisitos de publicación (Registro Dev $25 USD, formato `.aab`, firma de producción con EAS Build, Política de Privacidad en Vercel/GitHub Pages y prueba cerrada de 20 testers por 14 días).
-3. **Integración de Chatbot / Agente Remoto:**
-   * Vinculación con Bots personales (Telegram / WhatsApp) para enviar notas al bunker mediante mensajes de voz o texto.
-4. **Modo Sincronización Local-First:**
-   * Sistema de sincronización selectiva con el backend remoto.
+1. **Integración con Calendario Nativo y Recordatorios (Completado ✅):**
+   * **Servicio de Recordatorios Encapsulado:** Se creó `ReminderService.ts` utilizando `expo-notifications` y `expo-calendar` para programar alertas locales de una sola vez, solicitar permisos al dispositivo, gestionar eventos en la agenda interna y cancelar notificaciones al eliminar o actualizar notas.
+   * **Migración de Esquema (WatermelonDB v3):** Se incrementó la versión del esquema de la base de datos de v2 a v3 en `schema.ts`. Se definieron las columnas `reminder_at` y `calendar_event_id` y su correspondiente migración segura en `migrations.ts` y decoradores en `Note.ts`.
+   * **UI Intuitiva Segmentada en 2 Pasos:**
+     * **Gestión desde el Visor (Viewer Modal):** Para notas existentes, el recordatorio se administra directamente desde el visor de notas (Viewer Modal), liberando de carga al editor de texto.
+     * **Gestión al Crear:** Para notas nuevas (`+`), la campana se muestra en el editor para agendar la alarma antes de guardar.
+     * **Modal Segmentado (Fecha + Hora):** Modal flotante de 2 pasos con accesos rápidos `[Hoy]` `[Mañana]`, selector de almanaque estructurado `[Día/Mes/Año]`, presets de momento del día (`🌅 Mañana 09:00`, `☀️ Tarde 15:00`, `🌙 Noche 21:00`, `⏱️ Hora Exacta`) y vista previa en tiempo real.
+     * **Alineación de Header:** Ajuste de maquetación en el header del visor (`alignItems: 'flex-start'`) fijando la alineación del candado 🔒 y la botonera (campana ⏰, Editar, ✕) en la primera línea del título para evitar desdoblamientos o saltos al tener títulos largos.
+   * **Indicadores en Dashboard:** Badges con icono de reloj (⏰) en `NoteCard.tsx` tanto en la vista de grilla como en la de lista cuando una nota posee un recordatorio activo.
+   * **Suite de Pruebas Unificadas:** Mocks de `expo-notifications`, `expo-calendar` y `@react-native-community/datetimepicker` en `jest.setup.js` manteniendo la suite unitaria en verde (16 suites exitosas, 82 tests pasados).
+
+2. **Estrategia de Distribución y Monetización:**
+   * **Distribución Segura:** Se descarta el uso de GitHub Releases públicos para descargas gratuitas de la APK.
+   * **Monetización en Google Play Store:** Venta de la app (Paid App) o descargas gratuitas con compras In-App (suscripciones para almacenamiento en la nube, sincronización selectiva u otras features premium).
+   * **Requisitos Google Play:** Registro de desarrollador ($25 USD), compilación en formato `.aab` mediante EAS Build, Política de Privacidad, y superar la fase de pruebas cerradas de 20 testers por 14 días.
+
+3. **Modo Sincronización Local-First:**
+   * Sistema de sincronización selectiva con el backend remoto cifrado de extremo a extremo.
 
 ---
 

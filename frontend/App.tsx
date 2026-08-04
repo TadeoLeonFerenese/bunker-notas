@@ -44,6 +44,8 @@ import { ThemeProvider, useTheme, ThemeType } from './src/theme/ThemeContext';
 import { encryption, encryptFile, decryptFile } from './src/notes/encryption';
 import { backupService } from './src/backup/BackupService';
 import { AIService, AIProvider } from './src/ai/AIService';
+import { ReminderService } from './src/notes/ReminderService';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Linking from 'expo-linking';
 import { useShareIntent, ShareIntentProvider } from 'expo-share-intent';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -363,6 +365,19 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [newNoteSecure, setNewNoteSecure] = useState(false);
   const [newNoteColor, setNewNoteColor] = useState('default');
   const [newNoteIllustration, setNewNoteIllustration] = useState('none');
+  const [newNoteReminderAt, setNewNoteReminderAt] = useState<number | null>(null);
+  const [newNoteCalendarEventId, setNewNoteCalendarEventId] = useState<string | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [tempReminderDate, setTempReminderDate] = useState<Date | null>(null);
+  const [reminderSelectedDate, setReminderSelectedDate] = useState<Date>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    d.setHours(9, 0, 0, 0);
+    return d;
+  });
+  const [reminderTimeSlot, setReminderTimeSlot] = useState<'morning' | 'afternoon' | 'night' | 'custom'>('morning');
+  const [pickerSource, setPickerSource] = useState<'editor' | 'viewer'>('editor');
   const [activeToolbar, setActiveToolbar] = useState<'format' | 'color' | 'doodle' | 'ai' | null>(null);
   // Audio State & Refs
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
@@ -386,6 +401,8 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     audioUri: recordedAudioUri,
     editingNoteId: editingNoteId,
     showCreateModal: showCreateModal,
+    reminderAt: newNoteReminderAt,
+    calendarEventId: newNoteCalendarEventId,
   });
 
   useEffect(() => {
@@ -398,12 +415,14 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       audioUri: recordedAudioUri,
       editingNoteId: editingNoteId,
       showCreateModal: showCreateModal,
+      reminderAt: newNoteReminderAt,
+      calendarEventId: newNoteCalendarEventId,
     };
-  }, [newNoteTitle, newNoteContent, newNoteSecure, newNoteColor, newNoteIllustration, recordedAudioUri, editingNoteId, showCreateModal]);
+  }, [newNoteTitle, newNoteContent, newNoteSecure, newNoteColor, newNoteIllustration, recordedAudioUri, editingNoteId, showCreateModal, newNoteReminderAt, newNoteCalendarEventId]);
 
   const performAutosave = async () => {
     try {
-      const { title, content, isSecure, color, illustration, audioUri, editingNoteId: currentEditingId, showCreateModal: isModalVisible } = noteStateRef.current;
+      const { title, content, isSecure, color, illustration, audioUri, editingNoteId: currentEditingId, showCreateModal: isModalVisible, reminderAt, calendarEventId } = noteStateRef.current;
 
       // Si el modal ya no está visible, no autoguardamos
       if (!isModalVisible) return;
@@ -506,6 +525,8 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
             n.audioUri = finalAudioUri || '';
             n.color = color;
             n.illustration = illustration;
+            n.reminderAt = reminderAt;
+            n.calendarEventId = calendarEventId;
           });
           console.log('[Autosave] Nota actualizada en DB:', currentEditingId);
         } else {
@@ -517,6 +538,8 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
             note.audioUri = finalAudioUri || '';
             note.color = color;
             note.illustration = illustration;
+            note.reminderAt = reminderAt;
+            note.calendarEventId = calendarEventId;
           });
           setEditingNoteId(newNote.id);
           console.log('[Autosave] Nueva nota creada con ID:', newNote.id);
@@ -861,8 +884,13 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     const { title, content, audioUri, editingNoteId: finalEditingId } = noteStateRef.current;
     if (!title.trim() && !content.trim() && !audioUri && finalEditingId) {
       try {
+        const note = await database.get<NoteModel>('notes').find(finalEditingId);
+        try {
+          await ReminderService.clearAllReminders(finalEditingId, (note as any).calendarEventId);
+        } catch (err) {
+          console.error('[Autosave] Error al borrar recordatorios de nota vacía:', err);
+        }
         await database.write(async () => {
-          const note = await database.get<NoteModel>('notes').find(finalEditingId);
           await note.destroyPermanently();
         });
         console.log('[Autosave] Eliminada nota vacía de la base de datos al cerrar');
@@ -1093,6 +1121,198 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   };
 
 
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(false);
+    if (event.type === 'dismissed' || !selectedDate) {
+      return;
+    }
+    setTempReminderDate(selectedDate);
+    setShowTimePicker(true);
+  };
+
+  const handleTimeChange = async (event: any, selectedTime?: Date) => {
+    setShowTimePicker(false);
+    if (event.type === 'dismissed' || !selectedTime || !tempReminderDate) {
+      return;
+    }
+
+    const finalDate = new Date(tempReminderDate);
+    finalDate.setHours(selectedTime.getHours());
+    finalDate.setMinutes(selectedTime.getMinutes());
+    finalDate.setSeconds(0);
+    finalDate.setMilliseconds(0);
+
+    if (finalDate.getTime() <= Date.now()) {
+      Alert.alert('Fecha inválida', 'El recordatorio debe ser en el futuro.');
+      return;
+    }
+
+    if (pickerSource === 'viewer' && selectedNote) {
+      const { notificationId, calendarEventId } = await ReminderService.scheduleReminder(
+        selectedNote.id,
+        selectedNote.title || 'Recordatorio de Bunker',
+        (selectedNote.content || '').substring(0, 100) || 'Toca para abrir tu nota segura.',
+        finalDate,
+        true
+      );
+      await database.write(async () => {
+        await selectedNote.update((n: any) => {
+          n.reminderAt = finalDate.getTime();
+          n.calendarEventId = calendarEventId;
+        });
+      });
+      setSelectedNote(prev => ({
+        ...prev,
+        reminderAt: finalDate.getTime(),
+        calendarEventId: calendarEventId,
+      } as any));
+      setTempReminderDate(null);
+      Alert.alert('Éxito', `Recordatorio programado para el ${finalDate.toLocaleString()}`);
+    } else {
+      let noteId = editingNoteId;
+      if (!noteId) {
+        await performAutosave();
+        noteId = noteStateRef.current.editingNoteId;
+        if (!noteId) {
+          Alert.alert('Error', 'Escribe un título o contenido para crear la nota antes de agregar un recordatorio.');
+          return;
+        }
+      }
+
+      const { notificationId, calendarEventId } = await ReminderService.scheduleReminder(
+        noteId,
+        newNoteTitle || 'Recordatorio de Bunker',
+        newNoteContent.substring(0, 100) || 'Toca para abrir tu nota segura.',
+        finalDate,
+        true
+      );
+
+      setNewNoteReminderAt(finalDate.getTime());
+      setNewNoteCalendarEventId(calendarEventId);
+      setTempReminderDate(null);
+      Alert.alert('Éxito', `Recordatorio programado para el ${finalDate.toLocaleString()}`);
+    }
+  };
+
+  const handleReminderPress = () => {
+    setPickerSource('editor');
+    if (newNoteReminderAt) {
+      Alert.alert(
+        'Recordatorio Activo',
+        `Programado para el ${new Date(newNoteReminderAt).toLocaleString()}`,
+        [
+          { text: 'Modificar', onPress: () => setShowDatePicker(true) },
+          { 
+            text: 'Eliminar', 
+            style: 'destructive', 
+            onPress: async () => {
+              if (editingNoteId) {
+                await ReminderService.clearAllReminders(editingNoteId, newNoteCalendarEventId || undefined);
+              }
+              setNewNoteReminderAt(null);
+              setNewNoteCalendarEventId(null);
+            } 
+          },
+          { text: 'Cancelar', style: 'cancel' }
+        ]
+      );
+    } else {
+      setShowDatePicker(true);
+    }
+  };
+
+  const applyReminderDate = async (finalDate: Date) => {
+    if (finalDate.getTime() <= Date.now()) {
+      Alert.alert('Fecha inválida', 'El recordatorio debe ser en el futuro.');
+      return;
+    }
+
+    if (pickerSource === 'viewer' && selectedNote) {
+      const { notificationId, calendarEventId } = await ReminderService.scheduleReminder(
+        selectedNote.id,
+        selectedNote.title || 'Recordatorio de Bunker',
+        (selectedNote.content || '').substring(0, 100) || 'Toca para abrir tu nota segura.',
+        finalDate,
+        true
+      );
+      await database.write(async () => {
+        await selectedNote.update((n: any) => {
+          n.reminderAt = finalDate.getTime();
+          n.calendarEventId = calendarEventId;
+        });
+      });
+      setSelectedNote(prev => ({
+        ...prev,
+        reminderAt: finalDate.getTime(),
+        calendarEventId: calendarEventId,
+      } as any));
+      Alert.alert('Éxito', `Recordatorio programado para el ${finalDate.toLocaleString()}`);
+    } else {
+      let noteId = editingNoteId;
+      if (!noteId) {
+        await performAutosave();
+        noteId = noteStateRef.current.editingNoteId;
+        if (!noteId) {
+          Alert.alert('Error', 'Escribe un título o contenido para crear la nota antes de agregar un recordatorio.');
+          return;
+        }
+      }
+
+      const { notificationId, calendarEventId } = await ReminderService.scheduleReminder(
+        noteId,
+        newNoteTitle || 'Recordatorio de Bunker',
+        newNoteContent.substring(0, 100) || 'Toca para abrir tu nota segura.',
+        finalDate,
+        true
+      );
+
+      setNewNoteReminderAt(finalDate.getTime());
+      setNewNoteCalendarEventId(calendarEventId);
+      Alert.alert('Éxito', `Recordatorio programado para el ${finalDate.toLocaleString()}`);
+    }
+
+    setShowDatePicker(false);
+    setTempReminderDate(null);
+  };
+
+  const handleReminderPressFromViewer = () => {
+    if (!selectedNote) return;
+    setPickerSource('viewer');
+    const reminderAt = (selectedNote as any).reminderAt;
+    const calendarEventId = (selectedNote as any).calendarEventId;
+
+    if (reminderAt) {
+      Alert.alert(
+        'Recordatorio Activo',
+        `Programado para el ${new Date(reminderAt).toLocaleString()}`,
+        [
+          { text: 'Modificar', onPress: () => setShowDatePicker(true) },
+          { 
+            text: 'Eliminar', 
+            style: 'destructive', 
+            onPress: async () => {
+              await ReminderService.clearAllReminders(selectedNote.id, calendarEventId || undefined);
+              await database.write(async () => {
+                await selectedNote.update((n: any) => {
+                  n.reminderAt = null;
+                  n.calendarEventId = null;
+                });
+              });
+              setSelectedNote(prev => ({
+                ...prev,
+                reminderAt: null,
+                calendarEventId: null,
+              } as any));
+            } 
+          },
+          { text: 'Cancelar', style: 'cancel' }
+        ]
+      );
+    } else {
+      setShowDatePicker(true);
+    }
+  };
+
   const openEditModal = (note: NoteModel) => {
     setNewNoteTitle(note.title);
     setNewNoteContent(note.content || '');
@@ -1100,6 +1320,8 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     setRecordedAudioUri(note.audioUri || null);
     setNewNoteColor((note as any).color || 'default');
     setNewNoteIllustration((note as any).illustration || 'none');
+    setNewNoteReminderAt((note as any).reminderAt || null);
+    setNewNoteCalendarEventId((note as any).calendarEventId || null);
     setEditingNoteId(note.id);
     setSelectedNote(null);
     setShowCreateModal(true);
@@ -1112,12 +1334,19 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     setNewNoteSecure(false);
     setNewNoteColor('default');
     setNewNoteIllustration('none');
+    setNewNoteReminderAt(null);
+    setNewNoteCalendarEventId(null);
     setEditingNoteId(null);
   };
 
   const deleteNote = async (noteId: string) => {
     const note = notes.find(n => n.id === noteId);
     if (!note) return;
+    try {
+      await ReminderService.clearAllReminders(noteId, (note as any).calendarEventId);
+    } catch (err) {
+      console.error('Error al borrar recordatorios de nota eliminada:', err);
+    }
     await database.write(async () => {
       await note.destroyPermanently();
     });
@@ -2073,6 +2302,19 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   </TouchableOpacity>
 
                   <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {editingNoteId === null && (
+                      <TouchableOpacity 
+                        style={{ 
+                          padding: 8, 
+                          backgroundColor: newNoteReminderAt ? COLORS.bunkerAccent : 'transparent', 
+                          borderRadius: 8,
+                        }}
+                        onPress={handleReminderPress}
+                      >
+                        <MaterialIcons name={newNoteReminderAt ? "notifications-active" : "notifications-none"} size={26} color={newNoteReminderAt ? "#fff" : COLORS.bunkerAccent} />
+                      </TouchableOpacity>
+                    )}
+
                     <TouchableOpacity 
                       style={{ 
                         padding: 8, 
@@ -2312,12 +2554,24 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                       </View>
                     )}
                   </View>
-                  <TouchableOpacity onPress={() => openEditModal(selectedNote)}>
-                    <Text style={[styles.viewerClose, { color: COLORS.bunkerAccent, fontSize: 16, marginRight: 16, marginTop: 4 }]}>Editar</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={handleCloseViewer}>
-                    <Text style={[styles.viewerClose, { color: COLORS.textMuted }]}>✕</Text>
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 2 }}>
+                    <TouchableOpacity 
+                      onPress={handleReminderPressFromViewer}
+                      style={{ padding: 2 }}
+                    >
+                      <MaterialIcons 
+                        name={(selectedNote as any).reminderAt ? "notifications-active" : "notifications-none"} 
+                        size={24} 
+                        color={(selectedNote as any).reminderAt ? COLORS.accent : COLORS.bunkerAccent} 
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => openEditModal(selectedNote)}>
+                      <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.bunkerAccent, fontSize: 15, fontWeight: '600' }}>Editar</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={handleCloseViewer} style={{ padding: 2, marginLeft: 4 }}>
+                      <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.textMuted, fontSize: 22, fontWeight: '300', leadingHeight: 22 }}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
                 {selectedNote.audioUri ? (
@@ -2395,6 +2649,267 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
           )}
         </View>
       </Modal>
+
+      {/* GLOBAL REMINDER PICKER (Modal Segmentado Intuitivo) */}
+      {showDatePicker && (
+        <Modal transparent visible={showDatePicker} animationType="fade" onRequestClose={() => setShowDatePicker(false)}>
+          <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 20, zIndex: 99999 }} onPress={() => setShowDatePicker(false)}>
+            <Pressable style={{ backgroundColor: COLORS.cardBg, borderRadius: 20, padding: 24, width: '100%', maxWidth: 440, borderWidth: 1, borderColor: COLORS.border, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.15, shadowRadius: 16, elevation: 10 }} onPress={(e) => e.stopPropagation()}>
+              <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.text, fontSize: 20, fontWeight: 'bold', marginBottom: 4 }}>⏰ Programar Recordatorio</Text>
+              <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.textSecondary, fontSize: 13, marginBottom: 18 }}>Elegí la fecha y luego el momento u hora del día:</Text>
+
+              {/* PASO 1: SELECCIÓN DE FECHA (DÍA / MES / AÑO) */}
+              <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.bunkerAccent, fontSize: 11, fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 8, letterSpacing: 0.5 }}>1. Elegir Fecha (Día / Mes / Año)</Text>
+
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
+                <TouchableOpacity
+                  style={{
+                    paddingVertical: 8,
+                    paddingHorizontal: 14,
+                    borderRadius: 8,
+                    backgroundColor: (() => {
+                      const now = new Date();
+                      return reminderSelectedDate.getDate() === now.getDate() && reminderSelectedDate.getMonth() === now.getMonth() && reminderSelectedDate.getFullYear() === now.getFullYear() ? COLORS.bunkerAccent : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)');
+                    })(),
+                    borderWidth: 1,
+                    borderColor: COLORS.border,
+                  }}
+                  onPress={() => {
+                    const now = new Date();
+                    const updated = new Date(reminderSelectedDate);
+                    updated.setFullYear(now.getFullYear(), now.getMonth(), now.getDate());
+                    setReminderSelectedDate(updated);
+                  }}
+                >
+                  <Text style={{ fontFamily: COLORS.fontFamily, color: (() => {
+                    const now = new Date();
+                    return reminderSelectedDate.getDate() === now.getDate() && reminderSelectedDate.getMonth() === now.getMonth() && reminderSelectedDate.getFullYear() === now.getFullYear() ? '#fff' : COLORS.text;
+                  })(), fontSize: 13, fontWeight: '600' }}>Hoy</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={{
+                    paddingVertical: 8,
+                    paddingHorizontal: 14,
+                    borderRadius: 8,
+                    backgroundColor: (() => {
+                      const tom = new Date();
+                      tom.setDate(tom.getDate() + 1);
+                      return reminderSelectedDate.getDate() === tom.getDate() && reminderSelectedDate.getMonth() === tom.getMonth() && reminderSelectedDate.getFullYear() === tom.getFullYear() ? COLORS.bunkerAccent : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)');
+                    })(),
+                    borderWidth: 1,
+                    borderColor: COLORS.border,
+                  }}
+                  onPress={() => {
+                    const tom = new Date();
+                    tom.setDate(tom.getDate() + 1);
+                    const updated = new Date(reminderSelectedDate);
+                    updated.setFullYear(tom.getFullYear(), tom.getMonth(), tom.getDate());
+                    setReminderSelectedDate(updated);
+                  }}
+                >
+                  <Text style={{ fontFamily: COLORS.fontFamily, color: (() => {
+                    const tom = new Date();
+                    tom.setDate(tom.getDate() + 1);
+                    return reminderSelectedDate.getDate() === tom.getDate() && reminderSelectedDate.getMonth() === tom.getMonth() && reminderSelectedDate.getFullYear() === tom.getFullYear() ? '#fff' : COLORS.text;
+                  })(), fontSize: 13, fontWeight: '600' }}>Mañana</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Selector Estructurado de Fecha */}
+              {Platform.OS === 'web' ? (
+                <View style={{ marginBottom: 18 }}>
+                  <TextInput
+                    style={{
+                      fontFamily: COLORS.fontFamily,
+                      color: COLORS.text,
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                      padding: 10,
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      borderColor: COLORS.border,
+                      fontSize: 14,
+                    }}
+                    {...({ type: 'date' } as any)}
+                    value={(() => {
+                      const yyyy = reminderSelectedDate.getFullYear();
+                      const mm = String(reminderSelectedDate.getMonth() + 1).padStart(2, '0');
+                      const dd = String(reminderSelectedDate.getDate()).padStart(2, '0');
+                      return `${yyyy}-${mm}-${dd}`;
+                    })()}
+                    onChange={(e: any) => {
+                      const val = e.target.value;
+                      if (!val) return;
+                      const [y, m, d] = val.split('-').map(Number);
+                      const updated = new Date(reminderSelectedDate);
+                      updated.setFullYear(y, m - 1, d);
+                      setReminderSelectedDate(updated);
+                    }}
+                  />
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={{
+                    padding: 12,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: COLORS.border,
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                    marginBottom: 18,
+                  }}
+                  onPress={() => {
+                    setShowDatePicker(false);
+                    setShowTimePicker(true);
+                  }}
+                >
+                  <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.text, fontSize: 14 }}>
+                    📅 {reminderSelectedDate.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {/* PASO 2: SELECCIÓN DE MOMENTO / HORA DEL DÍA */}
+              <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.bunkerAccent, fontSize: 11, fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 8, letterSpacing: 0.5 }}>2. Elegir Hora / Momento del Día</Text>
+
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+                <TouchableOpacity
+                  style={{
+                    paddingVertical: 9,
+                    paddingHorizontal: 12,
+                    borderRadius: 10,
+                    backgroundColor: reminderTimeSlot === 'morning' ? COLORS.bunkerAccent : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
+                    borderWidth: 1,
+                    borderColor: COLORS.border,
+                  }}
+                  onPress={() => {
+                    setReminderTimeSlot('morning');
+                    const updated = new Date(reminderSelectedDate);
+                    updated.setHours(9, 0, 0, 0);
+                    setReminderSelectedDate(updated);
+                  }}
+                >
+                  <Text style={{ fontFamily: COLORS.fontFamily, color: reminderTimeSlot === 'morning' ? '#fff' : COLORS.text, fontSize: 13, fontWeight: '600' }}>🌅 Mañana (09:00)</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={{
+                    paddingVertical: 9,
+                    paddingHorizontal: 12,
+                    borderRadius: 10,
+                    backgroundColor: reminderTimeSlot === 'afternoon' ? COLORS.bunkerAccent : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
+                    borderWidth: 1,
+                    borderColor: COLORS.border,
+                  }}
+                  onPress={() => {
+                    setReminderTimeSlot('afternoon');
+                    const updated = new Date(reminderSelectedDate);
+                    updated.setHours(15, 0, 0, 0);
+                    setReminderSelectedDate(updated);
+                  }}
+                >
+                  <Text style={{ fontFamily: COLORS.fontFamily, color: reminderTimeSlot === 'afternoon' ? '#fff' : COLORS.text, fontSize: 13, fontWeight: '600' }}>☀️ Tarde (15:00)</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={{
+                    paddingVertical: 9,
+                    paddingHorizontal: 12,
+                    borderRadius: 10,
+                    backgroundColor: reminderTimeSlot === 'night' ? COLORS.bunkerAccent : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
+                    borderWidth: 1,
+                    borderColor: COLORS.border,
+                  }}
+                  onPress={() => {
+                    setReminderTimeSlot('night');
+                    const updated = new Date(reminderSelectedDate);
+                    updated.setHours(21, 0, 0, 0);
+                    setReminderSelectedDate(updated);
+                  }}
+                >
+                  <Text style={{ fontFamily: COLORS.fontFamily, color: reminderTimeSlot === 'night' ? '#fff' : COLORS.text, fontSize: 13, fontWeight: '600' }}>🌙 Noche (21:00)</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={{
+                    paddingVertical: 9,
+                    paddingHorizontal: 12,
+                    borderRadius: 10,
+                    backgroundColor: reminderTimeSlot === 'custom' ? COLORS.bunkerAccent : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
+                    borderWidth: 1,
+                    borderColor: COLORS.border,
+                  }}
+                  onPress={() => setReminderTimeSlot('custom')}
+                >
+                  <Text style={{ fontFamily: COLORS.fontFamily, color: reminderTimeSlot === 'custom' ? '#fff' : COLORS.text, fontSize: 13, fontWeight: '600' }}>⏱️ Hora Exacta</Text>
+                </TouchableOpacity>
+              </View>
+
+              {reminderTimeSlot === 'custom' && (
+                <View style={{ marginBottom: 16 }}>
+                  {Platform.OS === 'web' ? (
+                    <TextInput
+                      style={{
+                        fontFamily: COLORS.fontFamily,
+                        color: COLORS.text,
+                        backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                        padding: 10,
+                        borderRadius: 10,
+                        borderWidth: 1,
+                        borderColor: COLORS.border,
+                        fontSize: 14,
+                        width: 140,
+                      }}
+                      {...({ type: 'time' } as any)}
+                      value={(() => {
+                        const hh = String(reminderSelectedDate.getHours()).padStart(2, '0');
+                        const mm = String(reminderSelectedDate.getMinutes()).padStart(2, '0');
+                        return `${hh}:${mm}`;
+                      })()}
+                      onChange={(e: any) => {
+                        const val = e.target.value;
+                        if (!val) return;
+                        const [h, m] = val.split(':').map(Number);
+                        const updated = new Date(reminderSelectedDate);
+                        updated.setHours(h, m, 0, 0);
+                        setReminderSelectedDate(updated);
+                      }}
+                    />
+                  ) : null}
+                </View>
+              )}
+
+              {/* VISTA PREVIA DE LA PROGRAMACIÓN */}
+              <View style={{ padding: 10, borderRadius: 8, backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', marginBottom: 16 }}>
+                <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.textMuted, fontSize: 12 }}>
+                  🔔 Se notificará el <Text style={{ fontWeight: 'bold', color: COLORS.text }}>{reminderSelectedDate.toLocaleString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</Text>
+                </Text>
+              </View>
+
+              {/* BOTONES DE ACCIÓN */}
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12 }}>
+                <TouchableOpacity 
+                  style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10 }}
+                  onPress={() => {
+                    setShowDatePicker(false);
+                    setTempReminderDate(null);
+                  }}
+                >
+                  <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.textMuted, fontWeight: '600' }}>Cancelar</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={{ paddingVertical: 10, paddingHorizontal: 20, borderRadius: 10, backgroundColor: COLORS.bunkerAccent }}
+                  onPress={() => {
+                    applyReminderDate(reminderSelectedDate);
+                  }}
+                >
+                  <Text style={{ fontFamily: COLORS.fontFamily, color: '#fff', fontWeight: '600' }}>Confirmar</Text>
+                </TouchableOpacity>
+              </View>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      )}
 
       {/* PIN MODAL ESTILO BANCO GALICIA */}
       <Modal visible={pinModalVisible} animationType="slide" transparent onRequestClose={() => setPinModalVisible(false)}>
@@ -2948,11 +3463,11 @@ const styles = StyleSheet.create({
   saveButtonText: { fontSize: 16, fontWeight: '600', color: '#fff' },
   viewerOverlay: { flex: 1 },
   viewerContent: { flex: 1, width: '100%', padding: 24, paddingTop: 40 },
-  viewerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
-  viewerTitleRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  viewerTitle: { fontSize: 28, fontWeight: '700', flex: 1 },
-  viewerSecureBadge: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
-  viewerSecureIcon: { fontSize: 14 },
+  viewerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
+  viewerTitleRow: { flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginRight: 8 },
+  viewerTitle: { fontSize: 26, fontWeight: '700', flex: 1, lineHeight: 32 },
+  viewerSecureBadge: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginTop: 2 },
+  viewerSecureIcon: { fontSize: 13 },
   viewerClose: { fontSize: 28, padding: 4 },
   viewerBody: { flex: 1, marginBottom: 20 },
   viewerText: { fontSize: 18, lineHeight: 28 },

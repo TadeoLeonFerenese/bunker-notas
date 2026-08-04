@@ -17,6 +17,7 @@ export interface Note {
   audioUri?: string;
   color?: string;
   illustration?: string;
+  reminderAt?: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -171,6 +172,11 @@ const NoteCardBase = ({
                   <Text style={{ fontSize: 9 }}>📷</Text>
                 </View>
               )}
+              {!!note.reminderAt && (
+                <View style={[stylesGrid.audioBadge, { backgroundColor: isDark ? '#4A5568' : '#FEFCBF' }]}>
+                  <Text style={{ fontSize: 9 }}>⏰</Text>
+                </View>
+              )}
               <Text style={[stylesGrid.date, { color: COLORS.textMuted }]}>{formatDate(note.createdAt)}</Text>
             </View>
             <TouchableOpacity onPress={handleToggleMark} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -271,6 +277,12 @@ const NoteCardBase = ({
                   <Text style={{ fontSize: 11, marginRight: 4 }}>📷</Text>
                 )}
                 <Text style={[stylesList.audioText, { color: isDark ? '#E2E8F0' : '#2B6CB0' }]}>Imagen</Text>
+              </View>
+            )}
+            {!!note.reminderAt && (
+              <View style={[stylesList.audioBadge, { backgroundColor: isDark ? '#2D3748' : '#FEFCBF', borderColor: isDark ? '#4A5568' : '#F6E05E', borderWidth: 1, flexDirection: 'row', alignItems: 'center' }]}>
+                <Text style={{ fontSize: 11, marginRight: 4 }}>⏰</Text>
+                <Text style={[stylesList.audioText, { color: isDark ? '#FEFCBF' : '#B7791F' }]}>Recordatorio</Text>
               </View>
             )}
             <Text style={[stylesList.date, { color: COLORS.textMuted }]}>{formatDate(note.createdAt)}</Text>
