@@ -89,8 +89,16 @@ Permitir la carga, visualización y recepción (vía Share Intent o local) de im
    * **Monetización en Google Play Store:** Venta de la app (Paid App) o descargas gratuitas con compras In-App (suscripciones para almacenamiento en la nube, sincronización selectiva u otras features premium).
    * **Requisitos Google Play:** Registro de desarrollador ($25 USD), compilación en formato `.aab` mediante EAS Build, Política de Privacidad, y superar la fase de pruebas cerradas de 20 testers por 14 días.
 
-3. **Modo Sincronización Local-First:**
-   * Sistema de sincronización selectiva con el backend remoto cifrado de extremo a extremo.
+3. **Google Drive Silent Zero-Knowledge Auto-Backup (Próxima Fase 🎯):**
+   * **Problema:** En aplicaciones Local-First, si el usuario pierde, rompe o cambia de celular sin realizar una exportación manual previa, la base de datos local (WatermelonDB) se pierde irremediablemente.
+   * **Solución Arquitectónica:** Sistema de copias de seguridad automáticas en segundo plano utilizando la carpeta privada de aplicaciones de **Google Drive (`appDataFolder`)** de la propia cuenta del usuario.
+   * **Pilares de la Solución:**
+     1. **Cero Costo de Servidores:** Utiliza el espacio de almacenamiento del propio usuario en Google Drive (15GB gratis) sin requerir pagar servidores propios de AWS/Firebase.
+     2. **Cifrado Real Zero-Knowledge:** Antes de subir la copia `.bunkerbackup`, las notas y metadatos se empaquetan y cifran en el celular usando **AES-256** con la clave derivada del PIN (PBKDF2 + Salt). Ni Google ni nadie con acceso a la cuenta puede leer las notas ni archivos.
+     3. **Recuperación Automática entre Celulares:** Al instalar la APK en un dispositivo nuevo e iniciar sesión con Google, la app detecta automáticamente la copia de seguridad cifrada en Google Drive y solicita el PIN para restaurar WatermelonDB de forma transparente.
+     4. **Optimización de Espacio & Toggles:** Las notas de texto comprimidas ocupan <1MB. Se incluye un selector en la app: `[x] Respaldar notas y claves (Obligatorio)` y `[x] Incluir fotos y audios (Opcional)`, gestionando atajos si el almacenamiento de Google Drive del usuario está saturado.
+4. **Modo Sincronización Local-First:**
+   * Sistema de sincronización selectiva cliente-servidor cifrado de extremo a extremo para usuarios con infraestructura propia o servidores dedicados.
 
 ---
 
