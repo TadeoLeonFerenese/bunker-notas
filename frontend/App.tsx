@@ -2569,7 +2569,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                       <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.bunkerAccent, fontSize: 15, fontWeight: '600' }}>Editar</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={handleCloseViewer} style={{ padding: 2, marginLeft: 4 }}>
-                      <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.textMuted, fontSize: 22, fontWeight: '300', leadingHeight: 22 }}>✕</Text>
+                      <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.textMuted, fontSize: 22, fontWeight: '300', lineHeight: 22 }}>✕</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
