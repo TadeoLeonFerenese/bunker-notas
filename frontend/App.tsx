@@ -24,6 +24,8 @@ import {
   FlatList,
   Image,
   Animated,
+  AppState,
+  Switch,
 } from 'react-native';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -43,6 +45,7 @@ import RenderHtml from 'react-native-render-html';
 import { ThemeProvider, useTheme, ThemeType } from './src/theme/ThemeContext';
 import { encryption, encryptFile, decryptFile } from './src/notes/encryption';
 import { backupService } from './src/backup/BackupService';
+import { GoogleDriveService, GoogleDriveStatus } from './src/backup/GoogleDriveService';
 import { AIService, AIProvider } from './src/ai/AIService';
 import { ReminderService } from './src/notes/ReminderService';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -144,6 +147,38 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [showBurgerMenu, setShowBurgerMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [backupModalVisible, setBackupModalVisible] = useState(false);
+  const [googleStatus, setGoogleStatus] = useState<GoogleDriveStatus>({
+    isConnected: false,
+    userEmail: null,
+    lastBackupAt: null,
+  });
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
+  const [backupMediaEnabled, setBackupMediaEnabled] = useState(false);
+  const [backupFrequency, setBackupFrequency] = useState<'manual' | 'daily' | 'weekly'>('manual');
+
+  useEffect(() => {
+    const loadGoogleSettings = async () => {
+      try {
+        const status = await GoogleDriveService.getStatus();
+        setGoogleStatus(status);
+
+        const auto = await AsyncStorage.getItem('@bunker_auto_backup_enabled');
+        setAutoBackupEnabled(auto === 'true');
+
+        const media = await AsyncStorage.getItem('@bunker_backup_media_enabled');
+        setBackupMediaEnabled(media === 'true');
+
+        const freq = await AsyncStorage.getItem('@bunker_backup_frequency');
+        if (freq) {
+          setBackupFrequency(freq as any);
+        }
+      } catch (e) {
+        console.log('Error al cargar la configuración de Google Drive', e);
+      }
+    };
+    loadGoogleSettings();
+  }, []);
   const [aiPrompt, setAiPrompt] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiConfigModal, setAiConfigModal] = useState(false);
@@ -211,16 +246,51 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
   // Manejo de Deep Linking
   useEffect(() => {
-    if (initialUrl) {
-      const { hostname, path, queryParams } = Linking.parse(initialUrl);
+    const handleUrl = async (url: string) => {
+      const { hostname, path, queryParams } = Linking.parse(url);
       if (path === 'create' || hostname === 'create') {
         const title = queryParams?.title as string || '';
         const content = queryParams?.content as string || '';
         if (title || content) {
           setPendingExternalNote({ title, content });
         }
+      } else if (path === 'oauth' || hostname === 'oauth') {
+        const code = queryParams?.code as string;
+        if (code) {
+          try {
+            setBackupLoading(true);
+            const email = await GoogleDriveService.handleAuthRedirect(url);
+            setGoogleStatus(prev => ({
+              ...prev,
+              isConnected: true,
+              userEmail: email,
+            }));
+            Alert.alert('Éxito', `Conectado a Google Drive como: ${email}`);
+          } catch (err: any) {
+            Alert.alert('Error de Conexión', err.message || 'No se pudo conectar a Google Drive.');
+          } finally {
+            setBackupLoading(false);
+          }
+        }
       }
+    };
+
+    if (initialUrl) {
+      handleUrl(initialUrl);
     }
+
+    let subscription: { remove: () => void } | null = null;
+    if (Linking && typeof Linking.addEventListener === 'function') {
+      subscription = Linking.addEventListener('url', (event: { url: string }) => {
+        handleUrl(event.url);
+      });
+    }
+
+    return () => {
+      if (subscription) {
+        subscription.remove();
+      }
+    };
   }, [initialUrl]);
 
   // Manejo de Share Intent
@@ -1378,6 +1448,175 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     setBackupModalVisible(true);
   };
 
+  const handleGoogleConnect = async () => {
+    try {
+      await GoogleDriveService.initiateAuth();
+    } catch (e: any) {
+      Alert.alert('Error', 'No se pudo iniciar el flujo de vinculación de Google.');
+    }
+  };
+
+  const handleGoogleDisconnect = async () => {
+    Alert.alert('Desvincular Cuenta', '¿Estás seguro de que quieres desvincular tu cuenta de Google Drive?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Desvincular',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            setBackupLoading(true);
+            await GoogleDriveService.logout();
+            setGoogleStatus({
+              isConnected: false,
+              userEmail: null,
+              lastBackupAt: null,
+            });
+            Alert.alert('Éxito', 'Cuenta de Google Drive desvinculada.');
+          } catch (e: any) {
+            Alert.alert('Error', 'No se pudo desvincular la cuenta.');
+          } finally {
+            setBackupLoading(false);
+          }
+        }
+      }
+    ]);
+  };
+
+  const handleGoogleBackupNow = async () => {
+    if (!encryption.hasSessionKey()) {
+      Alert.alert('Bóveda Bloqueada', 'Por favor, ingresá tu PIN para desbloquear la app antes de realizar la copia de seguridad.');
+      return;
+    }
+
+    try {
+      setBackupLoading(true);
+      const encrypted = await backupService.exportEncryptedBackup();
+      
+      // Subimos el JSON de notas cifrado
+      await GoogleDriveService.uploadFile('bunker_backup.enc', encrypted);
+
+      // Si está habilitado el backup de multimedia, sincronizamos de forma incremental
+      if (backupMediaEnabled) {
+        await backupService.syncMultimediaToDrive(true);
+      }
+
+      const now = new Date().toISOString();
+      await AsyncStorage.setItem('@bunker_google_last_backup_at', now);
+      setGoogleStatus(prev => ({
+        ...prev,
+        lastBackupAt: now,
+      }));
+
+      Alert.alert('Copia Completada', 'Tu copia de seguridad cifrada se subió a Google Drive con éxito.');
+    } catch (e: any) {
+      Alert.alert('Error de Backup', e.message || 'No se pudo completar la copia de seguridad.');
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
+  const handleGoogleRestore = async () => {
+    if (!encryption.hasSessionKey()) {
+      Alert.alert('Bóveda Bloqueada', 'Por favor, ingresá tu PIN para desbloquear la app antes de restaurar la copia de seguridad.');
+      return;
+    }
+
+    Alert.alert(
+      'Restaurar Copia',
+      'Esta acción importará las notas de tu copia en Google Drive. ¿Quieres continuar?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Restaurar',
+          onPress: async () => {
+            try {
+              setBackupLoading(true);
+              // Descargamos el JSON de backup encriptado
+              const encrypted = await GoogleDriveService.downloadFile('bunker_backup.enc');
+              
+              // Importamos notas
+              const count = await backupService.importEncryptedBackup(encrypted);
+
+              // Descargamos multimedia si la opción está habilitada
+              if (backupMediaEnabled) {
+                // Para descargar los audios, leemos el payload desencriptado temporalmente
+                const decrypted = encryption.decrypt(encrypted);
+                if (decrypted) {
+                  const data = JSON.parse(decrypted);
+                  if (data && Array.isArray(data.notes)) {
+                    await backupService.downloadMultimediaFromDrive(data.notes);
+                  }
+                }
+              }
+
+              Alert.alert('Restaurado con Éxito', `Se importaron ${count} notas y sus audios correspondientes.`);
+            } catch (e: any) {
+              Alert.alert('Error al Restaurar', e.message || 'No se pudo descargar o importar el respaldo.');
+            } finally {
+              setBackupLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  useEffect(() => {
+    const handleBackgroundBackup = async () => {
+      try {
+        const auto = await AsyncStorage.getItem('@bunker_auto_backup_enabled');
+        if (auto !== 'true') return;
+
+        const status = await GoogleDriveService.getStatus();
+        if (!status.isConnected) return;
+
+        if (!encryption.hasSessionKey()) return; // Si la bóveda está bloqueada, no hay sessionKey
+
+        const freq = await AsyncStorage.getItem('@bunker_backup_frequency') || 'manual';
+        if (freq === 'manual') return;
+
+        const lastStr = await AsyncStorage.getItem('@bunker_google_last_backup_at');
+        if (lastStr) {
+          const lastTime = new Date(lastStr).getTime();
+          const nowTime = Date.now();
+          const diffMs = nowTime - lastTime;
+          
+          if (freq === 'daily' && diffMs < 24 * 60 * 60 * 1000) return; // Menos de 1 día
+          if (freq === 'weekly' && diffMs < 7 * 24 * 60 * 60 * 1000) return; // Menos de 1 semana
+        }
+
+        // Realizamos la copia de seguridad silenciosa
+        const encrypted = await backupService.exportEncryptedBackup();
+        await GoogleDriveService.uploadFile('bunker_backup.enc', encrypted);
+
+        const mediaEnabled = await AsyncStorage.getItem('@bunker_backup_media_enabled');
+        if (mediaEnabled === 'true') {
+          await backupService.syncMultimediaToDrive(true);
+        }
+
+        const now = new Date().toISOString();
+        await AsyncStorage.setItem('@bunker_google_last_backup_at', now);
+        setGoogleStatus(prev => ({
+          ...prev,
+          lastBackupAt: now,
+        }));
+        console.log('[Background Backup] Copia de seguridad en segundo plano completada con éxito.');
+      } catch (err) {
+        console.warn('[Background Backup] Error en backup automático en background:', err);
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'background') {
+        handleBackgroundBackup();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
   // Filtration & Sorting
   const filteredNotes = notes.filter(note => {
     if (filter === 'marked' && !note.isMarked) return false;
@@ -2010,7 +2249,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   >
                     <MaterialIcons name="backup" size={18} color={COLORS.bunkerDark} />
                     <Text style={{ color: COLORS.bunkerDark, fontSize: 13, fontFamily: COLORS.fontFamily, fontWeight: '500' }}>
-                      Respaldar / Importar
+                      Copia de seguridad
                     </Text>
                   </TouchableOpacity>
 
@@ -3115,76 +3354,279 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       {/* BACKUP MODAL */}
       <Modal visible={backupModalVisible} animationType="fade" transparent onRequestClose={() => setBackupModalVisible(false)}>
         <Pressable style={styles.pinModalOverlay} onPress={() => setBackupModalVisible(false)}>
-          <Pressable style={[styles.pinModalContent, { backgroundColor: COLORS.surface }]} onPress={() => {}}>
-            <Text style={[styles.pinModalTitle, { color: COLORS.bunkerDark, marginBottom: 8 }]}>
-              Respaldo de Notas
+          <Pressable 
+            style={[
+              styles.pinModalContent, 
+              { 
+                backgroundColor: COLORS.surface, 
+                maxHeight: '85%', 
+                width: '90%', 
+                maxWidth: 360,
+                alignItems: 'stretch',
+                paddingHorizontal: 20
+              }
+            ]} 
+            onPress={() => {}}
+          >
+            <Text style={[styles.pinModalTitle, { color: COLORS.bunkerDark, marginBottom: 4, textAlign: 'center' }]}>
+              Copia de Seguridad
             </Text>
-            <Text style={[styles.pinModalSubtitle, { color: COLORS.bunkerGray, marginBottom: 24 }]}>
-              Elegí qué querés hacer con tus notas seguras.
+            <Text style={[styles.pinModalSubtitle, { color: COLORS.bunkerGray, marginBottom: 16, textAlign: 'center' }]}>
+              Resguardá tus notas y bóvedas seguras.
             </Text>
 
-            <TouchableOpacity
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                paddingVertical: 14,
-                paddingHorizontal: 20,
-                borderRadius: 12,
-                backgroundColor: COLORS.bunkerBg,
-                borderWidth: 1,
-                borderColor: COLORS.border,
-                marginBottom: 12,
-                gap: 12
-              }}
-              onPress={handleExport}
+            <ScrollView 
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 10 }}
             >
-              <MaterialIcons name="file-upload" size={24} color={COLORS.bunkerAccent} />
-              <View>
-                <Text style={{ color: COLORS.bunkerDark, fontSize: 16, fontWeight: '700', fontFamily: COLORS.fontFamily }}>Exportar notas</Text>
-                <Text style={{ color: COLORS.bunkerGray, fontSize: 13, fontFamily: COLORS.fontFamily }}>Crear un archivo encriptado .bunker</Text>
-              </View>
-            </TouchableOpacity>
+              {/* SECCIÓN 1: RESPALDO LOCAL */}
+              <Text style={{ color: COLORS.bunkerDark, fontSize: 14, fontWeight: '700', marginBottom: 10, fontFamily: COLORS.fontFamily }}>
+                Respaldo Local (.bunker)
+              </Text>
 
-            <TouchableOpacity
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                paddingVertical: 14,
-                paddingHorizontal: 20,
-                borderRadius: 12,
-                backgroundColor: COLORS.bunkerBg,
-                borderWidth: 1,
-                borderColor: COLORS.border,
-                marginBottom: 24,
-                gap: 12
-              }}
-              onPress={handleImport}
-            >
-              <MaterialIcons name="file-download" size={24} color={COLORS.bunkerAccent} />
-              <View>
-                <Text style={{ color: COLORS.bunkerDark, fontSize: 16, fontWeight: '700', fontFamily: COLORS.fontFamily }}>Importar notas</Text>
-                <Text style={{ color: COLORS.bunkerGray, fontSize: 13, fontFamily: COLORS.fontFamily }}>Restaurar desde un archivo .bunker</Text>
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingVertical: 12,
+                  paddingHorizontal: 16,
+                  borderRadius: 12,
+                  backgroundColor: COLORS.bunkerBg,
+                  borderWidth: 1,
+                  borderColor: COLORS.border,
+                  marginBottom: 10,
+                  gap: 12
+                }}
+                onPress={handleExport}
+              >
+                <MaterialIcons name="file-upload" size={22} color={COLORS.bunkerAccent} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: COLORS.bunkerDark, fontSize: 15, fontWeight: '700', fontFamily: COLORS.fontFamily }}>Exportar archivo</Text>
+                  <Text style={{ color: COLORS.bunkerGray, fontSize: 12, fontFamily: COLORS.fontFamily }}>Crea un archivo local encriptado</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingVertical: 12,
+                  paddingHorizontal: 16,
+                  borderRadius: 12,
+                  backgroundColor: COLORS.bunkerBg,
+                  borderWidth: 1,
+                  borderColor: COLORS.border,
+                  marginBottom: 16,
+                  gap: 12
+                }}
+                onPress={handleImport}
+              >
+                <MaterialIcons name="file-download" size={22} color={COLORS.bunkerAccent} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: COLORS.bunkerDark, fontSize: 15, fontWeight: '700', fontFamily: COLORS.fontFamily }}>Importar archivo</Text>
+                  <Text style={{ color: COLORS.bunkerGray, fontSize: 12, fontFamily: COLORS.fontFamily }}>Restaura notas desde tu dispositivo</Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* LÍNEA DIVISORIA */}
+              <View style={{ height: 1, backgroundColor: COLORS.border, marginBottom: 16 }} />
+
+              {/* SECCIÓN 2: GOOGLE DRIVE */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <Text style={{ color: COLORS.bunkerDark, fontSize: 14, fontWeight: '700', fontFamily: COLORS.fontFamily }}>
+                  Copia en la Nube (Google Drive)
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <MaterialIcons name="security" size={14} color={COLORS.bunkerAccent} />
+                  <Text style={{ color: COLORS.bunkerAccent, fontSize: 10, fontWeight: '700', fontFamily: COLORS.fontFamily }}>Zero-Knowledge</Text>
+                </View>
               </View>
-            </TouchableOpacity>
+
+              {backupLoading ? (
+                <View style={{ paddingVertical: 30, alignItems: 'center', gap: 10 }}>
+                  <ActivityIndicator size="large" color={COLORS.bunkerAccent} />
+                  <Text style={{ color: COLORS.bunkerGray, fontSize: 13, fontFamily: COLORS.fontFamily }}>Procesando en la nube...</Text>
+                </View>
+              ) : !googleStatus.isConnected ? (
+                <TouchableOpacity
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingVertical: 12,
+                    paddingHorizontal: 16,
+                    borderRadius: 12,
+                    backgroundColor: COLORS.bunkerBg,
+                    borderWidth: 1,
+                    borderColor: COLORS.border,
+                    marginBottom: 12,
+                    gap: 12
+                  }}
+                  onPress={handleGoogleConnect}
+                >
+                  <MaterialCommunityIcons name="google-drive" size={22} color={COLORS.bunkerAccent} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: COLORS.bunkerDark, fontSize: 15, fontWeight: '700', fontFamily: COLORS.fontFamily }}>Vincular Google Drive</Text>
+                    <Text style={{ color: COLORS.bunkerGray, fontSize: 12, fontFamily: COLORS.fontFamily }}>Conectá tu cuenta para el respaldo en la nube</Text>
+                  </View>
+                </TouchableOpacity>
+              ) : (
+                <View style={{ gap: 12 }}>
+                  {/* Ficha de cuenta vinculada */}
+                  <View style={{ backgroundColor: COLORS.bunkerBg, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: COLORS.border }}>
+                    <Text style={{ color: COLORS.bunkerDark, fontSize: 13, fontWeight: '600', fontFamily: COLORS.fontFamily }}>
+                      Cuenta: <Text style={{ color: COLORS.bunkerGray, fontWeight: 'normal' }}>{googleStatus.userEmail}</Text>
+                    </Text>
+                    <Text style={{ color: COLORS.bunkerDark, fontSize: 11, fontWeight: '600', fontFamily: COLORS.fontFamily, marginTop: 4 }}>
+                      Última copia: <Text style={{ color: COLORS.bunkerGray, fontWeight: 'normal' }}>
+                        {googleStatus.lastBackupAt ? new Date(googleStatus.lastBackupAt).toLocaleString() : 'Nunca'}
+                      </Text>
+                    </Text>
+                  </View>
+
+                  {/* Configuración Auto-Backup */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                      <Text style={{ color: COLORS.bunkerDark, fontSize: 14, fontWeight: '600', fontFamily: COLORS.fontFamily }}>Copia automática</Text>
+                      <Text style={{ color: COLORS.bunkerGray, fontSize: 11, fontFamily: COLORS.fontFamily }}>Respalda en segundo plano</Text>
+                    </View>
+                    <Switch
+                      value={autoBackupEnabled}
+                      trackColor={{ false: COLORS.border, true: COLORS.bunkerAccent }}
+                      thumbColor="#FFFFFF"
+                      onValueChange={async (val) => {
+                        setAutoBackupEnabled(val);
+                        await AsyncStorage.setItem('@bunker_auto_backup_enabled', val ? 'true' : 'false');
+                      }}
+                    />
+                  </View>
+
+                  {autoBackupEnabled && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 10 }}>
+                      <Text style={{ color: COLORS.bunkerDark, fontSize: 13, fontFamily: COLORS.fontFamily }}>Frecuencia:</Text>
+                      <View style={{ flexDirection: 'row', gap: 6 }}>
+                        {(['daily', 'weekly'] as const).map((freq) => (
+                          <TouchableOpacity
+                            key={freq}
+                            style={{
+                              paddingVertical: 5,
+                              paddingHorizontal: 10,
+                              borderRadius: 8,
+                              backgroundColor: backupFrequency === freq ? COLORS.bunkerAccent : COLORS.bunkerBg,
+                              borderWidth: 1,
+                              borderColor: COLORS.border
+                            }}
+                            onPress={async () => {
+                              setBackupFrequency(freq);
+                              await AsyncStorage.setItem('@bunker_backup_frequency', freq);
+                            }}
+                          >
+                            <Text style={{ color: backupFrequency === freq ? '#FFFFFF' : COLORS.bunkerDark, fontSize: 12, fontWeight: '600', fontFamily: COLORS.fontFamily }}>
+                              {freq === 'daily' ? 'Diario' : 'Semanal'}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Configuración de archivos pesados (Multimedia) */}
+                  <View style={{ gap: 4 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <View style={{ flex: 1, marginRight: 8 }}>
+                        <Text style={{ color: COLORS.bunkerDark, fontSize: 14, fontWeight: '600', fontFamily: COLORS.fontFamily }}>Respaldar fotos y audios</Text>
+                        <Text style={{ color: COLORS.bunkerGray, fontSize: 11, fontFamily: COLORS.fontFamily }}>Sincronización incremental individual</Text>
+                      </View>
+                      <Switch
+                        value={backupMediaEnabled}
+                        trackColor={{ false: COLORS.border, true: COLORS.bunkerAccent }}
+                        thumbColor="#FFFFFF"
+                        onValueChange={async (val) => {
+                          setBackupMediaEnabled(val);
+                          await AsyncStorage.setItem('@bunker_backup_media_enabled', val ? 'true' : 'false');
+                        }}
+                      />
+                    </View>
+                    <Text style={{ color: COLORS.bunkerAccent, fontSize: 10, fontStyle: 'italic', fontFamily: COLORS.fontFamily }}>
+                      ⚠️ Nota: Los audios grabados consumen más datos. Se sugiere realizar copias bajo conexión Wi-Fi.
+                    </Text>
+                  </View>
+
+                  {/* Acciones Drive */}
+                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 6 }}>
+                    <TouchableOpacity
+                      style={{
+                        flex: 1,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        paddingVertical: 12,
+                        borderRadius: 10,
+                        backgroundColor: COLORS.bunkerBg,
+                        borderWidth: 1,
+                        borderColor: COLORS.border,
+                        gap: 6
+                      }}
+                      onPress={handleGoogleBackupNow}
+                    >
+                      <MaterialIcons name="cloud-upload" size={18} color={COLORS.bunkerAccent} />
+                      <Text style={{ color: COLORS.bunkerDark, fontSize: 13, fontWeight: '700', fontFamily: COLORS.fontFamily }}>Subir copia</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={{
+                        flex: 1,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        paddingVertical: 12,
+                        borderRadius: 10,
+                        backgroundColor: COLORS.bunkerBg,
+                        borderWidth: 1,
+                        borderColor: COLORS.border,
+                        gap: 6
+                      }}
+                      onPress={handleGoogleRestore}
+                    >
+                      <MaterialIcons name="cloud-download" size={18} color={COLORS.bunkerAccent} />
+                      <Text style={{ color: COLORS.bunkerDark, fontSize: 13, fontWeight: '700', fontFamily: COLORS.fontFamily }}>Descargar</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Desvincular Cuenta */}
+                  <TouchableOpacity
+                    style={{
+                      alignSelf: 'center',
+                      paddingVertical: 4,
+                      marginTop: 4
+                    }}
+                    onPress={handleGoogleDisconnect}
+                  >
+                    <Text style={{ color: COLORS.bunkerAccent, fontSize: 13, fontWeight: '600', fontFamily: COLORS.fontFamily }}>
+                      Desvincular cuenta de Google
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </ScrollView>
 
             <TouchableOpacity
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
-                paddingVertical: 14,
-                paddingHorizontal: 20,
+                paddingVertical: 12,
                 borderRadius: 12,
                 backgroundColor: COLORS.bunkerBg,
                 borderWidth: 1,
                 borderColor: COLORS.border,
                 width: '100%',
+                marginTop: 12,
                 gap: 8
               }}
               onPress={() => setBackupModalVisible(false)}
             >
-              <MaterialIcons name="close" size={20} color={COLORS.bunkerGray} />
-              <Text style={{ color: COLORS.bunkerDark, fontSize: 16, fontWeight: '600', fontFamily: COLORS.fontFamily }}>Cerrar</Text>
+              <MaterialIcons name="close" size={18} color={COLORS.bunkerGray} />
+              <Text style={{ color: COLORS.bunkerDark, fontSize: 15, fontWeight: '600', fontFamily: COLORS.fontFamily }}>Cerrar</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>
