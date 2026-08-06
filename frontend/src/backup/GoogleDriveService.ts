@@ -15,6 +15,7 @@ export interface GoogleDriveStatus {
 
 export class GoogleDriveService {
   private static clientId: string = DEFAULT_CLIENT_ID;
+  private static customRedirectUri: string | null = null;
   private static accessToken: string | null = null;
   private static tokenExpiresAt: number = 0; // Timestamp en ms
 
@@ -22,7 +23,7 @@ export class GoogleDriveService {
    * Configura un Google Client ID personalizado si es necesario
    */
   static setClientId(id: string) {
-    this.clientId = id;
+    this.clientId = id.trim() || DEFAULT_CLIENT_ID;
   }
 
   /**
@@ -30,6 +31,20 @@ export class GoogleDriveService {
    */
   static getClientId(): string {
     return this.clientId;
+  }
+
+  /**
+   * Configura una URI de redireccionamiento personalizada (ej: un proxy HTTPS)
+   */
+  static setRedirectUri(uri: string) {
+    this.customRedirectUri = uri.trim() || null;
+  }
+
+  /**
+   * Obtiene la URI de redireccionamiento personalizada activa
+   */
+  static getRedirectUri(): string | null {
+    return this.customRedirectUri;
   }
 
   /**
@@ -75,7 +90,7 @@ export class GoogleDriveService {
     const Linking = require('expo-linking');
     const verifier = this.generateCodeVerifier();
     const challenge = this.generateCodeChallenge(verifier);
-    const redirectUri = Linking.createURL('/oauth');
+    const redirectUri = this.customRedirectUri || Linking.createURL('/oauth');
 
     // Guardamos el verifier y el redirectUri en AsyncStorage para cuando volvamos
     await AsyncStorage.setItem('@bunker_oauth_verifier', verifier);

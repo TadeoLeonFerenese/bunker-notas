@@ -156,12 +156,29 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
   const [backupMediaEnabled, setBackupMediaEnabled] = useState(false);
   const [backupFrequency, setBackupFrequency] = useState<'manual' | 'daily' | 'weekly'>('manual');
+  const [googleClientId, setGoogleClientId] = useState('');
+  const [googleRedirectUri, setGoogleRedirectUri] = useState('');
+  const [showAdvancedBackup, setShowAdvancedBackup] = useState(false);
 
   useEffect(() => {
     const loadGoogleSettings = async () => {
       try {
         const status = await GoogleDriveService.getStatus();
         setGoogleStatus(status);
+
+        const savedClientId = await AsyncStorage.getItem('@bunker_google_client_id');
+        if (savedClientId) {
+          GoogleDriveService.setClientId(savedClientId);
+          setGoogleClientId(savedClientId);
+        } else {
+          setGoogleClientId(GoogleDriveService.getClientId());
+        }
+
+        const savedRedirectUri = await AsyncStorage.getItem('@bunker_google_redirect_uri');
+        if (savedRedirectUri) {
+          GoogleDriveService.setRedirectUri(savedRedirectUri);
+          setGoogleRedirectUri(savedRedirectUri);
+        }
 
         const auto = await AsyncStorage.getItem('@bunker_auto_backup_enabled');
         setAutoBackupEnabled(auto === 'true');
@@ -3432,12 +3449,22 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
               <View style={{ height: 1, backgroundColor: COLORS.border, marginBottom: 16 }} />
 
               {/* SECCIÓN 2: GOOGLE DRIVE */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                <Text style={{ color: COLORS.bunkerDark, fontSize: 14, fontWeight: '700', fontFamily: COLORS.fontFamily }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 8 }}>
+                <Text style={{ color: COLORS.bunkerDark, fontSize: 14, fontWeight: '700', fontFamily: COLORS.fontFamily, flexShrink: 1 }}>
                   Copia en la Nube (Google Drive)
                 </Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <MaterialIcons name="security" size={14} color={COLORS.bunkerAccent} />
+                <View style={{ 
+                  flexDirection: 'row', 
+                  alignItems: 'center', 
+                  gap: 4, 
+                  backgroundColor: COLORS.bunkerBg, 
+                  paddingHorizontal: 6, 
+                  paddingVertical: 2, 
+                  borderRadius: 6, 
+                  borderWidth: 1, 
+                  borderColor: COLORS.border 
+                }}>
+                  <MaterialIcons name="security" size={12} color={COLORS.bunkerAccent} />
                   <Text style={{ color: COLORS.bunkerAccent, fontSize: 10, fontWeight: '700', fontFamily: COLORS.fontFamily }}>Zero-Knowledge</Text>
                 </View>
               </View>
@@ -3607,6 +3634,115 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   </TouchableOpacity>
                 </View>
               )}
+
+              {/* CONFIGURACIÓN AVANZADA COLAPSABLE */}
+              <View style={{ marginTop: 16 }}>
+                <TouchableOpacity
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingVertical: 8,
+                    borderTopWidth: 1,
+                    borderTopColor: COLORS.border,
+                    paddingTop: 12
+                  }}
+                  onPress={() => setShowAdvancedBackup(!showAdvancedBackup)}
+                >
+                  <Text style={{ color: COLORS.bunkerDark, fontSize: 13, fontWeight: '700', fontFamily: COLORS.fontFamily }}>
+                    ⚙️ Configuración Avanzada Cloud
+                  </Text>
+                  <MaterialIcons 
+                    name={showAdvancedBackup ? "expand-less" : "expand-more"} 
+                    size={20} 
+                    color={COLORS.bunkerGray} 
+                  />
+                </TouchableOpacity>
+
+                {showAdvancedBackup && (
+                  <View style={{ marginTop: 10, gap: 10, paddingBottom: 10 }}>
+                    {/* INPUT CLIENT ID */}
+                    <Text style={{ color: COLORS.bunkerDark, fontSize: 12, fontWeight: '600', fontFamily: COLORS.fontFamily }}>
+                      Google Client ID (OAuth2 Web)
+                    </Text>
+                    <TextInput
+                      style={{
+                        backgroundColor: COLORS.bunkerBg,
+                        color: COLORS.text || COLORS.bunkerDark,
+                        padding: 10,
+                        borderRadius: 10,
+                        fontFamily: COLORS.fontFamily,
+                        borderWidth: 1,
+                        borderColor: COLORS.border,
+                        fontSize: 12
+                      }}
+                      placeholder="Pegá tu Google Client ID de tipo Web"
+                      placeholderTextColor={COLORS.bunkerGray}
+                      value={googleClientId}
+                      onChangeText={setGoogleClientId}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+
+                    {/* INPUT REDIRECT URI */}
+                    <Text style={{ color: COLORS.bunkerDark, fontSize: 12, fontWeight: '600', fontFamily: COLORS.fontFamily }}>
+                      Redirect URI / Proxy URL (Opcional)
+                    </Text>
+                    <TextInput
+                      style={{
+                        backgroundColor: COLORS.bunkerBg,
+                        color: COLORS.text || COLORS.bunkerDark,
+                        padding: 10,
+                        borderRadius: 10,
+                        fontFamily: COLORS.fontFamily,
+                        borderWidth: 1,
+                        borderColor: COLORS.border,
+                        fontSize: 12
+                      }}
+                      placeholder="Ej: https://tu-proxy.vercel.app/oauth"
+                      placeholderTextColor={COLORS.bunkerGray}
+                      value={googleRedirectUri}
+                      onChangeText={setGoogleRedirectUri}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+
+                    <Text style={{ color: COLORS.bunkerGray, fontSize: 10, fontFamily: COLORS.fontFamily, lineHeight: 14 }}>
+                      ⚠️ <Text style={{ fontWeight: 'bold' }}>Importante:</Text> En Google Cloud Console, el cliente OAuth2 debe crearse como de tipo <Text style={{ fontWeight: 'bold', color: COLORS.bunkerAccent }}>Web Application</Text>. Si usás un proxy redireccionador, configurá su URL arriba.
+                    </Text>
+                    <TouchableOpacity
+                      style={{
+                        backgroundColor: COLORS.bunkerAccent,
+                        paddingVertical: 10,
+                        borderRadius: 8,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginTop: 4
+                      }}
+                      onPress={async () => {
+                        try {
+                          const cleanId = googleClientId.trim();
+                          const cleanUri = googleRedirectUri.trim();
+                          
+                          await AsyncStorage.setItem('@bunker_google_client_id', cleanId);
+                          GoogleDriveService.setClientId(cleanId);
+
+                          await AsyncStorage.setItem('@bunker_google_redirect_uri', cleanUri);
+                          GoogleDriveService.setRedirectUri(cleanUri);
+
+                          Alert.alert('Configuración guardada', 'Las credenciales de Google Drive se actualizaron.');
+                        } catch (err) {
+                          Alert.alert('Error', 'No se pudo guardar la configuración.');
+                        }
+                      }}
+                    >
+                      <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700', fontFamily: COLORS.fontFamily }}>
+                        Guardar Configuración
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
             </ScrollView>
 
             <TouchableOpacity
@@ -3919,8 +4055,8 @@ const styles = StyleSheet.create({
   pinModalContent: { width: '100%', maxWidth: 340, borderRadius: 20, padding: 24, alignItems: 'center' },
   pinModalTitle: { fontSize: 22, fontWeight: '700', marginBottom: 8 },
   pinModalSubtitle: { fontSize: 14, marginBottom: 24 },
-  pinModalBoxContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 24, position: 'relative' },
-  pinModalBox: { width: 42, height: 42, borderRadius: 12, borderWidth: 1.5, justifyContent: 'center', alignItems: 'center' },
+  pinModalBoxContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 24, position: 'relative', gap: 6 },
+  pinModalBox: { flex: 1, aspectRatio: 1, maxWidth: 42, borderRadius: 12, borderWidth: 1.5, justifyContent: 'center', alignItems: 'center' },
   pinModalBoxText: { fontSize: 24 },
   pinModalHiddenInput: { ...StyleSheet.absoluteFillObject, opacity: 0, fontSize: 1 },
   pinModalBiometricBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderRadius: 14, paddingVertical: 14, width: '100%', marginBottom: 20, gap: 10 },

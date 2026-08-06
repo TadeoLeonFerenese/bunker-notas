@@ -98,9 +98,14 @@ Permitir la carga, visualización y recepción (vía Share Intent o local) de im
      3. **Sincronización Incremental de Multimedia:** Las notas de voz y fotos se encriptan individualmente y se suben como archivos separados, permitiendo sincronización incremental eficiente y previniendo fallas de memoria (OutOfMemory) en el celular.
      4. **Frecuencia Inteligente y Programable:** Configuración de backups manuales o programados (Diario / Semanal) en segundo plano (AppState en background) para evitar procesos innecesarios y consumo excesivo de batería/datos.
      5. **Autenticación PKCE (Expo Go Friendly):** Flujo de OAuth2 con PKCE implementado 100% en JavaScript puro, manteniendo compatibilidad con Expo Go y sin dependencias nativas pesadas que compliquen el desarrollo local.
+         * > [!IMPORTANT]
+           > **Configuración del Cliente OAuth en Google Cloud (Web vs. Android):** Debido a que el flujo PKCE se ejecuta en JavaScript puro abriendo el navegador del sistema y volviendo por deep link, en Google Cloud Console se debe registrar el Client ID como de tipo **"Web Application" (Web)** y no de tipo **"Android"**. Las credenciales de tipo Android exigen validación de firma nativa SHA-1 y bloquean el intercambio directo de tokens vía HTTP, impidiendo que la app funcione.
 
 4. **Modo Sincronización Local-First (Próxima Fase 🎯):**
    * Sistema de sincronización selectiva cliente-servidor cifrado de extremo a extremo para usuarios con infraestructura propia o servidores dedicados.
+
+## 🛠️ Bugs & Mejoras de UI Pendientes
+- 🔴 **Responsive de Títulos en Modales (Backup Modal):** El título `"Copia en la Nube (Google Drive)"` se corta horizontalmente en pantallas reales (ej. Poco F8 Ultra) debido al badge inline `"Zero-Knowledge"`. Se requiere reestructurar la cabecera del modal para soportar envoltura de texto, apilar los elementos verticalmente en pantallas angostas o reducir dinámicamente el tamaño de la fuente.
 
 ---
 

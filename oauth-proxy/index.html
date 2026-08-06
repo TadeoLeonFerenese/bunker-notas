@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Bunker Notas - Redirección OAuth</title>
+</head>
+<body>
+    <div style="font-family: sans-serif; text-align: center; margin-top: 50px;">
+        <h2>🔐 Redirigiendo a Bunker Notas...</h2>
+        <p>Si la aplicación no se abre automáticamente, asegúrate de estar en tu dispositivo móvil.</p>
+    </div>
+
+    <script>
+        // Capturar los parámetros de la URL enviados por Google
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const state = urlParams.get('state');
+        const error = urlParams.get('error');
+
+        if (code) {
+            // Reconstruye el deep link nativo con el código de Google
+            let deepLink = `bunkernotas://oauth?code=${encodeURIComponent(code)}`;
+            if (state) {
+                deepLink += `&state=${encodeURIComponent(state)}`;
+            }
+            // Redirige al celular
+            window.location.href = deepLink;
+        } else if (error) {
+            alert("Error de autenticación con Google: " + error);
+        }
+    </script>
+</body>
+</html>
