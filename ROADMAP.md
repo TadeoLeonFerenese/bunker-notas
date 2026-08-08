@@ -71,16 +71,27 @@ Permitir la carga, visualización y recepción (vía Share Intent o local) de im
 
 ---
 
-## 3. MVP 3 (Fase 3: Notificaciones Locales y Calendario Nativo ✅)
+## 3. MVP 3 (Fase 3: Notificaciones Locales, Calendario Nativo y Google Drive Backup ✅)
 
 1. **Integración con Calendario Nativo y Recordatorios (Completado ✅):**
    * **Servicio de Recordatorios Encapsulado:** Se creó `ReminderService.ts` utilizando `expo-notifications` y `expo-calendar` para programar alertas locales de una sola vez, solicitar permisos al dispositivo, gestionar eventos en la agenda interna y cancelar notificaciones al eliminar o actualizar notas.
+   * **Canal de Notificaciones de Alta Prioridad en Android (API 26+):**
+     * Se implementó `setupNotificationChannel()` configurando el canal `bunker_reminders` con `AndroidImportance.MAX`, sonido por defecto y patrón de vibración `[0, 250, 250, 250]`. Esto garantiza que las alarmas traspasen los modos de optimización de batería agresivos en dispositivos Android (Xiaomi MIUI/HyperOS, Samsung OneUI, Motorola, etc.).
    * **Migración de Esquema (WatermelonDB v3):** Se incrementó la versión del esquema de la base de datos de v2 a v3 en `schema.ts`. Se definieron las columnas `reminder_at` y `calendar_event_id` y su correspondiente migración segura en `migrations.ts` y decoradores en `Note.ts`.
+   * **Preservación de Getters de WatermelonDB en React State:**
+     * *Problema Resuelto:* Al actualizar `selectedNote` tras agendar una alarma, el operador spread `{ ...prev }` sobre instancias de `NoteModel` vaciaba las propiedades de clase no enumerables (`title`, `content`), dejando la pantalla en blanco.
+     * *Solución:* Mapeo explícito de propiedades (`id`, `title`, `content`, `isSecure`, `isMarked`, `audioUri`, `color`, `illustration`, `createdAt`, `reminderAt`, `calendarEventId`) al modificar el estado.
    * **UI Intuitiva Segmentada en 2 Pasos:**
      * **Gestión desde el Visor (Viewer Modal):** Para notas existentes, el recordatorio se administra directamente desde el visor de notas (Viewer Modal), liberando de carga al editor de texto.
-     * **Gestión al Crear:** Para notas nuevas (`+`), la campana se muestra en el editor para agendar la alarma antes de guardar.
+     * **Gestión al Crear y al Editar:** La campanita de recordatorio está disponible tanto en la creación (`+`) como durante la edición de cualquier nota existente.
      * **Modal Segmentado (Fecha + Hora):** Modal flotante de 2 pasos con accesos rápidos `[Hoy]` `[Mañana]`, selector de almanaque estructurado `[Día/Mes/Año]`, presets de momento del día (`🌅 Mañana 09:00`, `☀️ Tarde 15:00`, `🌙 Noche 21:00`, `⏱️ Hora Exacta`) y vista previa en tiempo real.
-     * **Alineación de Header:** Ajuste de maquetación en el header del visor (`alignItems: 'flex-start'`) fijando la alineación del candado 🔒 y la botonera (campana ⏰, Editar, ✕) en la primera línea del título para evitar desdoblamientos o saltos al tener títulos largos.
+     * **Selectores de Hora Exacta Optimizados:**
+       * *En Web:* Dos selectores independientes (`<select>`) para Horas (`00`-`23`) y Minutos (`00`-`59`), eliminando la tosquedad del input de tiempo nativo del navegador.
+       * *En Nativo (Android/iOS):* Apertura del `DateTimePicker` nativo del sistema para selección táctil intuitiva con reloj/rueda.
+     * **Validación de Horarios:** Bloqueo proactivo con alerta cuando se intenta agendar una hora que ya transcurrió en el día de hoy.
+     * **Modificación y Eliminación Fluida (Sin Bloqueos):** Se eliminó el diálogo `Alert.alert` del sistema operativo (que se congelaba en navegadores web). Al tocar la campanita de una nota con alarma activa, el modal se abre de inmediato con el horario guardado y expone un botón directo de `🗑️ Eliminar` en rojo junto a `Cancelar` y `Confirmar`.
+   * **Rediseño Responsive del Header del Visor (Estilo Apple Notes / Google Keep):**
+     * Separación de la barra de acciones superior (izquierda: color y badge `🔒 Segura`; derecha con `flexShrink: 0`: `🔔`, `Editar`, `✕`) del **Título principal** ubicado abajo a ancho completo (`100%`) con `wordBreak: 'break-word'` y `overflowWrap: 'break-word'`, garantizando que cadenas continuas o títulos largos nunca colisionen con los botones.
    * **Indicadores en Dashboard:** Badges con icono de reloj (⏰) en `NoteCard.tsx` tanto en la vista de grilla como en la de lista cuando una nota posee un recordatorio activo.
    * **Suite de Pruebas Unificadas:** Mocks de `expo-notifications`, `expo-calendar` y `@react-native-community/datetimepicker` en `jest.setup.js` manteniendo la suite unitaria en verde (16 suites exitosas, 82 tests pasados).
 
@@ -103,9 +114,6 @@ Permitir la carga, visualización y recepción (vía Share Intent o local) de im
 
 4. **Modo Sincronización Local-First (Próxima Fase 🎯):**
    * Sistema de sincronización selectiva cliente-servidor cifrado de extremo a extremo para usuarios con infraestructura propia o servidores dedicados.
-
-## 🛠️ Bugs & Mejoras de UI Pendientes
-- 🔴 **Responsive de Títulos en Modales (Backup Modal):** El título `"Copia en la Nube (Google Drive)"` se corta horizontalmente en pantallas reales (ej. Poco F8 Ultra) debido al badge inline `"Zero-Knowledge"`. Se requiere reestructurar la cabecera del modal para soportar envoltura de texto, apilar los elementos verticalmente en pantallas angostas o reducir dinámicamente el tamaño de la fuente.
 
 ---
 
