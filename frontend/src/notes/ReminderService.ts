@@ -3,20 +3,44 @@ import * as Calendar from 'expo-calendar';
 import { Platform } from 'react-native';
 
 // Configuración de cómo se muestran las notificaciones cuando la app está abierta
+// Configuración de cómo se muestran las notificaciones cuando la app está abierta
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
+    priority: Notifications.AndroidNotificationPriority.HIGH,
   }),
 });
 
 export class ReminderService {
   /**
+   * Configura el canal de notificaciones prioritario en Android (Android 8+ / API 26+).
+   */
+  static async setupNotificationChannel(): Promise<void> {
+    if (Platform.OS === 'android') {
+      try {
+        await Notifications.setNotificationChannelAsync('bunker_reminders', {
+          name: 'Recordatorios de Búnker',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#8B5CF6',
+          sound: 'default',
+          enableVibrate: true,
+          showBadge: true,
+        });
+      } catch (error) {
+        console.error("Error al configurar el canal de notificaciones en Android:", error);
+      }
+    }
+  }
+
+  /**
    * Solicita permisos de notificaciones locales.
    */
   static async requestNotificationPermissions(): Promise<boolean> {
     if (Platform.OS === 'web') return false;
+    await this.setupNotificationChannel();
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
     
@@ -109,6 +133,9 @@ export class ReminderService {
     const hasNotificationPermission = await this.requestNotificationPermissions();
     if (hasNotificationPermission) {
       try {
+        // Asegurar que el canal de notificaciones en Android esté creado
+        await this.setupNotificationChannel();
+
         // Cancelamos cualquier notificación previa para esta nota antes de crear una nueva
         await this.cancelNotification(noteId);
 
@@ -121,7 +148,9 @@ export class ReminderService {
             data: { noteId },
             sound: true,
           },
-          trigger: triggerDate,
+          trigger: Platform.OS === 'android'
+            ? ({ channelId: 'bunker_reminders', date: triggerDate } as any)
+            : triggerDate,
         });
       } catch (error) {
         console.error("Error programando notificación", error);

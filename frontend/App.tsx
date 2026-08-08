@@ -48,6 +48,7 @@ import { backupService } from './src/backup/BackupService';
 import { GoogleDriveService, GoogleDriveStatus } from './src/backup/GoogleDriveService';
 import { AIService, AIProvider } from './src/ai/AIService';
 import { ReminderService } from './src/notes/ReminderService';
+import * as Notifications from 'expo-notifications';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Linking from 'expo-linking';
 import { useShareIntent, ShareIntentProvider } from 'expo-share-intent';
@@ -390,6 +391,23 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       }
     };
     checkBiometrics();
+
+    // Listener para responder cuando el usuario toca una notificación recibida (solo nativo)
+    let subscription: any = null;
+    if (Platform.OS !== 'web') {
+      subscription = Notifications.addNotificationResponseReceivedListener(response => {
+        const noteId = response.notification.request.content.data?.noteId;
+        if (noteId && typeof noteId === 'string') {
+          handleNotePress(noteId);
+        }
+      });
+    }
+
+    return () => {
+      if (subscription) {
+        subscription.remove();
+      }
+    };
   }, []);
 
   // Decrypt media when opening a secure note, and clean up when closing
@@ -456,6 +474,8 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [newNoteCalendarEventId, setNewNoteCalendarEventId] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showDatePickerNative, setShowDatePickerNative] = useState(false);
+  const [showTimePickerNative, setShowTimePickerNative] = useState(false);
   const [tempReminderDate, setTempReminderDate] = useState<Date | null>(null);
   const [reminderSelectedDate, setReminderSelectedDate] = useState<Date>(() => {
     const d = new Date();
@@ -1230,7 +1250,16 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     finalDate.setMilliseconds(0);
 
     if (finalDate.getTime() <= Date.now()) {
-      Alert.alert('Fecha inválida', 'El recordatorio debe ser en el futuro.');
+      const now = new Date();
+      const isSameDay = finalDate.getDate() === now.getDate() &&
+                        finalDate.getMonth() === now.getMonth() &&
+                        finalDate.getFullYear() === now.getFullYear();
+      Alert.alert(
+        isSameDay ? 'Hora pasada' : 'Fecha inválida',
+        isSameDay 
+          ? 'No podés seleccionar una hora que ya pasó el día de hoy. Elegí una hora futura.' 
+          : 'El recordatorio debe ser en una fecha y hora futuras.'
+      );
       return;
     }
 
@@ -1243,16 +1272,29 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
         true
       );
       await database.write(async () => {
-        await selectedNote.update((n: any) => {
+        const dbNote = await database.get<NoteModel>('notes').find(selectedNote.id);
+        await dbNote.update((n: any) => {
           n.reminderAt = finalDate.getTime();
           n.calendarEventId = calendarEventId;
         });
       });
-      setSelectedNote(prev => ({
-        ...prev,
-        reminderAt: finalDate.getTime(),
-        calendarEventId: calendarEventId,
-      } as any));
+      setSelectedNote(prev => {
+        if (!prev) return null;
+        const raw = prev as any;
+        return {
+          id: prev.id,
+          title: prev.title,
+          content: prev.content,
+          isSecure: prev.isSecure,
+          isMarked: prev.isMarked,
+          audioUri: raw.audioUri,
+          color: raw.color,
+          illustration: raw.illustration,
+          createdAt: raw.createdAt,
+          reminderAt: finalDate.getTime(),
+          calendarEventId: calendarEventId,
+        } as any;
+      });
       setTempReminderDate(null);
       Alert.alert('Éxito', `Recordatorio programado para el ${finalDate.toLocaleString()}`);
     } else {
@@ -1284,33 +1326,91 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const handleReminderPress = () => {
     setPickerSource('editor');
     if (newNoteReminderAt) {
-      Alert.alert(
-        'Recordatorio Activo',
-        `Programado para el ${new Date(newNoteReminderAt).toLocaleString()}`,
-        [
-          { text: 'Modificar', onPress: () => setShowDatePicker(true) },
-          { 
-            text: 'Eliminar', 
-            style: 'destructive', 
-            onPress: async () => {
-              if (editingNoteId) {
-                await ReminderService.clearAllReminders(editingNoteId, newNoteCalendarEventId || undefined);
-              }
-              setNewNoteReminderAt(null);
-              setNewNoteCalendarEventId(null);
-            } 
-          },
-          { text: 'Cancelar', style: 'cancel' }
-        ]
-      );
+      setReminderSelectedDate(new Date(newNoteReminderAt));
     } else {
-      setShowDatePicker(true);
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      d.setHours(9, 0, 0, 0);
+      setReminderSelectedDate(d);
     }
+    setShowDatePicker(true);
+  };
+
+  const handleReminderPressFromViewer = () => {
+    if (!selectedNote) return;
+    setPickerSource('viewer');
+    const reminderAt = (selectedNote as any).reminderAt;
+    if (reminderAt) {
+      setReminderSelectedDate(new Date(reminderAt));
+    } else {
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      d.setHours(9, 0, 0, 0);
+      setReminderSelectedDate(d);
+    }
+    setShowDatePicker(true);
+  };
+
+  const handleDeleteReminderFromModal = async () => {
+    if (pickerSource === 'viewer' && selectedNote) {
+      const calendarEventId = (selectedNote as any).calendarEventId;
+      await ReminderService.clearAllReminders(selectedNote.id, calendarEventId || undefined);
+      await database.write(async () => {
+        const dbNote = await database.get<NoteModel>('notes').find(selectedNote.id);
+        await dbNote.update((n: any) => {
+          n.reminderAt = null;
+          n.calendarEventId = null;
+        });
+      });
+      setSelectedNote(prev => {
+        if (!prev) return null;
+        const raw = prev as any;
+        return {
+          id: prev.id,
+          title: prev.title,
+          content: prev.content,
+          isSecure: prev.isSecure,
+          isMarked: prev.isMarked,
+          audioUri: raw.audioUri,
+          color: raw.color,
+          illustration: raw.illustration,
+          createdAt: raw.createdAt,
+          reminderAt: null,
+          calendarEventId: null,
+        } as any;
+      });
+    } else {
+      let noteId = editingNoteId;
+      if (noteId) {
+        await ReminderService.clearAllReminders(noteId, newNoteCalendarEventId || undefined);
+        await database.write(async () => {
+          const dbNote = await database.get<NoteModel>('notes').find(noteId);
+          await dbNote.update((n: any) => {
+            n.reminderAt = null;
+            n.calendarEventId = null;
+          });
+        });
+      }
+      setNewNoteReminderAt(null);
+      setNewNoteCalendarEventId(null);
+    }
+    setShowDatePicker(false);
+    setTempReminderDate(null);
+    Alert.alert('Éxito', 'Recordatorio eliminado.');
   };
 
   const applyReminderDate = async (finalDate: Date) => {
     if (finalDate.getTime() <= Date.now()) {
-      Alert.alert('Fecha inválida', 'El recordatorio debe ser en el futuro.');
+      const now = new Date();
+      const isSameDay = finalDate.getDate() === now.getDate() &&
+                        finalDate.getMonth() === now.getMonth() &&
+                        finalDate.getFullYear() === now.getFullYear();
+      Alert.alert(
+        isSameDay ? 'Hora pasada' : 'Fecha inválida',
+        isSameDay 
+          ? 'No podés seleccionar una hora que ya pasó el día de hoy. Elegí una hora futura.' 
+          : 'El recordatorio debe ser en una fecha y hora futuras.'
+      );
       return;
     }
 
@@ -1323,16 +1423,29 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
         true
       );
       await database.write(async () => {
-        await selectedNote.update((n: any) => {
+        const dbNote = await database.get<NoteModel>('notes').find(selectedNote.id);
+        await dbNote.update((n: any) => {
           n.reminderAt = finalDate.getTime();
           n.calendarEventId = calendarEventId;
         });
       });
-      setSelectedNote(prev => ({
-        ...prev,
-        reminderAt: finalDate.getTime(),
-        calendarEventId: calendarEventId,
-      } as any));
+      setSelectedNote(prev => {
+        if (!prev) return null;
+        const raw = prev as any;
+        return {
+          id: prev.id,
+          title: prev.title,
+          content: prev.content,
+          isSecure: prev.isSecure,
+          isMarked: prev.isMarked,
+          audioUri: raw.audioUri,
+          color: raw.color,
+          illustration: raw.illustration,
+          createdAt: raw.createdAt,
+          reminderAt: finalDate.getTime(),
+          calendarEventId: calendarEventId,
+        } as any;
+      });
       Alert.alert('Éxito', `Recordatorio programado para el ${finalDate.toLocaleString()}`);
     } else {
       let noteId = editingNoteId;
@@ -1360,44 +1473,6 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
     setShowDatePicker(false);
     setTempReminderDate(null);
-  };
-
-  const handleReminderPressFromViewer = () => {
-    if (!selectedNote) return;
-    setPickerSource('viewer');
-    const reminderAt = (selectedNote as any).reminderAt;
-    const calendarEventId = (selectedNote as any).calendarEventId;
-
-    if (reminderAt) {
-      Alert.alert(
-        'Recordatorio Activo',
-        `Programado para el ${new Date(reminderAt).toLocaleString()}`,
-        [
-          { text: 'Modificar', onPress: () => setShowDatePicker(true) },
-          { 
-            text: 'Eliminar', 
-            style: 'destructive', 
-            onPress: async () => {
-              await ReminderService.clearAllReminders(selectedNote.id, calendarEventId || undefined);
-              await database.write(async () => {
-                await selectedNote.update((n: any) => {
-                  n.reminderAt = null;
-                  n.calendarEventId = null;
-                });
-              });
-              setSelectedNote(prev => ({
-                ...prev,
-                reminderAt: null,
-                calendarEventId: null,
-              } as any));
-            } 
-          },
-          { text: 'Cancelar', style: 'cancel' }
-        ]
-      );
-    } else {
-      setShowDatePicker(true);
-    }
   };
 
   const openEditModal = (note: NoteModel) => {
@@ -2558,18 +2633,16 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   </TouchableOpacity>
 
                   <View style={{ flexDirection: 'row', gap: 8 }}>
-                    {editingNoteId === null && (
-                      <TouchableOpacity 
-                        style={{ 
-                          padding: 8, 
-                          backgroundColor: newNoteReminderAt ? COLORS.bunkerAccent : 'transparent', 
-                          borderRadius: 8,
-                        }}
-                        onPress={handleReminderPress}
-                      >
-                        <MaterialIcons name={newNoteReminderAt ? "notifications-active" : "notifications-none"} size={26} color={newNoteReminderAt ? "#fff" : COLORS.bunkerAccent} />
-                      </TouchableOpacity>
-                    )}
+                    <TouchableOpacity 
+                      style={{ 
+                        padding: 8, 
+                        backgroundColor: newNoteReminderAt ? COLORS.bunkerAccent : 'transparent', 
+                        borderRadius: 8,
+                      }}
+                      onPress={handleReminderPress}
+                    >
+                      <MaterialIcons name={newNoteReminderAt ? "notifications-active" : "notifications-none"} size={26} color={newNoteReminderAt ? "#fff" : COLORS.bunkerAccent} />
+                    </TouchableOpacity>
 
                     <TouchableOpacity 
                       style={{ 
@@ -2792,8 +2865,10 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
           {selectedNote && (
             <View style={[styles.viewerContent, { backgroundColor: COLORS.surface }]}>
               <>
-                <View style={styles.viewerHeader}>
-                  <View style={styles.viewerTitleRow}>
+                {/* BARRA SUPERIOR DE ACCIONES */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, minHeight: 36 }}>
+                  {/* Badges / Indicador de color a la izquierda */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     {(selectedNote as any).color && (selectedNote as any).color !== 'default' && (
                       <View style={{
                         width: 12, height: 12, borderRadius: 6,
@@ -2803,17 +2878,29 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                         marginRight: 4,
                       }} />
                     )}
-                    <Text style={[{fontFamily: COLORS.fontFamily}, styles.viewerTitle, { color: COLORS.bunkerDark }]}>{selectedNote.title}</Text>
                     {selectedNote.isSecure && (
-                      <View style={[styles.viewerSecureBadge, { backgroundColor: COLORS.bunkerBg }]}>
-                        <Text style={styles.viewerSecureIcon}>🔒</Text>
+                      <View style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 4,
+                        backgroundColor: COLORS.bunkerBg,
+                        paddingHorizontal: 8,
+                        paddingVertical: 3,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: COLORS.border,
+                      }}>
+                        <Text style={{ fontSize: 11 }}>🔒</Text>
+                        <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.bunkerAccent, fontSize: 11, fontWeight: '700' }}>Segura</Text>
                       </View>
                     )}
                   </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 2 }}>
+
+                  {/* Botonera a la derecha */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 0 }}>
                     <TouchableOpacity 
                       onPress={handleReminderPressFromViewer}
-                      style={{ padding: 2 }}
+                      style={{ padding: 4 }}
                     >
                       <MaterialIcons 
                         name={(selectedNote as any).reminderAt ? "notifications-active" : "notifications-none"} 
@@ -2821,14 +2908,31 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                         color={(selectedNote as any).reminderAt ? COLORS.accent : COLORS.bunkerAccent} 
                       />
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => openEditModal(selectedNote)}>
-                      <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.bunkerAccent, fontSize: 15, fontWeight: '600' }}>Editar</Text>
+                    <TouchableOpacity onPress={() => openEditModal(selectedNote)} style={{ paddingVertical: 4, paddingHorizontal: 10, borderRadius: 8, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}>
+                      <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.bunkerAccent, fontSize: 14, fontWeight: '600' }}>Editar</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={handleCloseViewer} style={{ padding: 2, marginLeft: 4 }}>
+                    <TouchableOpacity onPress={handleCloseViewer} style={{ padding: 4, marginLeft: 2 }}>
                       <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.textMuted, fontSize: 22, fontWeight: '300', lineHeight: 22 }}>✕</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
+
+                {/* TÍTULO PRINCIPAL A ANCHO COMPLETO CON AUTO-WRAP */}
+                {selectedNote.title ? (
+                  <Text 
+                    style={[{
+                      fontFamily: COLORS.fontFamily,
+                      fontSize: 24,
+                      fontWeight: '800',
+                      color: COLORS.bunkerDark,
+                      lineHeight: 32,
+                      marginBottom: 16,
+                      width: '100%',
+                    }, { ...({ wordBreak: 'break-word', overflowWrap: 'break-word' } as any)}]}
+                  >
+                    {selectedNote.title}
+                  </Text>
+                ) : null}
 
                 {selectedNote.audioUri ? (
                   <View style={[styles.viewerPlayer, { backgroundColor: COLORS.bunkerBg, borderColor: COLORS.border }]}>
@@ -2911,7 +3015,9 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
         <Modal transparent visible={showDatePicker} animationType="fade" onRequestClose={() => setShowDatePicker(false)}>
           <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 20, zIndex: 99999 }} onPress={() => setShowDatePicker(false)}>
             <Pressable style={{ backgroundColor: COLORS.cardBg, borderRadius: 20, padding: 24, width: '100%', maxWidth: 440, borderWidth: 1, borderColor: COLORS.border, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.15, shadowRadius: 16, elevation: 10 }} onPress={(e) => e.stopPropagation()}>
-              <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.text, fontSize: 20, fontWeight: 'bold', marginBottom: 4 }}>⏰ Programar Recordatorio</Text>
+              <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.text, fontSize: 20, fontWeight: 'bold', marginBottom: 4 }}>
+                {((pickerSource === 'viewer' && (selectedNote as any)?.reminderAt) || (pickerSource === 'editor' && newNoteReminderAt)) ? '⏰ Modificar Recordatorio' : '⏰ Programar Recordatorio'}
+              </Text>
               <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.textSecondary, fontSize: 13, marginBottom: 18 }}>Elegí la fecha y luego el momento u hora del día:</Text>
 
               {/* PASO 1: SELECCIÓN DE FECHA (DÍA / MES / AÑO) */}
@@ -3014,8 +3120,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                     marginBottom: 18,
                   }}
                   onPress={() => {
-                    setShowDatePicker(false);
-                    setShowTimePicker(true);
+                    setShowDatePickerNative(true);
                   }}
                 >
                   <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.text, fontSize: 14 }}>
@@ -3103,34 +3208,86 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
               {reminderTimeSlot === 'custom' && (
                 <View style={{ marginBottom: 16 }}>
                   {Platform.OS === 'web' ? (
-                    <TextInput
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.textMuted, fontSize: 11, marginBottom: 4 }}>Hora</Text>
+                        <select
+                          style={{
+                            fontFamily: COLORS.fontFamily,
+                            color: COLORS.text,
+                            backgroundColor: isDark ? '#2D3748' : '#EDF2F7',
+                            padding: 10,
+                            borderRadius: 10,
+                            borderWidth: 1,
+                            borderColor: COLORS.border,
+                            fontSize: 14,
+                            width: '100%',
+                            outline: 'none',
+                          }}
+                          value={reminderSelectedDate.getHours()}
+                          onChange={(e: any) => {
+                            const h = Number(e.target.value);
+                            const updated = new Date(reminderSelectedDate);
+                            updated.setHours(h);
+                            setReminderSelectedDate(updated);
+                          }}
+                        >
+                          {Array.from({ length: 24 }).map((_, i) => (
+                            <option key={i} value={i}>
+                              {String(i).padStart(2, '0')}
+                            </option>
+                          ))}
+                        </select>
+                      </View>
+
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.textMuted, fontSize: 11, marginBottom: 4 }}>Minutos</Text>
+                        <select
+                          style={{
+                            fontFamily: COLORS.fontFamily,
+                            color: COLORS.text,
+                            backgroundColor: isDark ? '#2D3748' : '#EDF2F7',
+                            padding: 10,
+                            borderRadius: 10,
+                            borderWidth: 1,
+                            borderColor: COLORS.border,
+                            fontSize: 14,
+                            width: '100%',
+                            outline: 'none',
+                          }}
+                          value={reminderSelectedDate.getMinutes()}
+                          onChange={(e: any) => {
+                            const m = Number(e.target.value);
+                            const updated = new Date(reminderSelectedDate);
+                            updated.setMinutes(m);
+                            setReminderSelectedDate(updated);
+                          }}
+                        >
+                          {Array.from({ length: 60 }).map((_, i) => (
+                            <option key={i} value={i}>
+                              {String(i).padStart(2, '0')}
+                            </option>
+                          ))}
+                        </select>
+                      </View>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
                       style={{
-                        fontFamily: COLORS.fontFamily,
-                        color: COLORS.text,
-                        backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-                        padding: 10,
+                        padding: 12,
                         borderRadius: 10,
                         borderWidth: 1,
                         borderColor: COLORS.border,
-                        fontSize: 14,
-                        width: 140,
+                        backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                        alignItems: 'center',
                       }}
-                      {...({ type: 'time' } as any)}
-                      value={(() => {
-                        const hh = String(reminderSelectedDate.getHours()).padStart(2, '0');
-                        const mm = String(reminderSelectedDate.getMinutes()).padStart(2, '0');
-                        return `${hh}:${mm}`;
-                      })()}
-                      onChange={(e: any) => {
-                        const val = e.target.value;
-                        if (!val) return;
-                        const [h, m] = val.split(':').map(Number);
-                        const updated = new Date(reminderSelectedDate);
-                        updated.setHours(h, m, 0, 0);
-                        setReminderSelectedDate(updated);
-                      }}
-                    />
-                  ) : null}
+                      onPress={() => setShowTimePickerNative(true)}
+                    >
+                      <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.text, fontSize: 14 }}>
+                        ⏱️ Seleccionar Hora: {String(reminderSelectedDate.getHours()).padStart(2, '0')}:{String(reminderSelectedDate.getMinutes()).padStart(2, '0')}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               )}
 
@@ -3142,28 +3299,71 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
               </View>
 
               {/* BOTONES DE ACCIÓN */}
-              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12 }}>
-                <TouchableOpacity 
-                  style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10 }}
-                  onPress={() => {
-                    setShowDatePicker(false);
-                    setTempReminderDate(null);
-                  }}
-                >
-                  <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.textMuted, fontWeight: '600' }}>Cancelar</Text>
-                </TouchableOpacity>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                {((pickerSource === 'viewer' && (selectedNote as any)?.reminderAt) || (pickerSource === 'editor' && newNoteReminderAt)) ? (
+                  <TouchableOpacity 
+                    style={{ paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, backgroundColor: 'rgba(233, 69, 96, 0.12)', borderWidth: 1, borderColor: '#E94560' }}
+                    onPress={handleDeleteReminderFromModal}
+                  >
+                    <Text style={{ fontFamily: COLORS.fontFamily, color: '#E94560', fontWeight: '700', fontSize: 13 }}>🗑️ Eliminar</Text>
+                  </TouchableOpacity>
+                ) : <View />}
 
-                <TouchableOpacity 
-                  style={{ paddingVertical: 10, paddingHorizontal: 20, borderRadius: 10, backgroundColor: COLORS.bunkerAccent }}
-                  onPress={() => {
-                    applyReminderDate(reminderSelectedDate);
-                  }}
-                >
-                  <Text style={{ fontFamily: COLORS.fontFamily, color: '#fff', fontWeight: '600' }}>Confirmar</Text>
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+                  <TouchableOpacity 
+                    style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10 }}
+                    onPress={() => {
+                      setShowDatePicker(false);
+                      setTempReminderDate(null);
+                    }}
+                  >
+                    <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.textMuted, fontWeight: '600', fontSize: 14 }}>Cancelar</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={{ paddingVertical: 10, paddingHorizontal: 20, borderRadius: 10, backgroundColor: COLORS.bunkerAccent }}
+                    onPress={() => {
+                      applyReminderDate(reminderSelectedDate);
+                    }}
+                  >
+                    <Text style={{ fontFamily: COLORS.fontFamily, color: '#fff', fontWeight: '700', fontSize: 14 }}>Confirmar</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </Pressable>
           </Pressable>
+          
+          {/* NATIVE PICKERS */}
+          {Platform.OS !== 'web' && showDatePickerNative && (
+            <DateTimePicker
+              value={reminderSelectedDate}
+              mode="date"
+              display="default"
+              onChange={(event, selectedDate) => {
+                setShowDatePickerNative(false);
+                if (selectedDate) {
+                  const updated = new Date(reminderSelectedDate);
+                  updated.setFullYear(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+                  setReminderSelectedDate(updated);
+                }
+              }}
+            />
+          )}
+          {Platform.OS !== 'web' && showTimePickerNative && (
+            <DateTimePicker
+              value={reminderSelectedDate}
+              mode="time"
+              display="default"
+              onChange={(event, selectedTime) => {
+                setShowTimePickerNative(false);
+                if (selectedTime) {
+                  const updated = new Date(reminderSelectedDate);
+                  updated.setHours(selectedTime.getHours(), selectedTime.getMinutes(), 0, 0);
+                  setReminderSelectedDate(updated);
+                }
+              }}
+            />
+          )}
         </Modal>
       )}
 
@@ -4041,10 +4241,10 @@ const styles = StyleSheet.create({
   saveButtonText: { fontSize: 16, fontWeight: '600', color: '#fff' },
   viewerOverlay: { flex: 1 },
   viewerContent: { flex: 1, width: '100%', padding: 24, paddingTop: 40 },
-  viewerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
-  viewerTitleRow: { flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginRight: 8 },
-  viewerTitle: { fontSize: 26, fontWeight: '700', flex: 1, lineHeight: 32 },
-  viewerSecureBadge: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginTop: 2 },
+  viewerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 8 },
+  viewerTitleRow: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
+  viewerTitle: { fontSize: 24, fontWeight: '700', flexShrink: 1, lineHeight: 30 },
+  viewerSecureBadge: { width: 26, height: 26, borderRadius: 13, justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
   viewerSecureIcon: { fontSize: 13 },
   viewerClose: { fontSize: 28, padding: 4 },
   viewerBody: { flex: 1, marginBottom: 20 },

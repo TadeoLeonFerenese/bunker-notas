@@ -151,6 +151,17 @@ jest.mock('expo-notifications', () => ({
   requestPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
   scheduleNotificationAsync: jest.fn().mockResolvedValue('mock-notification-id'),
   cancelScheduledNotificationAsync: jest.fn().mockResolvedValue(undefined),
+  setNotificationChannelAsync: jest.fn().mockResolvedValue({}),
+  addNotificationResponseReceivedListener: jest.fn().mockReturnValue({ remove: jest.fn() }),
+  AndroidImportance: {
+    MAX: 5,
+    HIGH: 4,
+    DEFAULT: 3,
+  },
+  AndroidNotificationPriority: {
+    HIGH: 'high',
+    MAX: 'max',
+  },
 }));
 
 // Mock expo-calendar

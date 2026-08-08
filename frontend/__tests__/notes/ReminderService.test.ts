@@ -31,14 +31,33 @@ describe('ReminderService', () => {
 
     expect(result.notificationId).toBe('mock-notification-id');
     expect(result.calendarEventId).toBe('mock-event-id');
-    expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith({
-      identifier: 'note-123',
-      content: expect.objectContaining({
-        title: 'Test Title',
-        body: 'Test Body',
-      }),
-      trigger: triggerDate,
-    });
+    expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        identifier: 'note-123',
+        content: expect.objectContaining({
+          title: 'Test Title',
+          body: 'Test Body',
+        }),
+      })
+    );
+  });
+
+  it('Should setup Android notification channel with high priority', async () => {
+    const { Platform } = require('react-native');
+    const originalOS = Platform.OS;
+    Platform.OS = 'android';
+
+    await ReminderService.setupNotificationChannel();
+
+    expect(Notifications.setNotificationChannelAsync).toHaveBeenCalledWith(
+      'bunker_reminders',
+      expect.objectContaining({
+        name: 'Recordatorios de Búnker',
+        importance: Notifications.AndroidImportance.MAX,
+      })
+    );
+
+    Platform.OS = originalOS;
   });
 
   it('Should cancel notification and calendar events', async () => {
