@@ -172,7 +172,7 @@ const NoteCardBase = ({
                   <Text style={{ fontSize: 9 }}>📷</Text>
                 </View>
               )}
-              {!!note.reminderAt && (
+              {!!note.reminderAt && note.reminderAt > Date.now() && (
                 <View style={[stylesGrid.audioBadge, { backgroundColor: isDark ? '#4A5568' : '#FEFCBF' }]}>
                   <Text style={{ fontSize: 9 }}>⏰</Text>
                 </View>
@@ -279,7 +279,7 @@ const NoteCardBase = ({
                 <Text style={[stylesList.audioText, { color: isDark ? '#E2E8F0' : '#2B6CB0' }]}>Imagen</Text>
               </View>
             )}
-            {!!note.reminderAt && (
+             {!!note.reminderAt && note.reminderAt > Date.now() && (
               <View style={[stylesList.audioBadge, { backgroundColor: isDark ? '#2D3748' : '#FEFCBF', borderColor: isDark ? '#4A5568' : '#F6E05E', borderWidth: 1, flexDirection: 'row', alignItems: 'center' }]}>
                 <Text style={{ fontSize: 11, marginRight: 4 }}>⏰</Text>
                 <Text style={[stylesList.audioText, { color: isDark ? '#FEFCBF' : '#B7791F' }]}>Recordatorio</Text>

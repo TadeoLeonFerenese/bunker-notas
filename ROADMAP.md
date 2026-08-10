@@ -87,13 +87,14 @@ Permitir la carga, visualización y recepción (vía Share Intent o local) de im
      * **Modal Segmentado (Fecha + Hora):** Modal flotante de 2 pasos con accesos rápidos `[Hoy]` `[Mañana]`, selector de almanaque estructurado `[Día/Mes/Año]`, presets de momento del día (`🌅 Mañana 09:00`, `☀️ Tarde 15:00`, `🌙 Noche 21:00`, `⏱️ Hora Exacta`) y vista previa en tiempo real.
      * **Selectores de Hora Exacta Optimizados:**
        * *En Web:* Dos selectores independientes (`<select>`) para Horas (`00`-`23`) y Minutos (`00`-`59`), eliminando la tosquedad del input de tiempo nativo del navegador.
-       * *En Nativo (Android/iOS):* Apertura del `DateTimePicker` nativo del sistema para selección táctil intuitiva con reloj/rueda.
+       * *En Nativo (Android/iOS):* Apertura del `DateTimePicker` nativo del sistema para selección táctil con reloj/rueda, filtrando eventos secuenciales (`event.type === 'set'`) para permitir selección independiente de hora y minutos sin cierres prematuros.
      * **Validación de Horarios:** Bloqueo proactivo con alerta cuando se intenta agendar una hora que ya transcurrió en el día de hoy.
      * **Modificación y Eliminación Fluida (Sin Bloqueos):** Se eliminó el diálogo `Alert.alert` del sistema operativo (que se congelaba en navegadores web). Al tocar la campanita de una nota con alarma activa, el modal se abre de inmediato con el horario guardado y expone un botón directo de `🗑️ Eliminar` en rojo junto a `Cancelar` y `Confirmar`.
+     * **Limpieza Dinámica de Recordatorios Vencidos:** Los iconos de recordatorio (campana en visor y reloj en tarjetas de notas) se ocultan automáticamente una vez transcurrida la fecha programada (`reminderAt > Date.now()`), permitiendo programar nuevas alarmas inmediatamente y limpiando la base de datos en el siguiente guardado.
    * **Rediseño Responsive del Header del Visor (Estilo Apple Notes / Google Keep):**
      * Separación de la barra de acciones superior (izquierda: color y badge `🔒 Segura`; derecha con `flexShrink: 0`: `🔔`, `Editar`, `✕`) del **Título principal** ubicado abajo a ancho completo (`100%`) con `wordBreak: 'break-word'` y `overflowWrap: 'break-word'`, garantizando que cadenas continuas o títulos largos nunca colisionen con los botones.
    * **Indicadores en Dashboard:** Badges con icono de reloj (⏰) en `NoteCard.tsx` tanto en la vista de grilla como en la de lista cuando una nota posee un recordatorio activo.
-   * **Suite de Pruebas Unificadas:** Mocks de `expo-notifications`, `expo-calendar` y `@react-native-community/datetimepicker` en `jest.setup.js` manteniendo la suite unitaria en verde (16 suites exitosas, 82 tests pasados).
+   * **Suite de Pruebas Unificadas:** Mocks de `expo-notifications`, `expo-calendar` y `@react-native-community/datetimepicker` en `jest.setup.js` manteniendo la suite unitaria en verde (17 suites exitosas, 92 tests pasados).
 
 2. **Estrategia de Distribución y Monetización:**
    * **Distribución Segura:** Se descarta el uso de GitHub Releases públicos para descargas gratuitas de la APK.
@@ -109,8 +110,14 @@ Permitir la carga, visualización y recepción (vía Share Intent o local) de im
      3. **Sincronización Incremental de Multimedia:** Las notas de voz y fotos se encriptan individualmente y se suben como archivos separados, permitiendo sincronización incremental eficiente y previniendo fallas de memoria (OutOfMemory) en el celular.
      4. **Frecuencia Inteligente y Programable:** Configuración de backups manuales o programados (Diario / Semanal) en segundo plano (AppState en background) para evitar procesos innecesarios y consumo excesivo de batería/datos.
      5. **Autenticación PKCE (Expo Go Friendly):** Flujo de OAuth2 con PKCE implementado 100% en JavaScript puro, manteniendo compatibilidad con Expo Go y sin dependencias nativas pesadas que compliquen el desarrollo local.
-         * > [!IMPORTANT]
-           > **Configuración del Cliente OAuth en Google Cloud (Web vs. Android):** Debido a que el flujo PKCE se ejecuta en JavaScript puro abriendo el navegador del sistema y volviendo por deep link, en Google Cloud Console se debe registrar el Client ID como de tipo **"Web Application" (Web)** y no de tipo **"Android"**. Las credenciales de tipo Android exigen validación de firma nativa SHA-1 y bloquean el intercambio directo de tokens vía HTTP, impidiendo que la app funcione.
+     6. **Gestión Segura de Client Secret en Hardware Keystore:** Soporte para ingresar el `client_secret` de Google Cloud Console (requerido por clientes Web de Google) cifrado a nivel de chip del dispositivo (`storeSecureCredential`), evitando errores de `client_secret is missing` sin romper el modelo serverless.
+          * > [!IMPORTANT]
+            > **Configuración de Google Cloud Console (OAuth Platform - Interfaz Unificada):**
+            > 1. **Tipo de Cliente Obligatorio:** Para PKCE en JavaScript puro, el Client ID en Google Cloud Console debe registrarse obligatoriamente como **"Web Application" (Aplicación Web)** y no como "Android". Los clientes Android exigen firmas SHA-1 y bloquean el intercambio de token directo por HTTP, impidiendo el funcionamiento.
+            > 2. **Nueva Interfaz "OAuth Platform":** En los proyectos modernos de Google Cloud, las opciones se gestionan en la URL `/auth/...` bajo la nueva barra de navegación lateral unificada de la plataforma:
+            >    * **Pestaña `Público` (Audience):** Se configura el tipo de usuario como **Externo** y se agregan los correos autorizados en la sección **Usuarios de prueba (Test Users)**. Esto es indispensable para evitar el error `403: access_denied` durante la fase de desarrollo.
+            >    * **Pestaña `Clientes` (Clients):** Es la sección donde se crean y obtienen los Client IDs (Credenciales de OAuth) y Client Secrets.
+            >    * **Pestaña `Identidad de marca` (Branding):** Configura los datos básicos de la app (Nombre y correo de soporte).
 
 4. **Modo Sincronización Local-First (Próxima Fase 🎯):**
    * Sistema de sincronización selectiva cliente-servidor cifrado de extremo a extremo para usuarios con infraestructura propia o servidores dedicados.

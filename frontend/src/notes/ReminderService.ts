@@ -9,6 +9,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
     priority: Notifications.AndroidNotificationPriority.HIGH,
   }),
 });
@@ -139,7 +141,6 @@ export class ReminderService {
         // Cancelamos cualquier notificación previa para esta nota antes de crear una nueva
         await this.cancelNotification(noteId);
 
-        // Programar la alerta de una sola vez
         notificationId = await Notifications.scheduleNotificationAsync({
           identifier: noteId, // Usamos el noteId como identificador para cancelarlo fácil
           content: {
@@ -148,9 +149,11 @@ export class ReminderService {
             data: { noteId },
             sound: true,
           },
-          trigger: Platform.OS === 'android'
-            ? ({ channelId: 'bunker_reminders', date: triggerDate } as any)
-            : triggerDate,
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: triggerDate,
+            ...(Platform.OS === 'android' ? { channelId: 'bunker_reminders' } : {}),
+          } as any,
         });
       } catch (error) {
         console.error("Error programando notificación", error);

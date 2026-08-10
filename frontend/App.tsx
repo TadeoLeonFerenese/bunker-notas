@@ -158,6 +158,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [backupMediaEnabled, setBackupMediaEnabled] = useState(false);
   const [backupFrequency, setBackupFrequency] = useState<'manual' | 'daily' | 'weekly'>('manual');
   const [googleClientId, setGoogleClientId] = useState('');
+  const [googleClientSecret, setGoogleClientSecret] = useState('');
   const [googleRedirectUri, setGoogleRedirectUri] = useState('');
   const [showAdvancedBackup, setShowAdvancedBackup] = useState(false);
 
@@ -173,6 +174,13 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
           setGoogleClientId(savedClientId);
         } else {
           setGoogleClientId(GoogleDriveService.getClientId());
+        }
+
+        const { getSecureCredential } = require('./src/notes/encryption');
+        const savedSecret = await getSecureCredential('google_drive_client_secret');
+        if (savedSecret) {
+          GoogleDriveService.setClientSecret(savedSecret);
+          setGoogleClientSecret(savedSecret);
         }
 
         const savedRedirectUri = await AsyncStorage.getItem('@bunker_google_redirect_uri');
@@ -1340,7 +1348,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     if (!selectedNote) return;
     setPickerSource('viewer');
     const reminderAt = (selectedNote as any).reminderAt;
-    if (reminderAt) {
+    if (reminderAt && reminderAt > Date.now()) {
       setReminderSelectedDate(new Date(reminderAt));
     } else {
       const d = new Date();
@@ -1482,7 +1490,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     setRecordedAudioUri(note.audioUri || null);
     setNewNoteColor((note as any).color || 'default');
     setNewNoteIllustration((note as any).illustration || 'none');
-    setNewNoteReminderAt((note as any).reminderAt || null);
+    setNewNoteReminderAt(((note as any).reminderAt && (note as any).reminderAt > Date.now()) ? (note as any).reminderAt : null);
     setNewNoteCalendarEventId((note as any).calendarEventId || null);
     setEditingNoteId(note.id);
     setSelectedNote(null);
@@ -2903,9 +2911,9 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                       style={{ padding: 4 }}
                     >
                       <MaterialIcons 
-                        name={(selectedNote as any).reminderAt ? "notifications-active" : "notifications-none"} 
+                        name={((selectedNote as any).reminderAt && (selectedNote as any).reminderAt > Date.now()) ? "notifications-active" : "notifications-none"} 
                         size={24} 
-                        color={(selectedNote as any).reminderAt ? COLORS.accent : COLORS.bunkerAccent} 
+                        color={((selectedNote as any).reminderAt && (selectedNote as any).reminderAt > Date.now()) ? COLORS.accent : COLORS.bunkerAccent} 
                       />
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => openEditModal(selectedNote)} style={{ paddingVertical: 4, paddingHorizontal: 10, borderRadius: 8, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}>
@@ -3016,7 +3024,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
           <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 20, zIndex: 99999 }} onPress={() => setShowDatePicker(false)}>
             <Pressable style={{ backgroundColor: COLORS.cardBg, borderRadius: 20, padding: 24, width: '100%', maxWidth: 440, borderWidth: 1, borderColor: COLORS.border, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.15, shadowRadius: 16, elevation: 10 }} onPress={(e) => e.stopPropagation()}>
               <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.text, fontSize: 20, fontWeight: 'bold', marginBottom: 4 }}>
-                {((pickerSource === 'viewer' && (selectedNote as any)?.reminderAt) || (pickerSource === 'editor' && newNoteReminderAt)) ? '⏰ Modificar Recordatorio' : '⏰ Programar Recordatorio'}
+                {((pickerSource === 'viewer' && (selectedNote as any)?.reminderAt && (selectedNote as any)?.reminderAt > Date.now()) || (pickerSource === 'editor' && newNoteReminderAt && newNoteReminderAt > Date.now())) ? '⏰ Modificar Recordatorio' : '⏰ Programar Recordatorio'}
               </Text>
               <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.textSecondary, fontSize: 13, marginBottom: 18 }}>Elegí la fecha y luego el momento u hora del día:</Text>
 
@@ -3300,7 +3308,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
               {/* BOTONES DE ACCIÓN */}
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                {((pickerSource === 'viewer' && (selectedNote as any)?.reminderAt) || (pickerSource === 'editor' && newNoteReminderAt)) ? (
+                {((pickerSource === 'viewer' && (selectedNote as any)?.reminderAt && (selectedNote as any)?.reminderAt > Date.now()) || (pickerSource === 'editor' && newNoteReminderAt && newNoteReminderAt > Date.now())) ? (
                   <TouchableOpacity 
                     style={{ paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, backgroundColor: 'rgba(233, 69, 96, 0.12)', borderWidth: 1, borderColor: '#E94560' }}
                     onPress={handleDeleteReminderFromModal}
@@ -3340,11 +3348,15 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
               mode="date"
               display="default"
               onChange={(event, selectedDate) => {
-                setShowDatePickerNative(false);
-                if (selectedDate) {
-                  const updated = new Date(reminderSelectedDate);
-                  updated.setFullYear(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
-                  setReminderSelectedDate(updated);
+                if (event.type === 'set') {
+                  setShowDatePickerNative(false);
+                  if (selectedDate) {
+                    const updated = new Date(reminderSelectedDate);
+                    updated.setFullYear(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+                    setReminderSelectedDate(updated);
+                  }
+                } else if (event.type === 'dismissed') {
+                  setShowDatePickerNative(false);
                 }
               }}
             />
@@ -3355,11 +3367,15 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
               mode="time"
               display="default"
               onChange={(event, selectedTime) => {
-                setShowTimePickerNative(false);
-                if (selectedTime) {
-                  const updated = new Date(reminderSelectedDate);
-                  updated.setHours(selectedTime.getHours(), selectedTime.getMinutes(), 0, 0);
-                  setReminderSelectedDate(updated);
+                if (event.type === 'set') {
+                  setShowTimePickerNative(false);
+                  if (selectedTime) {
+                    const updated = new Date(reminderSelectedDate);
+                    updated.setHours(selectedTime.getHours(), selectedTime.getMinutes(), 0, 0);
+                    setReminderSelectedDate(updated);
+                  }
+                } else if (event.type === 'dismissed') {
+                  setShowTimePickerNative(false);
                 }
               }}
             />
@@ -3884,6 +3900,29 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                       autoCorrect={false}
                     />
 
+                    {/* INPUT CLIENT SECRET */}
+                    <Text style={{ color: COLORS.bunkerDark, fontSize: 12, fontWeight: '600', fontFamily: COLORS.fontFamily }}>
+                      Google Client Secret (OAuth2 Web)
+                    </Text>
+                    <TextInput
+                      style={{
+                        backgroundColor: COLORS.bunkerBg,
+                        color: COLORS.text || COLORS.bunkerDark,
+                        padding: 10,
+                        borderRadius: 10,
+                        fontFamily: COLORS.fontFamily,
+                        borderWidth: 1,
+                        borderColor: COLORS.border,
+                        fontSize: 12
+                      }}
+                      placeholder="Pegá tu Google Client Secret (GOCSPX-...)"
+                      placeholderTextColor={COLORS.bunkerGray}
+                      value={googleClientSecret}
+                      onChangeText={setGoogleClientSecret}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+
                     {/* INPUT REDIRECT URI */}
                     <Text style={{ color: COLORS.bunkerDark, fontSize: 12, fontWeight: '600', fontFamily: COLORS.fontFamily }}>
                       Redirect URI / Proxy URL (Opcional)
@@ -3922,10 +3961,15 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                       onPress={async () => {
                         try {
                           const cleanId = googleClientId.trim();
+                          const cleanSecret = googleClientSecret.trim();
                           const cleanUri = googleRedirectUri.trim();
                           
                           await AsyncStorage.setItem('@bunker_google_client_id', cleanId);
                           GoogleDriveService.setClientId(cleanId);
+
+                          const { storeSecureCredential } = require('./src/notes/encryption');
+                          await storeSecureCredential('google_drive_client_secret', cleanSecret);
+                          GoogleDriveService.setClientSecret(cleanSecret);
 
                           await AsyncStorage.setItem('@bunker_google_redirect_uri', cleanUri);
                           GoogleDriveService.setRedirectUri(cleanUri);

@@ -15,9 +15,24 @@ export interface GoogleDriveStatus {
 
 export class GoogleDriveService {
   private static clientId: string = DEFAULT_CLIENT_ID;
+  private static clientSecret: string | null = null;
   private static customRedirectUri: string | null = null;
   private static accessToken: string | null = null;
   private static tokenExpiresAt: number = 0; // Timestamp en ms
+
+  /**
+   * Configura un Google Client Secret personalizado si es necesario
+   */
+  static setClientSecret(secret: string) {
+    this.clientSecret = secret.trim() || null;
+  }
+
+  /**
+   * Obtiene el Google Client Secret activo
+   */
+  static getClientSecret(): string | null {
+    return this.clientSecret;
+  }
 
   /**
    * Configura un Google Client ID personalizado si es necesario
@@ -129,12 +144,23 @@ export class GoogleDriveService {
       throw new Error('No se encontró la clave de verificación PKCE en el dispositivo.');
     }
 
+    if (!this.clientSecret) {
+      const storedSecret = await getSecureCredential('google_drive_client_secret');
+      if (storedSecret) {
+        this.clientSecret = storedSecret;
+      }
+    }
+
     const tokenUrl = 'https://oauth2.googleapis.com/token';
-    const body = `client_id=${encodeURIComponent(this.clientId)}&` +
+    let body = `client_id=${encodeURIComponent(this.clientId)}&` +
       `code_verifier=${encodeURIComponent(verifier)}&` +
       `grant_type=authorization_code&` +
       `code=${encodeURIComponent(code)}&` +
       `redirect_uri=${encodeURIComponent(redirectUri)}`;
+
+    if (this.clientSecret) {
+      body += `&client_secret=${encodeURIComponent(this.clientSecret)}`;
+    }
 
     const response = await fetch(tokenUrl, {
       method: 'POST',
@@ -202,14 +228,27 @@ export class GoogleDriveService {
       throw new Error('Usuario no autenticado en Google Drive.');
     }
 
+    if (!this.clientSecret) {
+      const storedSecret = await getSecureCredential('google_drive_client_secret');
+      if (storedSecret) {
+        this.clientSecret = storedSecret;
+      }
+    }
+
+    let body = `client_id=${encodeURIComponent(this.clientId)}&` +
+      `grant_type=refresh_token&` +
+      `refresh_token=${encodeURIComponent(refreshToken)}`;
+
+    if (this.clientSecret) {
+      body += `&client_secret=${encodeURIComponent(this.clientSecret)}`;
+    }
+
     const response = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: `client_id=${encodeURIComponent(this.clientId)}&` +
-        `grant_type=refresh_token&` +
-        `refresh_token=${encodeURIComponent(refreshToken)}`,
+      body,
     });
 
     const data = await response.json();

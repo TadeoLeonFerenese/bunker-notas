@@ -162,6 +162,13 @@ jest.mock('expo-notifications', () => ({
     HIGH: 'high',
     MAX: 'max',
   },
+  SchedulableTriggerInputTypes: {
+    DATE: 'date',
+    TIME_INTERVAL: 'timeInterval',
+    DAILY: 'daily',
+    WEEKLY: 'weekly',
+    YEARLY: 'yearly',
+  },
 }));
 
 // Mock expo-calendar

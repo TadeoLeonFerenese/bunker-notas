@@ -197,4 +197,32 @@ describe('GoogleDriveService', () => {
     await expect(AsyncStorage.getItem('@bunker_google_last_backup_at')).resolves.toBeNull();
     expect((GoogleDriveService as any).accessToken).toBeNull();
   });
+
+  it('should include client_secret in token requests when configured', async () => {
+    GoogleDriveService.setClientSecret('mock-client-secret');
+
+    await AsyncStorage.setItem('@bunker_oauth_verifier', 'mock-verifier-value');
+    await AsyncStorage.setItem('@bunker_oauth_redirect_uri', 'exp://mock-redirect/oauth');
+
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          access_token: 'mock-access-token',
+          expires_in: 3600,
+          refresh_token: 'mock-refresh-token',
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          email: 'tadeo@bunker.com',
+        }),
+      });
+
+    await GoogleDriveService.handleAuthRedirect('exp://mock-redirect/oauth?code=mock-auth-code');
+
+    const tokenCall = mockFetch.mock.calls[0];
+    expect(tokenCall[1].body).toContain('client_secret=mock-client-secret');
+  });
 });

@@ -80,7 +80,7 @@ export function BiometricLogin({ onAuthSuccess, onAuthError }: BiometricLoginPro
       } else {
         setAuthState('pin_input');
         setShowPinInput(true);
-        if (result.error === 'lockout' || result.error === 'lockout_permanent') {
+        if ((result.error as any) === 'lockout' || (result.error as any) === 'lockout_permanent') {
           onAuthError({ success: false, error: 'Biometría bloqueda. Use PIN.' });
         } else {
           onAuthError({ success: false, error: 'Biometría cancelada o fallida' });
