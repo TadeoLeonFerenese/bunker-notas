@@ -23,6 +23,7 @@ import {
   Animated,
   useWindowDimensions,
   Image,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -355,41 +356,47 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <Pressable style={styles.scrollContent} onPress={Keyboard.dismiss}>
-          <Animated.View style={[styles.innerContainer, { opacity: fadeAnim }]}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Pressable style={{ width: '100%', alignItems: 'center' }} onPress={Keyboard.dismiss}>
+            <Animated.View style={[styles.innerContainer, { opacity: fadeAnim }]}>
 
-            {/* Header */}
-            <View style={styles.header}>
-              <View style={styles.logoContainer}>
-                <Image
-                  source={require('../../assets/icon.png')}
-                  style={styles.logoImage}
-                  resizeMode="contain"
-                />
+              {/* Header */}
+              <View style={styles.header}>
+                <View style={styles.logoContainer}>
+                  <Image
+                    source={require('../../assets/icon.png')}
+                    style={styles.logoImage}
+                    resizeMode="contain"
+                  />
+                </View>
+                <Text style={styles.title}>Bunker Notas</Text>
+                <Text style={styles.subtitle}>Seguridad Zero-Knowledge</Text>
               </View>
-              <Text style={styles.title}>Bunker Notas</Text>
-              <Text style={styles.subtitle}>Seguridad Zero-Knowledge</Text>
-            </View>
 
-            {/* Formulario: según el modo */}
-            {mode === 'loading' && (
-              <View style={styles.form}>
-                <Text style={styles.formTitle}>Verificando seguridad...</Text>
+              {/* Formulario: según el modo */}
+              {mode === 'loading' && (
+                <View style={styles.form}>
+                  <Text style={styles.formTitle}>Verificando seguridad...</Text>
+                </View>
+              )}
+              {mode === 'biometric' && renderBiometricMode()}
+              {(mode === 'pin' || mode === 'setup') && renderPinMode()}
+
+              {/* Footer */}
+              <View style={styles.footer}>
+                <Text style={styles.footerText}>Conexión Segura • Almacenamiento Local</Text>
               </View>
-            )}
-            {mode === 'biometric' && renderBiometricMode()}
-            {(mode === 'pin' || mode === 'setup') && renderPinMode()}
 
-            {/* Footer */}
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>Conexión Segura • Almacenamiento Local</Text>
-            </View>
-
-          </Animated.View>
-        </Pressable>
+            </Animated.View>
+          </Pressable>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -406,72 +413,72 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   scrollContent: {
-    flex: 1,
+    flexGrow: 1,
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 12,
   },
   innerContainer: {
     width: '100%',
     maxWidth: 420,
-    paddingHorizontal: 24,
-    paddingVertical: 32,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     justifyContent: 'space-between',
     alignItems: 'center',
-    minHeight: 540,
     alignSelf: 'center',
   },
   header: {
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 8,
   },
   logoContainer: {
-    width: 88,
-    height: 88,
-    borderRadius: 28,
+    width: 72,
+    height: 72,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 4,
   },
   logoImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 28,
+    borderRadius: 22,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '800',
     color: COLORS.bunkerDark,
-    marginTop: 24,
+    marginTop: 14,
     letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: 14,
     color: COLORS.bunkerGray,
-    marginTop: 6,
+    marginTop: 4,
     fontWeight: '500',
   },
   form: {
     width: '100%',
-    marginVertical: 32,
+    marginVertical: 20,
     alignItems: 'center',
   },
   formTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
     color: COLORS.bunkerDark,
-    marginBottom: 16,
+    marginBottom: 12,
     textAlign: 'center',
   },
   hint: {
-    fontSize: 14,
+    fontSize: 13,
     color: COLORS.bunkerGray,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: 14,
     fontWeight: '500',
   },
   hintError: {
@@ -482,14 +489,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
     position: 'relative',
   },
   pinBox: {
     backgroundColor: COLORS.surface,
     borderWidth: 1.5,
     borderColor: COLORS.border,
-    borderRadius: 16,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -511,12 +518,12 @@ const styles = StyleSheet.create({
     borderColor: COLORS.bunkerAccent,
   },
   pinText: {
-    fontSize: 28,
+    fontSize: 24,
     color: COLORS.bunkerGray,
   },
   pinTextEntered: {
     color: COLORS.bunkerDark,
-    fontSize: 32,
+    fontSize: 28,
   },
   hiddenInput: {
     ...StyleSheet.absoluteFillObject,
@@ -525,25 +532,25 @@ const styles = StyleSheet.create({
   },
   button: {
     backgroundColor: COLORS.bunkerAccent,
-    paddingVertical: 16,
+    paddingVertical: 14,
     paddingHorizontal: 24,
-    borderRadius: 16,
+    borderRadius: 14,
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: COLORS.bunkerAccent,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
-    marginBottom: 16,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 4,
+    marginBottom: 12,
   },
   buttonDisabled: {
     opacity: 0.5,
   },
   buttonText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
     width: '100%',
@@ -555,42 +562,42 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderWidth: 1.5,
     borderColor: COLORS.border,
-    borderRadius: 16,
-    paddingVertical: 20,
-    paddingHorizontal: 24,
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     width: '100%',
-    marginBottom: 16,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 2,
-    gap: 12,
+    gap: 10,
   },
   biometricBtnText: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
     color: COLORS.bunkerDark,
   },
   switchModeBtn: {
-    marginTop: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    marginTop: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
   },
   switchModeBtnText: {
-    fontSize: 14,
+    fontSize: 13,
     color: COLORS.bunkerGray,
     fontWeight: '600',
     textDecorationLine: 'underline',
   },
   footer: {
     alignItems: 'center',
-    marginTop: 'auto',
+    marginTop: 8,
   },
   footerText: {
     color: COLORS.bunkerGray,
     opacity: 0.6,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
   },
 });
