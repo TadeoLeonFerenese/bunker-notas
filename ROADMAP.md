@@ -122,9 +122,30 @@ Permitir la carga, visualización y recepción (vía Share Intent o local) de im
 4. **Modo Sincronización Local-First (Próxima Fase 🎯):**
    * Sistema de sincronización selectiva cliente-servidor cifrado de extremo a extremo para usuarios con infraestructura propia o servidores dedicados.
 
+5. **Mejoras UX, Responsividad y Splash Screen (Completado ✅):**
+   * **Corrección de Logo en Splash Screen de la APK:** Se actualizó `app.json` (`splash.image`) y se sincronizó `assets/splash-icon.png` con el icono oficial de la app (`icon.png`), eliminando el logo genérico por defecto de Expo al abrir la APK compilada.
+   * **Diseño Responsivo en Pantalla de Inicio (LoginScreen):**
+     * Se envolvió la vista en un `<ScrollView keyboardShouldPersistTaps="handled">` para que, al desplegarse el teclado numérico del sistema para ingresar el PIN de 6 dígitos, el contenido no quede apretado ni recortado.
+     * Se redujo el padding vertical e iconos excesivamente grandes (logo de 88px a 72px, espacios ajustados), garantizando adaptabilidad perfecta en pantallas de cualquier tamaño.
+
 ---
 
-## 4. Descarga de APK compilada desde otra PC
+## 4. Guía de Procedimiento y Prompts a Futuro 🚀
+
+Para mantener la calidad del proyecto, la integridad de la arquitectura Zero-Knowledge y optimizar las futuras interacciones con la IA, seguir estas pautas:
+
+### 1. Principios Arquitectónicos Inamovibles:
+* **Local-First & Zero-Knowledge:** Todas las llaves (PIN, derivación PBKDF2, Client Secret) deben vivir únicamente en el dispositivo (Hardware Keystore via `storeSecureCredential`). No agregar proxies o servidores intermedios para la sincronización con Google Drive.
+* **Componentes UI Puros:** Evitar modales nativos de selector de tiempo que causan bugs de reseteo en Android (`DateTimePicker mode="time"`). Priorizar controles React Native puros (steppers `+`/`-`, chips de presets o selects limpios).
+
+### 2. Estructura Sugerida para Prompts Futuros:
+* **Fallas o Bugs de UI:** `"Tengo un problema visual en la pantalla X: [describir sintoma]. Revisá responsividad, padding y teclado antes de tocar la lógica."`
+* **Nuevas Features:** `"Quiero implementar [Feature]. Recordá mantener el modelo Zero-Knowledge, correr la suite de pruebas (92 tests) y actualizar ROADMAP.md."`
+* **Compilación:** `"Hacé el push a main para que el workflow genere la APK."` (La IA **NUNCA** ejecuta builds locales tras hacer cambios, respeta la regla de no compilar localmente).
+
+---
+
+## 5. Descarga de APK compilada desde otra PC
 
 Para descargar la última versión de la APK (`app-debug.apk`) desde cualquier computadora sin tener que configurar ningún entorno de desarrollo local, seguí estos pasos sencillos:
 
