@@ -3220,24 +3220,24 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   </Text>
 
                   {/* DISPLAY ESTILO GOOGLE CLOCK / ALARM */}
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                     {/* CAJA HORA */}
-                    <View style={{ alignItems: 'center' }}>
-                      <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.textMuted, fontSize: 10, fontWeight: '700', marginBottom: 4, letterSpacing: 0.5 }}>HORA (00-23)</Text>
+                    <View style={{ alignItems: 'center', width: 80 }}>
+                      <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.textMuted, fontSize: 9, fontWeight: '700', marginBottom: 4, letterSpacing: 0.5 }}>HORA</Text>
                       <TextInput
                         style={{
                           fontFamily: COLORS.fontFamily,
                           color: COLORS.text,
-                          fontSize: 28,
+                          fontSize: 24,
                           fontWeight: '800',
                           textAlign: 'center',
-                          paddingVertical: 8,
-                          paddingHorizontal: 16,
-                          borderRadius: 14,
+                          borderRadius: 12,
                           backgroundColor: isDark ? '#1A202C' : '#FFFFFF',
                           borderWidth: 2,
                           borderColor: COLORS.bunkerAccent,
-                          minWidth: 76,
+                          width: 70,
+                          height: 48,
+                          padding: 0,
                         }}
                         keyboardType="numeric"
                         maxLength={2}
@@ -3256,25 +3256,25 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                     </View>
 
                     {/* SEPARADOR DOS PUNTOS */}
-                    <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.text, fontSize: 28, fontWeight: '800', marginTop: 16 }}>:</Text>
+                    <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.text, fontSize: 24, fontWeight: '800', marginTop: 12 }}>:</Text>
 
                     {/* CAJA MINUTOS */}
-                    <View style={{ alignItems: 'center' }}>
-                      <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.textMuted, fontSize: 10, fontWeight: '700', marginBottom: 4, letterSpacing: 0.5 }}>MINUTOS (00-59)</Text>
+                    <View style={{ alignItems: 'center', width: 80 }}>
+                      <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.textMuted, fontSize: 9, fontWeight: '700', marginBottom: 4, letterSpacing: 0.5 }}>MINUTOS</Text>
                       <TextInput
                         style={{
                           fontFamily: COLORS.fontFamily,
                           color: COLORS.text,
-                          fontSize: 28,
+                          fontSize: 24,
                           fontWeight: '800',
                           textAlign: 'center',
-                          paddingVertical: 8,
-                          paddingHorizontal: 16,
-                          borderRadius: 14,
+                          borderRadius: 12,
                           backgroundColor: isDark ? '#1A202C' : '#FFFFFF',
                           borderWidth: 2,
                           borderColor: COLORS.bunkerAccent,
-                          minWidth: 76,
+                          width: 70,
+                          height: 48,
+                          padding: 0,
                         }}
                         keyboardType="numeric"
                         maxLength={2}
