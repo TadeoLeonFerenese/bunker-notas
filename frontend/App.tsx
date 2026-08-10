@@ -3214,174 +3214,97 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
               </View>
 
               {reminderTimeSlot === 'custom' && (
-                <View style={{ marginBottom: 16, backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border }}>
-                  <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.textMuted, fontSize: 11, marginBottom: 8, fontWeight: '600', textAlign: 'center', letterSpacing: 0.5 }}>
+                <View style={{ marginBottom: 16, backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', padding: 14, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' }}>
+                  <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.textMuted, fontSize: 11, marginBottom: 10, fontWeight: '700', textAlign: 'center', letterSpacing: 0.5 }}>
                     ⏱️ HORA EXACTA
                   </Text>
 
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-                    {/* COLUMNA HORA */}
-                    <View style={{ alignItems: 'center', gap: 4 }}>
-                      <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.textMuted, fontSize: 10, fontWeight: '600' }}>HORA</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <TouchableOpacity
-                          style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 18,
-                            backgroundColor: isDark ? '#2D3748' : '#E2E8F0',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                          onPress={() => {
-                            const h = (reminderSelectedDate.getHours() - 1 + 24) % 24;
+                  {/* DISPLAY ESTILO GOOGLE CLOCK / ALARM */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                    {/* CAJA HORA */}
+                    <View style={{ alignItems: 'center' }}>
+                      <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.textMuted, fontSize: 10, fontWeight: '700', marginBottom: 4, letterSpacing: 0.5 }}>HORA (00-23)</Text>
+                      <TextInput
+                        style={{
+                          fontFamily: COLORS.fontFamily,
+                          color: COLORS.text,
+                          fontSize: 28,
+                          fontWeight: '800',
+                          textAlign: 'center',
+                          paddingVertical: 8,
+                          paddingHorizontal: 16,
+                          borderRadius: 14,
+                          backgroundColor: isDark ? '#1A202C' : '#FFFFFF',
+                          borderWidth: 2,
+                          borderColor: COLORS.bunkerAccent,
+                          minWidth: 76,
+                        }}
+                        keyboardType="numeric"
+                        maxLength={2}
+                        selectTextOnFocus
+                        value={String(reminderSelectedDate.getHours()).padStart(2, '0')}
+                        onChangeText={(text) => {
+                          const clean = text.replace(/[^0-9]/g, '');
+                          if (clean !== '') {
+                            const h = Math.max(0, Math.min(23, Number(clean)));
                             const updated = new Date(reminderSelectedDate);
                             updated.setHours(h);
                             setReminderSelectedDate(updated);
-                          }}
-                        >
-                          <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.text, fontSize: 18, fontWeight: 'bold' }}>-</Text>
-                        </TouchableOpacity>
-
-                        <TextInput
-                          style={{
-                            fontFamily: COLORS.fontFamily,
-                            color: COLORS.text,
-                            fontSize: 20,
-                            fontWeight: 'bold',
-                            textAlign: 'center',
-                            paddingVertical: 4,
-                            paddingHorizontal: 8,
-                            borderRadius: 10,
-                            backgroundColor: isDark ? '#1A202C' : '#FFFFFF',
-                            borderWidth: 1,
-                            borderColor: COLORS.bunkerAccent,
-                            width: 58,
-                          }}
-                          keyboardType="numeric"
-                          maxLength={2}
-                          selectTextOnFocus
-                          value={String(reminderSelectedDate.getHours()).padStart(2, '0')}
-                          onChangeText={(text) => {
-                            const clean = text.replace(/[^0-9]/g, '');
-                            if (clean !== '') {
-                              const h = Math.max(0, Math.min(23, Number(clean)));
-                              const updated = new Date(reminderSelectedDate);
-                              updated.setHours(h);
-                              setReminderSelectedDate(updated);
-                            }
-                          }}
-                        />
-
-                        <TouchableOpacity
-                          style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 18,
-                            backgroundColor: isDark ? '#2D3748' : '#E2E8F0',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                          onPress={() => {
-                            const h = (reminderSelectedDate.getHours() + 1) % 24;
-                            const updated = new Date(reminderSelectedDate);
-                            updated.setHours(h);
-                            setReminderSelectedDate(updated);
-                          }}
-                        >
-                          <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.text, fontSize: 18, fontWeight: 'bold' }}>+</Text>
-                        </TouchableOpacity>
-                      </View>
+                          }
+                        }}
+                      />
                     </View>
 
-                    {/* DOS PUNTOS SEPARADORES */}
-                    <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.text, fontSize: 22, fontWeight: 'bold', marginTop: 14 }}>:</Text>
+                    {/* SEPARADOR DOS PUNTOS */}
+                    <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.text, fontSize: 28, fontWeight: '800', marginTop: 16 }}>:</Text>
 
-                    {/* COLUMNA MINUTOS */}
-                    <View style={{ alignItems: 'center', gap: 4 }}>
-                      <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.textMuted, fontSize: 10, fontWeight: '600' }}>MINUTOS</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <TouchableOpacity
-                          style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 18,
-                            backgroundColor: isDark ? '#2D3748' : '#E2E8F0',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                          onPress={() => {
-                            const m = (reminderSelectedDate.getMinutes() - 5 + 60) % 60;
+                    {/* CAJA MINUTOS */}
+                    <View style={{ alignItems: 'center' }}>
+                      <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.textMuted, fontSize: 10, fontWeight: '700', marginBottom: 4, letterSpacing: 0.5 }}>MINUTOS (00-59)</Text>
+                      <TextInput
+                        style={{
+                          fontFamily: COLORS.fontFamily,
+                          color: COLORS.text,
+                          fontSize: 28,
+                          fontWeight: '800',
+                          textAlign: 'center',
+                          paddingVertical: 8,
+                          paddingHorizontal: 16,
+                          borderRadius: 14,
+                          backgroundColor: isDark ? '#1A202C' : '#FFFFFF',
+                          borderWidth: 2,
+                          borderColor: COLORS.bunkerAccent,
+                          minWidth: 76,
+                        }}
+                        keyboardType="numeric"
+                        maxLength={2}
+                        selectTextOnFocus
+                        value={String(reminderSelectedDate.getMinutes()).padStart(2, '0')}
+                        onChangeText={(text) => {
+                          const clean = text.replace(/[^0-9]/g, '');
+                          if (clean !== '') {
+                            const m = Math.max(0, Math.min(59, Number(clean)));
                             const updated = new Date(reminderSelectedDate);
                             updated.setMinutes(m);
                             setReminderSelectedDate(updated);
-                          }}
-                        >
-                          <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.text, fontSize: 18, fontWeight: 'bold' }}>-</Text>
-                        </TouchableOpacity>
-
-                        <TextInput
-                          style={{
-                            fontFamily: COLORS.fontFamily,
-                            color: COLORS.text,
-                            fontSize: 20,
-                            fontWeight: 'bold',
-                            textAlign: 'center',
-                            paddingVertical: 4,
-                            paddingHorizontal: 8,
-                            borderRadius: 10,
-                            backgroundColor: isDark ? '#1A202C' : '#FFFFFF',
-                            borderWidth: 1,
-                            borderColor: COLORS.bunkerAccent,
-                            width: 58,
-                          }}
-                          keyboardType="numeric"
-                          maxLength={2}
-                          selectTextOnFocus
-                          value={String(reminderSelectedDate.getMinutes()).padStart(2, '0')}
-                          onChangeText={(text) => {
-                            const clean = text.replace(/[^0-9]/g, '');
-                            if (clean !== '') {
-                              const m = Math.max(0, Math.min(59, Number(clean)));
-                              const updated = new Date(reminderSelectedDate);
-                              updated.setMinutes(m);
-                              setReminderSelectedDate(updated);
-                            }
-                          }}
-                        />
-
-                        <TouchableOpacity
-                          style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 18,
-                            backgroundColor: isDark ? '#2D3748' : '#E2E8F0',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                          onPress={() => {
-                            const m = (reminderSelectedDate.getMinutes() + 5) % 60;
-                            const updated = new Date(reminderSelectedDate);
-                            updated.setMinutes(m);
-                            setReminderSelectedDate(updated);
-                          }}
-                        >
-                          <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.text, fontSize: 18, fontWeight: 'bold' }}>+</Text>
-                        </TouchableOpacity>
-                      </View>
+                          }
+                        }}
+                      />
                     </View>
                   </View>
 
-                  {/* PRESETS DE MINUTOS */}
-                  <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 10 }}>
+                  {/* PRESETS RÁPIDOS DE MINUTOS */}
+                  <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 14, width: '100%' }}>
                     {[0, 15, 30, 45].map((min) => (
                       <TouchableOpacity
                         key={min}
                         style={{
-                          paddingVertical: 4,
-                          paddingHorizontal: 10,
-                          borderRadius: 8,
+                          paddingVertical: 6,
+                          paddingHorizontal: 12,
+                          borderRadius: 10,
                           backgroundColor: reminderSelectedDate.getMinutes() === min ? COLORS.bunkerAccent : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
+                          borderWidth: 1,
+                          borderColor: reminderSelectedDate.getMinutes() === min ? COLORS.bunkerAccent : COLORS.border,
                         }}
                         onPress={() => {
                           const updated = new Date(reminderSelectedDate);
@@ -3392,9 +3315,9 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                         <Text
                           style={{
                             fontFamily: COLORS.fontFamily,
-                            color: reminderSelectedDate.getMinutes() === min ? '#fff' : COLORS.textMuted,
-                            fontSize: 11,
-                            fontWeight: '600',
+                            color: reminderSelectedDate.getMinutes() === min ? '#fff' : COLORS.text,
+                            fontSize: 12,
+                            fontWeight: '700',
                           }}
                         >
                           :{String(min).padStart(2, '0')}
