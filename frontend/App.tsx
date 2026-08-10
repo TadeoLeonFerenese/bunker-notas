@@ -3243,22 +3243,35 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                           <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.text, fontSize: 18, fontWeight: 'bold' }}>-</Text>
                         </TouchableOpacity>
 
-                        <View
+                        <TextInput
                           style={{
-                            paddingVertical: 6,
-                            paddingHorizontal: 12,
+                            fontFamily: COLORS.fontFamily,
+                            color: COLORS.text,
+                            fontSize: 20,
+                            fontWeight: 'bold',
+                            textAlign: 'center',
+                            paddingVertical: 4,
+                            paddingHorizontal: 8,
                             borderRadius: 10,
                             backgroundColor: isDark ? '#1A202C' : '#FFFFFF',
                             borderWidth: 1,
                             borderColor: COLORS.bunkerAccent,
-                            minWidth: 54,
-                            alignItems: 'center',
+                            width: 58,
                           }}
-                        >
-                          <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.text, fontSize: 20, fontWeight: 'bold' }}>
-                            {String(reminderSelectedDate.getHours()).padStart(2, '0')}
-                          </Text>
-                        </View>
+                          keyboardType="numeric"
+                          maxLength={2}
+                          selectTextOnFocus
+                          value={String(reminderSelectedDate.getHours()).padStart(2, '0')}
+                          onChangeText={(text) => {
+                            const clean = text.replace(/[^0-9]/g, '');
+                            if (clean !== '') {
+                              const h = Math.max(0, Math.min(23, Number(clean)));
+                              const updated = new Date(reminderSelectedDate);
+                              updated.setHours(h);
+                              setReminderSelectedDate(updated);
+                            }
+                          }}
+                        />
 
                         <TouchableOpacity
                           style={{
@@ -3307,22 +3320,35 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                           <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.text, fontSize: 18, fontWeight: 'bold' }}>-</Text>
                         </TouchableOpacity>
 
-                        <View
+                        <TextInput
                           style={{
-                            paddingVertical: 6,
-                            paddingHorizontal: 12,
+                            fontFamily: COLORS.fontFamily,
+                            color: COLORS.text,
+                            fontSize: 20,
+                            fontWeight: 'bold',
+                            textAlign: 'center',
+                            paddingVertical: 4,
+                            paddingHorizontal: 8,
                             borderRadius: 10,
                             backgroundColor: isDark ? '#1A202C' : '#FFFFFF',
                             borderWidth: 1,
                             borderColor: COLORS.bunkerAccent,
-                            minWidth: 54,
-                            alignItems: 'center',
+                            width: 58,
                           }}
-                        >
-                          <Text style={{ fontFamily: COLORS.fontFamily, color: COLORS.text, fontSize: 20, fontWeight: 'bold' }}>
-                            {String(reminderSelectedDate.getMinutes()).padStart(2, '0')}
-                          </Text>
-                        </View>
+                          keyboardType="numeric"
+                          maxLength={2}
+                          selectTextOnFocus
+                          value={String(reminderSelectedDate.getMinutes()).padStart(2, '0')}
+                          onChangeText={(text) => {
+                            const clean = text.replace(/[^0-9]/g, '');
+                            if (clean !== '') {
+                              const m = Math.max(0, Math.min(59, Number(clean)));
+                              const updated = new Date(reminderSelectedDate);
+                              updated.setMinutes(m);
+                              setReminderSelectedDate(updated);
+                            }
+                          }}
+                        />
 
                         <TouchableOpacity
                           style={{

@@ -10,6 +10,7 @@ Load this agent when working with: React Native, Expo Go, TypeScript, Watermelon
 2. **Local Security:** Implement `expo-local-authentication` and `react-native-keychain`.
 3. **Lazy Loading:** All DB queries must be WatermelonDB-reactive and optimized for speed.
 4. **Visuals:** Follow the Symmetrical Design Rule. Blurred thumbnails + Padlock icon for secure notes.
+5. **Responsive Verification Mandatory:** Al modificar cualquier aspecto visual o de diseño, SIEMPRE verificar el diseño responsivo en pantallas pequeñas, orientaciones y superposición del teclado numérico (`KeyboardAvoidingView` / `ScrollView`) para prevenir desbordamientos o amontonamientos.
 
 |## Skill Registry (Local)
 
