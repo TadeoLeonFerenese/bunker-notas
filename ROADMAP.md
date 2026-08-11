@@ -96,10 +96,57 @@ Permitir la carga, visualización y recepción (vía Share Intent o local) de im
    * **Indicadores en Dashboard:** Badges con icono de reloj (⏰) en `NoteCard.tsx` tanto en la vista de grilla como en la de lista cuando una nota posee un recordatorio activo.
    * **Suite de Pruebas Unificadas:** Mocks de `expo-notifications`, `expo-calendar` y `@react-native-community/datetimepicker` en `jest.setup.js` manteniendo la suite unitaria en verde (17 suites exitosas, 92 tests pasados).
 
-2. **Estrategia de Distribución y Monetización:**
-   * **Distribución Segura:** Se descarta el uso de GitHub Releases públicos para descargas gratuitas de la APK.
+2. **Estrategia de Distribución, Monetización y Publicación en Google Play Store:**
+   * **Distribución Segura:** Se descarta el uso de GitHub Releases públicos para descargas gratuitas de la APK de producción.
    * **Monetización en Google Play Store:** Venta de la app (Paid App) o descargas gratuitas con compras In-App (suscripciones para almacenamiento en la nube, sincronización selectiva u otras features premium).
-   * **Requisitos Google Play:** Registro de desarrollador ($25 USD), compilación en formato `.aab` mediante EAS Build, Política de Privacidad, y superar la fase de pruebas cerradas de 20 testers por 14 días.
+
+---
+
+## 🎯 Meta Especial Meticulosa: Publicación en Google Play Store (Checklist de Producción)
+
+Para subir Bunker Notas a la tienda oficial de Google Play Store sin rechazos ni bloqueos administrativos, se deben cumplir puntillosamente los siguientes 6 pilares:
+
+### 1. Registro y Verificación en Google Play Console 💳
+- [ ] **Cuenta de Desarrollador:** Registro en [Google Play Console](https://play.google.com/console) ($25 USD pago único con tarjeta de crédito/débito).
+- [ ] **Verificación de Identidad:** Enviar documento oficial (DNI / Pasaporte) y comprobante de dirección/teléfono para validar la cuenta personal o de empresa.
+
+### 2. Generación del Bundle de Producción (`.aab`) y Keystore 🔑
+- [ ] **Google Play Exige `.aab`:** No se permiten archivos `.apk` para la tienda. Se debe generar un **Android App Bundle (`.aab`)**.
+- [ ] **Keystore de Producción:** Generar y resguardar en un lugar seguro fuera de Git la clave de firma `bunker-release-key.jks` con su `alias`, `storePassword` y `keyPassword`. *(¡Importante! Activar Google Play App Signing en la consola para no perder el control de actualizaciones).*
+- [ ] **Incremento de Versiones en `app.json`:**
+  - `version`: ej. `"1.0.0"`
+  - `android.versionCode`: número entero incremental (ej. `1`, `2`, `3`...).
+- [ ] **Build de Release Automatizado:** Configurar GitHub Actions en `.github/workflows/` (o ejecutar `eas build --platform android --profile release`) para compilar el archivo `app-release.aab`.
+
+### 3. Fase Obligatoria de Pruebas Cerradas (20 Testers x 14 Días) 🧪
+- [ ] **Requisito Innegociable de Google (Cuentas Creadas Post-Nov 2023):** Google exige probar la app con al menos **20 testers registrados** que permanezcan inscritos durante **14 días consecutivos** en la pestaña de **Prueba Cerrada (Closed Testing)** antes de habilitar la solicitud de publicación en producción.
+- [ ] **Reclutamiento de Testers:** Cargar la lista de 20 correos electrónicos de Gmail de testers autorizados.
+- [ ] **Subir `.aab` al Track Cerrado:** Publicar la primera compilación en la track de Prueba Cerrada para iniciar el contador oficial de 14 días.
+
+### 4. Política de Privacidad Legales (URL Pública Mandatoria) 📜
+- [ ] **URL Pública de Privacy Policy:** Exigido por Google debido al uso de Biometría, Audio y Notificaciones.
+- [ ] **Redacción Zero-Knowledge:** Alojar un documento `PRIVACY.md` público (vía GitHub Pages `https://tadeoleonferenese.github.io/bunker-notas/privacy` o Vercel) declarando explícitamente:
+  - Cifrado local **Zero-Knowledge** en el cliente (AES-256).
+  - Ningún dato personal, nota o audio es transmitido a servidores de los desarrolladores.
+  - La clave del PIN vive únicamente en el hardware seguro del celular del usuario (`Keychain`).
+
+### 5. Store Listing Assets (Ficha de la Tienda) 🎨
+- [ ] **Icono de la Aplicación:** PNG de 512 x 512 px (32-bit, máx. 1024KB).
+- [ ] **Gráfico de Funciones (Feature Graphic):** Imagen de 1024 x 500 px (banner promocional de Bóveda Segura).
+- [ ] **Capturas de Pantalla (Screenshots):**
+  - **Celulares (Mobile):** Al menos 4 capturas en resolución `1080 x 1920 px` mostrando: Dashboard, Editor Rich Text, Modal de PIN y Recordatorios.
+  - **Tablets (7" y 10"):** Al menos 1 captura adaptada por cada tamaño de pantalla.
+- [ ] **Textos de la Ficha:**
+  - **Título:** `Bunker Notas - Bóveda Segura` (máx. 30 caracteres).
+  - **Descripción Corta:** máx. 80 caracteres (ej: *"Notas 100% privadas cifradas con AES-256 y backups en tu Google Drive."*).
+  - **Descripción Larga:** Hasta 4000 caracteres detallando el modelo Zero-Knowledge, la IA BYOK, notas de voz y alarmas.
+
+### 6. Declaración de Permisos y Clasificación en Play Console 📝
+- [ ] **Sección de Seguridad de Datos (Data Safety):** Declarar que la app **no comparte datos con terceros** y que los datos están cifrados en tránsito y reposo.
+- [ ] **Cuestionario IARC:** Completar el formulario de clasificación por edades (Apto para todo público / PEGI 3).
+- [ ] **Declaración de Permisos Sensibles:** Justificar en la consola el uso de `RECORD_AUDIO` (notas de voz), `USE_BIOMETRIC` (desbloqueo) y `POST_NOTIFICATIONS` / `USE_EXACT_ALARM` (alarmas locales).
+
+---
 
 3. **Google Drive Silent Zero-Knowledge Auto-Backup (Completado ✅):**
    * **Problema:** En aplicaciones Local-First, si el usuario pierde, rompe o cambia de celular sin realizar una exportación manual previa, la base de datos local (WatermelonDB) se pierde irremediablemente.
