@@ -175,6 +175,9 @@ Para subir Bunker Notas a la tienda oficial de Google Play Store sin rechazos ni
      * Se envolvió la vista en un `<ScrollView keyboardShouldPersistTaps="handled">` para que, al desplegarse el teclado numérico del sistema para ingresar el PIN de 6 dígitos, el contenido no quede apretado ni recortado.
      * Se redujo el padding vertical e iconos excesivamente grandes (logo de 88px a 72px, espacios ajustados), garantizando adaptabilidad perfecta en pantallas de cualquier tamaño.
 
+6. **Tareas Pendientes & Bugs en Seguimiento 🔍:**
+   * **Bug de Diseño en el Editor tras Crear Nota con IA:** Revisar el layout, scroll, teclado y espaciado/padding visual al escribir dentro de una nota que acaba de ser generada e insertada automáticamente en el editor desde el modal de Asistente de IA del Dashboard.
+
 ---
 
 ## 4. Guía de Procedimiento y Prompts a Futuro 🚀
