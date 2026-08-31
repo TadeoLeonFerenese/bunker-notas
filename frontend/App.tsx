@@ -117,9 +117,12 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     const loadAiConfig = async () => {
       try {
         const { getSecureCredential, storeSecureCredential } = require('./src/notes/encryption');
-        const storedProvider = await getSecureCredential('app_ai_provider') as AIProvider || 'gemini';
+        const validProviders: AIProvider[] = ['gemini', 'openai', 'github', 'groq'];
+        const rawProvider = await getSecureCredential('app_ai_provider');
+        const storedProvider: AIProvider = validProviders.includes(rawProvider as any) ? (rawProvider as AIProvider) : 'gemini';
         
         let storedKey = await getSecureCredential(`app_ai_key_${storedProvider}`);
+        const storedModel = await getSecureCredential(`app_ai_model_${storedProvider}`);
         
         // Retrocompatibilidad: Migración de la clave legacy
         const legacyKey = await getSecureCredential('app_ai_key');
@@ -132,6 +135,8 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
         if (storedProvider) setAiProvider(storedProvider);
         if (storedKey) setAiKey(storedKey);
+        const defaultModel = storedProvider === 'groq' ? 'llama-3.3-70b-versatile' : (storedProvider === 'gemini' ? 'gemini-3.5-flash' : 'gpt-4o-mini');
+        setAiModel(storedModel || defaultModel);
       } catch (e) {
         console.log('Error loading AI config', e);
       }
@@ -210,6 +215,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [aiConfigModal, setAiConfigModal] = useState(false);
   const [aiProvider, setAiProvider] = useState<AIProvider>('gemini');
   const [aiKey, setAiKey] = useState('');
+  const [aiModel, setAiModel] = useState('');
   const [isValidatingKey, setIsValidatingKey] = useState(false);
   const [isAiRecording, setIsAiRecording] = useState(false);
   const [aiRecording, setAiRecording] = useState<Audio.Recording | null>(null);
@@ -219,10 +225,15 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     try {
       const { getSecureCredential } = require('./src/notes/encryption');
       const key = await getSecureCredential(`app_ai_key_${provider}`);
+      const model = await getSecureCredential(`app_ai_model_${provider}`);
       setAiKey(key || '');
+      const defaultModel = provider === 'groq' ? 'llama-3.3-70b-versatile' : (provider === 'gemini' ? 'gemini-3.5-flash' : 'gpt-4o-mini');
+      setAiModel(model || defaultModel);
     } catch (e) {
       console.log('Error switching AI provider credentials', e);
       setAiKey('');
+      const defaultModel = provider === 'groq' ? 'llama-3.3-70b-versatile' : (provider === 'gemini' ? 'gemini-3.5-flash' : 'gpt-4o-mini');
+      setAiModel(defaultModel);
     }
   };
 
@@ -232,14 +243,17 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
         try {
           const { getSecureCredential } = require('./src/notes/encryption');
           const key = await getSecureCredential(`app_ai_key_${aiProvider}`);
+          const model = await getSecureCredential(`app_ai_model_${aiProvider}`);
           setAiKey(key || '');
+          const defaultModel = aiProvider === 'groq' ? 'llama-3.3-70b-versatile' : (aiProvider === 'gemini' ? 'gemini-3.5-flash' : 'gpt-4o-mini');
+          setAiModel(model || defaultModel);
         } catch (e) {
           console.log('Error loading provider key on modal open', e);
         }
       };
       loadProviderKey();
     }
-  }, [aiConfigModal]);
+  }, [aiConfigModal, aiProvider]);
   const authActionRef = useRef<'open' | 'delete'>('open');
   const contentInputRef = useRef<any>(null);
   const [textSelection, setTextSelection] = useState<{ start: number; end: number } | undefined>(undefined);
@@ -1799,8 +1813,11 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     
     try {
       const { getSecureCredential } = require('./src/notes/encryption');
-      const storedProvider = await getSecureCredential('app_ai_provider') as AIProvider || 'gemini';
+      const validProviders: AIProvider[] = ['gemini', 'openai', 'github', 'groq'];
+      const rawProvider = await getSecureCredential('app_ai_provider');
+      const storedProvider: AIProvider = validProviders.includes(rawProvider as any) ? (rawProvider as AIProvider) : 'gemini';
       const storedKey = await getSecureCredential(`app_ai_key_${storedProvider}`);
+      const storedModel = await getSecureCredential(`app_ai_model_${storedProvider}`);
       
       if (!storedKey || storedKey.trim() === '' || storedKey === 'null' || storedKey === 'undefined') {
         Alert.alert('Configuración IA', 'Debes configurar tu API Key de IA primero en el menú hamburguesa.');
@@ -1811,7 +1828,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
       const systemInstruction = 'Eres un asistente estricto para crear notas. Reglas: 1) Si el usuario dicta un título (ej: "el título es..."), úsalo EXACTAMENTE en el campo title. 2) Escribe el contenido pedido al pie de la letra sin agregados conversacionales. 3) Usa formato Markdown en el contenido: si es una lista (ej: compras), usa viñetas (- elemento); usa negrita (**texto**) para resaltar partes importantes o subtítulos. 4) Responde ÚNICAMENTE con un JSON válido: {"title": "Título aquí", "content": "Contenido aquí"}. NO devuelvas texto fuera del JSON.';
       const finalPrompt = `${systemInstruction}\n\nInstrucción del usuario: ${aiPrompt}`;
-      const res = await AIService.ask(finalPrompt, storedKey, storedProvider);
+      const res = await AIService.ask(finalPrompt, storedKey, storedProvider, storedModel);
       
       if (res.error) {
         Alert.alert('Error IA', res.error);
@@ -1869,7 +1886,9 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const startAiRecording = async () => {
     try {
       const { getSecureCredential } = require('./src/notes/encryption');
-      const storedProvider = await getSecureCredential('app_ai_provider') as AIProvider || 'gemini';
+      const validProviders: AIProvider[] = ['gemini', 'openai', 'github', 'groq'];
+      const rawProvider = await getSecureCredential('app_ai_provider');
+      const storedProvider: AIProvider = validProviders.includes(rawProvider as any) ? (rawProvider as AIProvider) : 'gemini';
       const storedKey = await getSecureCredential(`app_ai_key_${storedProvider}`);
       if (!storedKey || storedKey.trim() === '' || storedKey === 'null' || storedKey === 'undefined') {
         Alert.alert('Configuración IA', 'Debes configurar tu API Key de IA primero.');
@@ -1930,7 +1949,9 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
       if (uri) {
         const { getSecureCredential } = require('./src/notes/encryption');
-        const storedProvider = await getSecureCredential('app_ai_provider') as AIProvider || 'gemini';
+        const validProviders: AIProvider[] = ['gemini', 'openai', 'github', 'groq'];
+        const rawProvider = await getSecureCredential('app_ai_provider');
+        const storedProvider: AIProvider = validProviders.includes(rawProvider as any) ? (rawProvider as AIProvider) : 'gemini';
         const storedKey = await getSecureCredential(`app_ai_key_${storedProvider}`);
 
         if (!storedKey || storedKey.trim() === '' || storedKey === 'null' || storedKey === 'undefined') {
@@ -4105,8 +4126,8 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
               </TouchableOpacity>
             </View>
             <View style={{ flexDirection: 'row', marginBottom: 16, gap: 8 }}>
-              <TouchableOpacity onPress={() => handleSelectAiProvider('cohere')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'cohere' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'cohere' ? 'transparent' : COLORS.border }}>
-                <Text style={{ color: aiProvider === 'cohere' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700' }}>Cohere</Text>
+              <TouchableOpacity onPress={() => handleSelectAiProvider('github')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'github' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'github' ? 'transparent' : COLORS.border }}>
+                <Text style={{ color: aiProvider === 'github' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700' }}>GitHub</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => handleSelectAiProvider('groq')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'groq' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'groq' ? 'transparent' : COLORS.border }}>
                 <Text style={{ color: aiProvider === 'groq' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700' }}>Groq</Text>
@@ -4123,13 +4144,22 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
               onChangeText={setAiKey}
             />
 
+            <Text style={{ color: COLORS.textMuted, marginBottom: 8, fontFamily: COLORS.fontFamily, fontSize: 13, fontWeight: '600', textTransform: 'uppercase' }}>Modelo de IA</Text>
+            <TextInput 
+              style={{ backgroundColor: COLORS.bunkerBg, color: COLORS.text, padding: 14, borderRadius: 12, fontFamily: COLORS.fontFamily, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border, fontSize: 15 }}
+              placeholder="Ej: gpt-4o-mini, llama-3.3-70b-versatile"
+              placeholderTextColor={COLORS.textMuted}
+              value={aiModel}
+              onChangeText={setAiModel}
+            />
+
             <TouchableOpacity 
               onPress={() => {
                 let url = 'https://aistudio.google.com/app/apikey';
                 if (aiProvider === 'openai') {
                   url = 'https://platform.openai.com/api-keys';
-                } else if (aiProvider === 'cohere') {
-                  url = 'https://dashboard.cohere.com/api-keys';
+                } else if (aiProvider === 'github') {
+                  url = 'https://github.com/settings/tokens';
                 } else if (aiProvider === 'groq') {
                   url = 'https://console.groq.com/keys';
                 }
@@ -4140,7 +4170,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
               <Text style={{ color: COLORS.bunkerAccent, fontFamily: COLORS.fontFamily, fontSize: 13, textDecorationLine: 'underline', fontWeight: '500' }}>
                 {aiProvider === 'gemini' && 'Obtener API Key de Gemini ↗'}
                 {aiProvider === 'openai' && 'Obtener API Key de OpenAI ↗'}
-                {aiProvider === 'cohere' && 'Obtener API Key de Cohere ↗'}
+                {aiProvider === 'github' && 'Obtener Token de GitHub (PAT) ↗'}
                 {aiProvider === 'groq' && 'Obtener API Key de Groq ↗'}
               </Text>
             </TouchableOpacity>
@@ -4172,12 +4202,13 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   
                   setIsValidatingKey(true);
                   try {
-                    const validation = await AIService.validateKey(aiKey, aiProvider);
+                    const validation = await AIService.validateKey(aiKey, aiProvider, aiModel);
                     if (validation.success) {
                       const { storeSecureCredential } = require('./src/notes/encryption');
                       await storeSecureCredential('app_ai_provider', aiProvider);
                       await storeSecureCredential('app_ai_key', aiKey);
                       await storeSecureCredential(`app_ai_key_${aiProvider}`, aiKey);
+                      await storeSecureCredential(`app_ai_model_${aiProvider}`, aiModel);
                       setAiConfigModal(false);
                       Alert.alert('Éxito', 'La configuración de la IA es correcta y se guardó de forma segura.');
                     } else {
@@ -4204,6 +4235,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                                 await storeSecureCredential('app_ai_provider', aiProvider);
                                 await storeSecureCredential('app_ai_key', aiKey);
                                 await storeSecureCredential(`app_ai_key_${aiProvider}`, aiKey);
+                                await storeSecureCredential(`app_ai_model_${aiProvider}`, aiModel);
                                 setAiConfigModal(false);
                                 Alert.alert('Guardado', 'Se guardó la configuración de la IA sin validar.');
                               } catch (errSave) {
@@ -4238,6 +4270,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                               await storeSecureCredential('app_ai_provider', aiProvider);
                               await storeSecureCredential('app_ai_key', aiKey);
                               await storeSecureCredential(`app_ai_key_${aiProvider}`, aiKey);
+                              await storeSecureCredential(`app_ai_model_${aiProvider}`, aiModel);
                               setAiConfigModal(false);
                               Alert.alert('Guardado', 'Se guardó la configuración de la IA sin validar.');
                             } catch (errSave) {

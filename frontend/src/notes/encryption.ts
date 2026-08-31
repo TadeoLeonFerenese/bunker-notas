@@ -91,6 +91,9 @@ export async function verifyPin(pin: string, hash: string, salt: string): Promis
 export async function storeSecureCredential(key: string, value: string): Promise<boolean> {
   try {
     if (Platform.OS === 'web' || process.env.NODE_ENV === 'test') {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(key, value);
+      }
       memoryStore[key] = value;
       return true;
     }
@@ -117,6 +120,10 @@ export async function storeSecureCredential(key: string, value: string): Promise
 export async function getSecureCredential(key: string): Promise<string | null> {
   try {
     if (Platform.OS === 'web' || process.env.NODE_ENV === 'test') {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const val = window.localStorage.getItem(key);
+        if (val !== null) return val;
+      }
       return memoryStore[key] || null;
     }
     const Keychain = require('react-native-keychain');

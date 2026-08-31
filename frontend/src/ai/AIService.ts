@@ -1,4 +1,4 @@
-export type AIProvider = 'gemini' | 'openai' | 'cohere' | 'groq';
+export type AIProvider = 'gemini' | 'openai' | 'github' | 'groq';
 
 export interface AIResponse {
   text?: string;
@@ -164,17 +164,18 @@ export const AIService = {
     if (provider === 'groq') {
       return this.transcribeGroq(audioUri, apiKey);
     }
-    if (provider === 'cohere') {
-      return { error: 'El proveedor Cohere no soporta transcripción de audio. Por favor usá Groq, OpenAI o Gemini.' };
+    if (provider === 'github') {
+      return { error: 'El proveedor GitHub no soporta transcripción de audio. Por favor usá Groq, OpenAI o Gemini.' };
     }
     return this.transcribeOpenAI(audioUri, apiKey);
   },
 
-  async ask(prompt: string, apiKey: string, provider: AIProvider): Promise<AIResponse> {
+  async ask(prompt: string, apiKey: string, provider: AIProvider, model?: string): Promise<AIResponse> {
     try {
       if (provider === 'gemini') {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey.trim()}`;
-        console.log(`[AIService Gemini Request] Sending ask prompt to Gemini...`);
+        const modelName = model && model.trim() ? model.trim() : 'gemini-3.5-flash';
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey.trim()}`;
+        console.log(`[AIService Gemini Request] Sending ask prompt to Gemini model ${modelName}...`);
         const response = await fetch(url, {
           method: 'POST',
           headers: {
@@ -198,15 +199,16 @@ export const AIService = {
         return { text: data.candidates[0]?.content?.parts[0]?.text || '' };
       } else if (provider === 'openai') {
         const url = 'https://api.openai.com/v1/chat/completions';
-        console.log(`[AIService OpenAI Request] Sending ask prompt to OpenAI...`);
+        const modelName = model && model.trim() ? model.trim() : 'gpt-4o-mini';
+        console.log(`[AIService OpenAI Request] Sending ask prompt to OpenAI model ${modelName}...`);
         const response = await fetch(url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
+            'Authorization': `Bearer ${apiKey.trim()}`,
           },
           body: JSON.stringify({
-            model: 'gpt-4o-mini',
+            model: modelName,
             messages: [
               { role: 'system', content: SYSTEM_INSTRUCTION },
               { role: 'user', content: prompt }
@@ -224,15 +226,16 @@ export const AIService = {
         return { text: data.choices[0]?.message?.content || '' };
       } else if (provider === 'groq') {
         const url = 'https://api.groq.com/openai/v1/chat/completions';
-        console.log(`[AIService Groq Request] Sending ask prompt to Groq...`);
+        const modelName = model && model.trim() ? model.trim() : 'llama-3.3-70b-versatile';
+        console.log(`[AIService Groq Request] Sending ask prompt to Groq model ${modelName}...`);
         const response = await fetch(url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
+            'Authorization': `Bearer ${apiKey.trim()}`,
           },
           body: JSON.stringify({
-            model: 'llama-3.1-8b-instant',
+            model: modelName,
             messages: [
               { role: 'system', content: SYSTEM_INSTRUCTION },
               { role: 'user', content: prompt }
@@ -249,31 +252,33 @@ export const AIService = {
 
         return { text: data.choices[0]?.message?.content || '' };
       } else {
-        // Cohere
-        const url = 'https://api.cohere.com/v1/chat';
-        console.log(`[AIService Cohere Request] Sending ask prompt to Cohere...`);
+        // github
+        const url = 'https://models.inference.ai.azure.com/chat/completions';
+        const modelName = model && model.trim() ? model.trim() : 'gpt-4o-mini';
+        console.log(`[AIService GitHub Request] Sending ask prompt to GitHub model ${modelName}...`);
         const response = await fetch(url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
+            'Authorization': `Bearer ${apiKey.trim()}`,
           },
           body: JSON.stringify({
-            model: 'command-r',
-            preamble: SYSTEM_INSTRUCTION,
-            message: prompt,
+            model: modelName,
+            messages: [
+              { role: 'system', content: SYSTEM_INSTRUCTION },
+              { role: 'user', content: prompt }
+            ],
           }),
         });
 
         const data = await response.json();
-        console.log(`[AIService Cohere Response] Status: ${response.status}`, JSON.stringify(data));
+        console.log(`[AIService GitHub Response] Status: ${response.status}`, JSON.stringify(data));
 
         if (!response.ok) {
-          return { error: data.message || `HTTP ${response.status}: Error en Cohere API` };
+          return { error: data.error?.message || `HTTP ${response.status}: Error en GitHub API` };
         }
 
-        return { text: data.text?.trim() || '' };
+        return { text: data.choices[0]?.message?.content || '' };
       }
     } catch (e: any) {
       console.error('[AIService Request Exception]', e);
@@ -281,9 +286,9 @@ export const AIService = {
     }
   },
 
-  async validateKey(apiKey: string, provider: AIProvider): Promise<{ success: boolean; error?: string }> {
+  async validateKey(apiKey: string, provider: AIProvider, model?: string): Promise<{ success: boolean; error?: string }> {
     try {
-      const res = await this.ask('ping', apiKey, provider);
+      const res = await this.ask('ping', apiKey, provider, model);
       if (res.error) {
         return { success: false, error: res.error };
       }

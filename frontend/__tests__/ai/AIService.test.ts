@@ -88,14 +88,18 @@ describe('AIService - Integración con IAs (Gemini y OpenAI)', () => {
         expect.stringContaining('api.groq.com/openai/v1/chat/completions'),
         expect.objectContaining({
           method: 'POST',
-          body: expect.stringContaining('llama-3.1-8b-instant'),
+          body: expect.stringContaining('llama-3.3-70b-versatile'),
         })
       );
     });
 
-    it('debe consultar Cohere correctamente y devolver el texto', async () => {
+    it('debe consultar GitHub correctamente y devolver el texto', async () => {
       const mockResponse = {
-        text: 'Respuesta simulada de Cohere',
+        choices: [
+          {
+            message: { content: 'Respuesta simulada de GitHub' },
+          },
+        ],
       };
 
       global.fetch = jest.fn().mockResolvedValue({
@@ -103,13 +107,13 @@ describe('AIService - Integración con IAs (Gemini y OpenAI)', () => {
         json: async () => mockResponse,
       });
 
-      const response = await AIService.ask('Hola', 'fake-api-key', 'cohere');
-      expect(response.text).toBe('Respuesta simulada de Cohere');
+      const response = await AIService.ask('Hola', 'fake-api-key', 'github');
+      expect(response.text).toBe('Respuesta simulada de GitHub');
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('api.cohere.com/v1/chat'),
+        expect.stringContaining('models.inference.ai.azure.com/chat/completions'),
         expect.objectContaining({
           method: 'POST',
-          body: expect.stringContaining('command-r'),
+          body: expect.stringContaining('gpt-4o-mini'),
         })
       );
     });
@@ -196,9 +200,9 @@ describe('AIService - Integración con IAs (Gemini y OpenAI)', () => {
       );
     });
 
-    it('debe devolver error al intentar transcribir con Cohere', async () => {
-      const response = await AIService.transcribe('file:///audio.m4a', 'fake-key', 'cohere');
-      expect(response.error).toContain('Cohere no soporta transcripción');
+    it('debe devolver error al intentar transcribir con GitHub', async () => {
+      const response = await AIService.transcribe('file:///audio.m4a', 'fake-key', 'github');
+      expect(response.error).toContain('GitHub no soporta transcripción');
     });
   });
 });
