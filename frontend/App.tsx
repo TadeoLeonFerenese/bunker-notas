@@ -135,8 +135,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
         if (storedProvider) setAiProvider(storedProvider);
         if (storedKey) setAiKey(storedKey);
-        const defaultModel = storedProvider === 'groq' ? 'llama-3.3-70b-versatile' : (storedProvider === 'gemini' ? 'gemini-1.5-flash' : 'gpt-4o-mini');
-        setAiModel(storedModel || defaultModel);
+        setAiModel(sanitizeModel(storedProvider, storedModel));
       } catch (e) {
         console.log('Error loading AI config', e);
       }
@@ -166,6 +165,19 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [googleClientSecret, setGoogleClientSecret] = useState('');
   const [googleRedirectUri, setGoogleRedirectUri] = useState('');
   const [showAdvancedBackup, setShowAdvancedBackup] = useState(false);
+
+  const sanitizeModel = (p: AIProvider, m?: string | null): string => {
+    if (!m || m.trim() === '') {
+      if (p === 'groq') return 'llama-3.3-70b-versatile';
+      if (p === 'gemini') return 'gemini-1.5-flash';
+      return 'gpt-4o-mini';
+    }
+    const trimmed = m.trim();
+    if (p === 'groq' && trimmed === 'llama-3.1-8b-instant') return 'llama-3.3-70b-versatile';
+    if (p === 'gemini' && trimmed === 'gemini-3.5-flash') return 'gemini-1.5-flash';
+    if (p === 'github' && trimmed === 'command-r') return 'gpt-4o-mini';
+    return trimmed;
+  };
 
   useEffect(() => {
     const loadGoogleSettings = async () => {
@@ -216,40 +228,34 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [aiProvider, setAiProvider] = useState<AIProvider>('gemini');
   const [aiKey, setAiKey] = useState('');
   const [aiModel, setAiModel] = useState('');
-  const [aiValidationError, setAiValidationError] = useState<string | null>(null);
   const [isValidatingKey, setIsValidatingKey] = useState(false);
   const [isAiRecording, setIsAiRecording] = useState(false);
   const [aiRecording, setAiRecording] = useState<Audio.Recording | null>(null);
 
   const handleSelectAiProvider = async (provider: AIProvider) => {
     setAiProvider(provider);
-    setAiValidationError(null);
     try {
       const { getSecureCredential } = require('./src/notes/encryption');
       const key = await getSecureCredential(`app_ai_key_${provider}`);
       const model = await getSecureCredential(`app_ai_model_${provider}`);
       setAiKey(key || '');
-      const defaultModel = provider === 'groq' ? 'llama-3.3-70b-versatile' : (provider === 'gemini' ? 'gemini-1.5-flash' : 'gpt-4o-mini');
-      setAiModel(model || defaultModel);
+      setAiModel(sanitizeModel(provider, model));
     } catch (e) {
       console.log('Error switching AI provider credentials', e);
       setAiKey('');
-      const defaultModel = provider === 'groq' ? 'llama-3.3-70b-versatile' : (provider === 'gemini' ? 'gemini-1.5-flash' : 'gpt-4o-mini');
-      setAiModel(defaultModel);
+      setAiModel(sanitizeModel(provider, ''));
     }
   };
 
   useEffect(() => {
     if (aiConfigModal) {
-      setAiValidationError(null);
       const loadProviderKey = async () => {
         try {
           const { getSecureCredential } = require('./src/notes/encryption');
           const key = await getSecureCredential(`app_ai_key_${aiProvider}`);
           const model = await getSecureCredential(`app_ai_model_${aiProvider}`);
           setAiKey(key || '');
-          const defaultModel = aiProvider === 'groq' ? 'llama-3.3-70b-versatile' : (aiProvider === 'gemini' ? 'gemini-1.5-flash' : 'gpt-4o-mini');
-          setAiModel(model || defaultModel);
+          setAiModel(sanitizeModel(aiProvider, model));
         } catch (e) {
           console.log('Error loading provider key on modal open', e);
         }
@@ -4113,67 +4119,26 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       </Modal>
 
       {/* AI CONFIG MODAL */}
-      <Modal visible={aiConfigModal} transparent animationType="fade" onRequestClose={() => { setAiValidationError(null); setAiConfigModal(false); }}>
+      <Modal visible={aiConfigModal} transparent animationType="fade" onRequestClose={() => setAiConfigModal(false)}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={{ flex: 1 }}
         >
           <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 24 }}>
-            <Pressable style={StyleSheet.absoluteFillObject} onPress={() => { setAiValidationError(null); setAiConfigModal(false); }} />
+            <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setAiConfigModal(false)} />
             <View style={{ backgroundColor: COLORS.surface, width: '100%', maxWidth: 360, maxHeight: '90%', borderRadius: 20, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden' }}>
               <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                 {/* Header con Título y Botón Cerrar X */}
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                   <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 18, color: COLORS.text, fontWeight: '700' }}>Configuración de IA</Text>
                   <TouchableOpacity 
-                    onPress={() => {
-                      setAiValidationError(null);
-                      setAiConfigModal(false);
-                    }}
+                    onPress={() => setAiConfigModal(false)}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     style={{ padding: 6, borderRadius: 20, backgroundColor: COLORS.bunkerBg, borderWidth: 1, borderColor: COLORS.border }}
                   >
                     <MaterialIcons name="close" size={18} color={COLORS.text} />
                   </TouchableOpacity>
                 </View>
-
-                {/* Log de Error / Validación Inline */}
-                {aiValidationError && (
-                  <View style={{ backgroundColor: '#ff444415', borderColor: '#ff4444', borderWidth: 1, borderRadius: 12, padding: 12, marginBottom: 16 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                      <MaterialIcons name="error-outline" size={18} color="#ff4444" />
-                      <Text style={{ color: '#ff4444', fontWeight: '700', fontSize: 13, fontFamily: COLORS.fontFamily }}>Log de Error del Motor</Text>
-                    </View>
-                    <Text style={{ color: COLORS.text, fontSize: 12, fontFamily: COLORS.fontFamily, lineHeight: 16 }}>{aiValidationError}</Text>
-                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-                      <TouchableOpacity
-                        onPress={async () => {
-                          try {
-                            const { storeSecureCredential } = require('./src/notes/encryption');
-                            await storeSecureCredential('app_ai_provider', aiProvider);
-                            await storeSecureCredential('app_ai_key', aiKey);
-                            await storeSecureCredential(`app_ai_key_${aiProvider}`, aiKey);
-                            await storeSecureCredential(`app_ai_model_${aiProvider}`, aiModel);
-                            setAiValidationError(null);
-                            setAiConfigModal(false);
-                            Alert.alert('Guardado', 'Se guardó la configuración de la IA sin validar.');
-                          } catch (errSave) {
-                            Alert.alert('Error', 'No se pudo guardar la configuración.');
-                          }
-                        }}
-                        style={{ flex: 1, backgroundColor: '#ff4444', paddingVertical: 8, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }}
-                      >
-                        <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700', fontFamily: COLORS.fontFamily }}>Guardar de todos modos</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => setAiValidationError(null)}
-                        style={{ paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8, backgroundColor: COLORS.bunkerBg, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' }}
-                      >
-                        <Text style={{ color: COLORS.text, fontSize: 11, fontWeight: '600', fontFamily: COLORS.fontFamily }}>Ocultar</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                )}
                 
                 <Text style={{ color: COLORS.textMuted, marginBottom: 8, fontFamily: COLORS.fontFamily, fontSize: 13, fontWeight: '600', textTransform: 'uppercase' }}>Proveedor</Text>
                 <View style={{ flexDirection: 'row', marginBottom: 8, gap: 8 }}>
@@ -4237,10 +4202,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                 <View style={{ flexDirection: 'row', gap: 12 }}>
                   <TouchableOpacity 
                     disabled={isValidatingKey}
-                    onPress={() => {
-                      setAiValidationError(null);
-                      setAiConfigModal(false);
-                    }} 
+                    onPress={() => setAiConfigModal(false)} 
                     style={{ 
                       flex: 1, 
                       paddingVertical: 14, 
@@ -4263,7 +4225,6 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                       }
                       
                       setIsValidatingKey(true);
-                      setAiValidationError(null);
                       try {
                         const validation = await AIService.validateKey(aiKey, aiProvider, aiModel);
                         if (validation.success) {
@@ -4272,12 +4233,10 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                           await storeSecureCredential('app_ai_key', aiKey);
                           await storeSecureCredential(`app_ai_key_${aiProvider}`, aiKey);
                           await storeSecureCredential(`app_ai_model_${aiProvider}`, aiModel);
-                          setAiValidationError(null);
                           setAiConfigModal(false);
                           Alert.alert('Éxito', 'La configuración de la IA es correcta y se guardó de forma segura.');
                         } else {
                           const errorMsg = validation.error || 'Respuesta inesperada del proveedor.';
-                          setAiValidationError(`[${aiProvider.toUpperCase()}] ${errorMsg}`);
                           Alert.alert(
                             'Error de Validación',
                             `[LOG DE ERROR DE CONFIGURACIÓN]\n` +
@@ -4289,8 +4248,15 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                             `¿Querés corregir la API Key o preferís guardarla de todos modos?`,
                             [
                               {
+                                text: 'Cerrar',
+                                style: 'cancel',
+                                onPress: () => {
+                                  setAiConfigModal(false);
+                                }
+                              },
+                              {
                                 text: 'Corregir Key',
-                                style: 'cancel'
+                                onPress: () => {}
                               },
                               {
                                 text: 'Guardar de todos modos',
@@ -4302,7 +4268,6 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                                     await storeSecureCredential('app_ai_key', aiKey);
                                     await storeSecureCredential(`app_ai_key_${aiProvider}`, aiKey);
                                     await storeSecureCredential(`app_ai_model_${aiProvider}`, aiModel);
-                                    setAiValidationError(null);
                                     setAiConfigModal(false);
                                     Alert.alert('Guardado', 'Se guardó la configuración de la IA sin validar.');
                                   } catch (errSave) {
@@ -4315,7 +4280,6 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                         }
                       } catch (e: any) {
                         const errorMsg = e.message || String(e);
-                        setAiValidationError(`[${aiProvider.toUpperCase()} - RED] ${errorMsg}`);
                         Alert.alert(
                           'Error de Conexión',
                           `[LOG DE EXCEPCIÓN DE RED]\n` +
@@ -4327,8 +4291,15 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                           `¿Querés corregir la API Key o preferís guardarla de todos modos?`,
                           [
                             {
+                              text: 'Cerrar',
+                              style: 'cancel',
+                              onPress: () => {
+                                setAiConfigModal(false);
+                              }
+                            },
+                            {
                               text: 'Corregir Key',
-                              style: 'cancel'
+                              onPress: () => {}
                             },
                             {
                               text: 'Guardar de todos modos',
@@ -4340,7 +4311,6 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                                   await storeSecureCredential('app_ai_key', aiKey);
                                   await storeSecureCredential(`app_ai_key_${aiProvider}`, aiKey);
                                   await storeSecureCredential(`app_ai_model_${aiProvider}`, aiModel);
-                                  setAiValidationError(null);
                                   setAiConfigModal(false);
                                   Alert.alert('Guardado', 'Se guardó la configuración de la IA sin validar.');
                                 } catch (errSave) {

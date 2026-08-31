@@ -173,7 +173,8 @@ export const AIService = {
   async ask(prompt: string, apiKey: string, provider: AIProvider, model?: string): Promise<AIResponse> {
     try {
       if (provider === 'gemini') {
-        const modelName = model && model.trim() ? model.trim() : 'gemini-1.5-flash';
+        const rawModel = model && model.trim() ? model.trim() : 'gemini-1.5-flash';
+        const modelName = rawModel === 'gemini-3.5-flash' ? 'gemini-1.5-flash' : rawModel;
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey.trim()}`;
         console.log(`[AIService Gemini Request] Sending ask prompt to Gemini model ${modelName}...`);
         const response = await fetch(url, {
@@ -226,12 +227,14 @@ export const AIService = {
         return { text: data.choices?.[0]?.message?.content || '' };
       } else if (provider === 'groq') {
         const url = 'https://api.groq.com/openai/v1/chat/completions';
-        const modelName = model && model.trim() ? model.trim() : 'llama-3.3-70b-versatile';
+        const rawModel = model && model.trim() ? model.trim() : 'llama-3.3-70b-versatile';
+        const modelName = rawModel === 'llama-3.1-8b-instant' ? 'llama-3.3-70b-versatile' : rawModel;
         console.log(`[AIService Groq Request] Sending ask prompt to Groq model ${modelName}...`);
         const response = await fetch(url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
             'Authorization': `Bearer ${apiKey.trim()}`,
           },
           body: JSON.stringify({
@@ -253,14 +256,17 @@ export const AIService = {
         return { text: data.choices?.[0]?.message?.content || '' };
       } else {
         // github
-        const url = 'https://models.inference.ai.azure.com/chat/completions';
-        const modelName = model && model.trim() ? model.trim() : 'gpt-4o-mini';
+        const url = 'https://models.github.ai/inference/chat/completions';
+        const rawModel = model && model.trim() ? model.trim() : 'gpt-4o-mini';
+        const modelName = rawModel === 'command-r' ? 'gpt-4o-mini' : rawModel;
         console.log(`[AIService GitHub Request] Sending ask prompt to GitHub model ${modelName}...`);
         const response = await fetch(url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Accept': 'application/vnd.github+json',
             'Authorization': `Bearer ${apiKey.trim()}`,
+            'X-GitHub-Api-Version': '2022-11-28',
           },
           body: JSON.stringify({
             model: modelName,

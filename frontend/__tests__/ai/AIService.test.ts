@@ -110,7 +110,7 @@ describe('AIService - Integración con IAs (Gemini y OpenAI)', () => {
       const response = await AIService.ask('Hola', 'fake-api-key', 'github');
       expect(response.text).toBe('Respuesta simulada de GitHub');
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('models.inference.ai.azure.com/chat/completions'),
+        expect.stringContaining('models.github.ai/inference/chat/completions'),
         expect.objectContaining({
           method: 'POST',
           body: expect.stringContaining('gpt-4o-mini'),
