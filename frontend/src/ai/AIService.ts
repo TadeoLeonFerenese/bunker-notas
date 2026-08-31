@@ -226,10 +226,20 @@ export const AIService = {
 
         return { text: data.choices?.[0]?.message?.content || '' };
       } else if (provider === 'groq') {
-        const url = 'https://api.groq.com/openai/v1/chat/completions';
-        const rawModel = model && model.trim() ? model.trim() : 'llama-3.3-70b-versatile';
-        const modelName = rawModel === 'llama-3.1-8b-instant' ? 'llama-3.3-70b-versatile' : rawModel;
-        console.log(`[AIService Groq Request] Sending ask prompt to Groq model ${modelName}...`);
+        const isXAI = apiKey.trim().startsWith('xai-');
+        const url = isXAI 
+          ? 'https://api.x.ai/v1/chat/completions' 
+          : 'https://api.groq.com/openai/v1/chat/completions';
+        
+        let defaultModel = isXAI ? 'grok-2-latest' : 'llama-3.3-70b-versatile';
+        let modelName = model && model.trim() ? model.trim() : defaultModel;
+        if (isXAI && (modelName.startsWith('llama') || modelName === 'llama-3.3-70b-versatile' || modelName === 'llama-3.1-8b-instant')) {
+          modelName = 'grok-2-latest';
+        } else if (!isXAI && (modelName === 'llama-3.1-8b-instant' || modelName.startsWith('grok'))) {
+          modelName = 'llama-3.3-70b-versatile';
+        }
+
+        console.log(`[AIService ${isXAI ? 'xAI Grok' : 'Groq'} Request] Sending ask prompt to model ${modelName}...`);
         const response = await fetch(url, {
           method: 'POST',
           headers: {
@@ -247,10 +257,10 @@ export const AIService = {
         });
 
         const data = await response.json();
-        console.log(`[AIService Groq Response] Status: ${response.status}`, JSON.stringify(data));
+        console.log(`[AIService ${isXAI ? 'xAI Grok' : 'Groq'} Response] Status: ${response.status}`, JSON.stringify(data));
 
         if (!response.ok) {
-          return { error: data.error?.message || data.message || `HTTP ${response.status}: Error en Groq API` };
+          return { error: data.error?.message || data.message || `HTTP ${response.status}: Error en ${isXAI ? 'xAI Grok' : 'Groq'} API` };
         }
 
         return { text: data.choices?.[0]?.message?.content || '' };
