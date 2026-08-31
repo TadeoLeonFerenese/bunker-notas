@@ -42,7 +42,7 @@ export const AIService = {
   async transcribeGemini(audioUri: string, apiKey: string): Promise<AIResponse> {
     try {
       const base64Data = await this.getAudioBase64(audioUri);
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey.trim()}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey.trim()}`;
       
       const response = await fetch(url, {
         method: 'POST',
@@ -173,7 +173,7 @@ export const AIService = {
   async ask(prompt: string, apiKey: string, provider: AIProvider, model?: string): Promise<AIResponse> {
     try {
       if (provider === 'gemini') {
-        const modelName = model && model.trim() ? model.trim() : 'gemini-3.5-flash';
+        const modelName = model && model.trim() ? model.trim() : 'gemini-1.5-flash';
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey.trim()}`;
         console.log(`[AIService Gemini Request] Sending ask prompt to Gemini model ${modelName}...`);
         const response = await fetch(url, {
@@ -193,10 +193,10 @@ export const AIService = {
         console.log(`[AIService Gemini Response] Status: ${response.status}`, JSON.stringify(data));
         
         if (!response.ok) {
-          return { error: data.error?.message || `HTTP ${response.status}: Error en Gemini API` };
+          return { error: data.error?.message || data.message || `HTTP ${response.status}: Error en Gemini API` };
         }
 
-        return { text: data.candidates[0]?.content?.parts[0]?.text || '' };
+        return { text: data.candidates?.[0]?.content?.parts?.[0]?.text || '' };
       } else if (provider === 'openai') {
         const url = 'https://api.openai.com/v1/chat/completions';
         const modelName = model && model.trim() ? model.trim() : 'gpt-4o-mini';
@@ -220,10 +220,10 @@ export const AIService = {
         console.log(`[AIService OpenAI Response] Status: ${response.status}`, JSON.stringify(data));
 
         if (!response.ok) {
-          return { error: data.error?.message || `HTTP ${response.status}: Error en OpenAI API` };
+          return { error: data.error?.message || data.message || `HTTP ${response.status}: Error en OpenAI API` };
         }
 
-        return { text: data.choices[0]?.message?.content || '' };
+        return { text: data.choices?.[0]?.message?.content || '' };
       } else if (provider === 'groq') {
         const url = 'https://api.groq.com/openai/v1/chat/completions';
         const modelName = model && model.trim() ? model.trim() : 'llama-3.3-70b-versatile';
@@ -247,10 +247,10 @@ export const AIService = {
         console.log(`[AIService Groq Response] Status: ${response.status}`, JSON.stringify(data));
 
         if (!response.ok) {
-          return { error: data.error?.message || `HTTP ${response.status}: Error en Groq API` };
+          return { error: data.error?.message || data.message || `HTTP ${response.status}: Error en Groq API` };
         }
 
-        return { text: data.choices[0]?.message?.content || '' };
+        return { text: data.choices?.[0]?.message?.content || '' };
       } else {
         // github
         const url = 'https://models.inference.ai.azure.com/chat/completions';
@@ -275,10 +275,10 @@ export const AIService = {
         console.log(`[AIService GitHub Response] Status: ${response.status}`, JSON.stringify(data));
 
         if (!response.ok) {
-          return { error: data.error?.message || `HTTP ${response.status}: Error en GitHub API` };
+          return { error: data.error?.message || data.message || (typeof data === 'string' ? data : JSON.stringify(data)) || `HTTP ${response.status}: Error en GitHub API` };
         }
 
-        return { text: data.choices[0]?.message?.content || '' };
+        return { text: data.choices?.[0]?.message?.content || '' };
       }
     } catch (e: any) {
       console.error('[AIService Request Exception]', e);
