@@ -102,7 +102,7 @@ export const AIService = {
       const response = await fetch(url, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          'Authorization': `Bearer ${apiKey.trim()}`,
           // Let browser/fetch set Content-Type header with the boundary
         },
         body: formData,
@@ -141,7 +141,7 @@ export const AIService = {
       const response = await fetch(url, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          'Authorization': `Bearer ${apiKey.trim()}`,
         },
         body: formData,
       });
