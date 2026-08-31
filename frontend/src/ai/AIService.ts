@@ -1,4 +1,4 @@
-export type AIProvider = 'gemini' | 'openai' | 'github' | 'groq';
+export type AIProvider = 'gemini' | 'groq' | 'openrouter' | 'openai';
 
 export interface AIResponse {
   text?: string;
@@ -121,6 +121,10 @@ export const AIService = {
 
   async transcribeGroq(audioUri: string, apiKey: string): Promise<AIResponse> {
     try {
+      if (apiKey.trim().startsWith('xai-')) {
+        return { error: 'xAI Grok no soporta transcripción de audio. Para notas de voz usá Groq (gsk_...), Gemini o OpenAI.' };
+      }
+
       const formData = new FormData();
       if (audioUri.startsWith('http') || audioUri.startsWith('blob:')) {
         const response = await fetch(audioUri);
@@ -164,8 +168,8 @@ export const AIService = {
     if (provider === 'groq') {
       return this.transcribeGroq(audioUri, apiKey);
     }
-    if (provider === 'github') {
-      return { error: 'El proveedor GitHub no soporta transcripción de audio. Por favor usá Groq, OpenAI o Gemini.' };
+    if (provider === 'openrouter') {
+      return { error: 'OpenRouter no soporta transcripción directa de audio. Por favor usá Groq o Gemini para notas de voz.' };
     }
     return this.transcribeOpenAI(audioUri, apiKey);
   },
@@ -265,18 +269,18 @@ export const AIService = {
 
         return { text: data.choices?.[0]?.message?.content || '' };
       } else {
-        // github
-        const url = 'https://models.github.ai/inference/chat/completions';
-        const rawModel = model && model.trim() ? model.trim() : 'gpt-4o-mini';
-        const modelName = rawModel === 'command-r' ? 'gpt-4o-mini' : rawModel;
-        console.log(`[AIService GitHub Request] Sending ask prompt to GitHub model ${modelName}...`);
+        // openrouter
+        const url = 'https://openrouter.ai/api/v1/chat/completions';
+        const rawModel = model && model.trim() ? model.trim() : 'deepseek/deepseek-r1:free';
+        const modelName = (rawModel === 'command-r' || rawModel === 'gpt-4o-mini') ? 'deepseek/deepseek-r1:free' : rawModel;
+        console.log(`[AIService OpenRouter Request] Sending ask prompt to OpenRouter model ${modelName}...`);
         const response = await fetch(url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Accept': 'application/vnd.github+json',
             'Authorization': `Bearer ${apiKey.trim()}`,
-            'X-GitHub-Api-Version': '2022-11-28',
+            'HTTP-Referer': 'https://bunker-notas.app',
+            'X-Title': 'Bunker Notas',
           },
           body: JSON.stringify({
             model: modelName,
@@ -288,10 +292,10 @@ export const AIService = {
         });
 
         const data = await response.json();
-        console.log(`[AIService GitHub Response] Status: ${response.status}`, JSON.stringify(data));
+        console.log(`[AIService OpenRouter Response] Status: ${response.status}`, JSON.stringify(data));
 
         if (!response.ok) {
-          return { error: data.error?.message || data.message || (typeof data === 'string' ? data : JSON.stringify(data)) || `HTTP ${response.status}: Error en GitHub API` };
+          return { error: data.error?.message || data.message || (typeof data === 'string' ? data : JSON.stringify(data)) || `HTTP ${response.status}: Error en OpenRouter API` };
         }
 
         return { text: data.choices?.[0]?.message?.content || '' };

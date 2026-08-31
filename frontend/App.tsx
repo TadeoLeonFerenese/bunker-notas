@@ -117,7 +117,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     const loadAiConfig = async () => {
       try {
         const { getSecureCredential, storeSecureCredential } = require('./src/notes/encryption');
-        const validProviders: AIProvider[] = ['gemini', 'openai', 'github', 'groq'];
+        const validProviders: AIProvider[] = ['gemini', 'groq', 'openrouter', 'openai'];
         const rawProvider = await getSecureCredential('app_ai_provider');
         const storedProvider: AIProvider = validProviders.includes(rawProvider as any) ? (rawProvider as AIProvider) : 'gemini';
         
@@ -133,7 +133,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
           }
         }
 
-        if (storedProvider) setAiProvider(storedProvider);
+        setAiProvider(storedProvider);
         if (storedKey) setAiKey(storedKey);
         setAiModel(sanitizeModel(storedProvider, storedModel));
       } catch (e) {
@@ -170,12 +170,13 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     if (!m || m.trim() === '') {
       if (p === 'groq') return 'llama-3.3-70b-versatile';
       if (p === 'gemini') return 'gemini-1.5-flash';
+      if (p === 'openrouter') return 'deepseek/deepseek-r1:free';
       return 'gpt-4o-mini';
     }
     const trimmed = m.trim();
     if (p === 'groq' && trimmed === 'llama-3.1-8b-instant') return 'llama-3.3-70b-versatile';
     if (p === 'gemini' && trimmed === 'gemini-3.5-flash') return 'gemini-1.5-flash';
-    if (p === 'github' && trimmed === 'command-r') return 'gpt-4o-mini';
+    if (p === 'openrouter' && (trimmed === 'command-r' || trimmed === 'gpt-4o-mini')) return 'deepseek/deepseek-r1:free';
     return trimmed;
   };
 
@@ -1822,7 +1823,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     
     try {
       const { getSecureCredential } = require('./src/notes/encryption');
-      const validProviders: AIProvider[] = ['gemini', 'openai', 'github', 'groq'];
+      const validProviders: AIProvider[] = ['gemini', 'groq', 'openrouter', 'openai'];
       const rawProvider = await getSecureCredential('app_ai_provider');
       const storedProvider: AIProvider = validProviders.includes(rawProvider as any) ? (rawProvider as AIProvider) : 'gemini';
       const storedKey = await getSecureCredential(`app_ai_key_${storedProvider}`);
@@ -1895,7 +1896,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const startAiRecording = async () => {
     try {
       const { getSecureCredential } = require('./src/notes/encryption');
-      const validProviders: AIProvider[] = ['gemini', 'openai', 'github', 'groq'];
+      const validProviders: AIProvider[] = ['gemini', 'groq', 'openrouter', 'openai'];
       const rawProvider = await getSecureCredential('app_ai_provider');
       const storedProvider: AIProvider = validProviders.includes(rawProvider as any) ? (rawProvider as AIProvider) : 'gemini';
       const storedKey = await getSecureCredential(`app_ai_key_${storedProvider}`);
@@ -1958,7 +1959,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
       if (uri) {
         const { getSecureCredential } = require('./src/notes/encryption');
-        const validProviders: AIProvider[] = ['gemini', 'openai', 'github', 'groq'];
+        const validProviders: AIProvider[] = ['gemini', 'groq', 'openrouter', 'openai'];
         const rawProvider = await getSecureCredential('app_ai_provider');
         const storedProvider: AIProvider = validProviders.includes(rawProvider as any) ? (rawProvider as AIProvider) : 'gemini';
         const storedKey = await getSecureCredential(`app_ai_key_${storedProvider}`);
@@ -4143,18 +4144,18 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                 <Text style={{ color: COLORS.textMuted, marginBottom: 8, fontFamily: COLORS.fontFamily, fontSize: 13, fontWeight: '600', textTransform: 'uppercase' }}>Proveedor</Text>
                 <View style={{ flexDirection: 'row', marginBottom: 8, gap: 8 }}>
                   <TouchableOpacity onPress={() => handleSelectAiProvider('gemini')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'gemini' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'gemini' ? 'transparent' : COLORS.border }}>
-                    <Text style={{ color: aiProvider === 'gemini' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700' }}>Gemini</Text>
+                    <Text style={{ color: aiProvider === 'gemini' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700' }}>Gemini (Gratis)</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => handleSelectAiProvider('openai')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'openai' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'openai' ? 'transparent' : COLORS.border }}>
-                    <Text style={{ color: aiProvider === 'openai' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700' }}>OpenAI</Text>
+                  <TouchableOpacity onPress={() => handleSelectAiProvider('groq')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'groq' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'groq' ? 'transparent' : COLORS.border }}>
+                    <Text style={{ color: aiProvider === 'groq' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700' }}>Groq (Gratis)</Text>
                   </TouchableOpacity>
                 </View>
                 <View style={{ flexDirection: 'row', marginBottom: 16, gap: 8 }}>
-                  <TouchableOpacity onPress={() => handleSelectAiProvider('github')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'github' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'github' ? 'transparent' : COLORS.border }}>
-                    <Text style={{ color: aiProvider === 'github' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700' }}>GitHub</Text>
+                  <TouchableOpacity onPress={() => handleSelectAiProvider('openrouter')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'openrouter' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'openrouter' ? 'transparent' : COLORS.border }}>
+                    <Text style={{ color: aiProvider === 'openrouter' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700' }}>OpenRouter (Gratis)</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => handleSelectAiProvider('groq')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'groq' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'groq' ? 'transparent' : COLORS.border }}>
-                    <Text style={{ color: aiProvider === 'groq' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700' }}>Groq</Text>
+                  <TouchableOpacity onPress={() => handleSelectAiProvider('openai')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'openai' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'openai' ? 'transparent' : COLORS.border }}>
+                    <Text style={{ color: aiProvider === 'openai' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700' }}>OpenAI</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -4171,7 +4172,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                 <Text style={{ color: COLORS.textMuted, marginBottom: 8, fontFamily: COLORS.fontFamily, fontSize: 13, fontWeight: '600', textTransform: 'uppercase' }}>Modelo de IA</Text>
                 <TextInput 
                   style={{ backgroundColor: COLORS.bunkerBg, color: COLORS.text, padding: 14, borderRadius: 12, fontFamily: COLORS.fontFamily, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border, fontSize: 15 }}
-                  placeholder="Ej: gemini-1.5-flash, gpt-4o-mini"
+                  placeholder="Ej: gemini-1.5-flash, deepseek/deepseek-r1:free"
                   placeholderTextColor={COLORS.textMuted}
                   value={aiModel}
                   onChangeText={setAiModel}
@@ -4180,22 +4181,22 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                 <TouchableOpacity 
                   onPress={() => {
                     let url = 'https://aistudio.google.com/app/apikey';
-                    if (aiProvider === 'openai') {
-                      url = 'https://platform.openai.com/api-keys';
-                    } else if (aiProvider === 'github') {
-                      url = 'https://github.com/settings/tokens';
-                    } else if (aiProvider === 'groq') {
+                    if (aiProvider === 'groq') {
                       url = 'https://console.groq.com/keys';
+                    } else if (aiProvider === 'openrouter') {
+                      url = 'https://openrouter.ai/keys';
+                    } else if (aiProvider === 'openai') {
+                      url = 'https://platform.openai.com/api-keys';
                     }
                     Linking.openURL(url).catch(err => console.error("Error opening API Key link", err));
                   }}
                   style={{ marginBottom: 20, alignSelf: 'center' }}
                 >
                   <Text style={{ color: COLORS.bunkerAccent, fontFamily: COLORS.fontFamily, fontSize: 13, textDecorationLine: 'underline', fontWeight: '500' }}>
-                    {aiProvider === 'gemini' && 'Obtener API Key de Gemini ↗'}
+                    {aiProvider === 'gemini' && 'Obtener API Key de Gemini (Gratis) ↗'}
+                    {aiProvider === 'groq' && 'Obtener API Key de Groq (Gratis) ↗'}
+                    {aiProvider === 'openrouter' && 'Obtener API Key de OpenRouter (Gratis) ↗'}
                     {aiProvider === 'openai' && 'Obtener API Key de OpenAI ↗'}
-                    {aiProvider === 'github' && 'Obtener Token de GitHub (PAT) ↗'}
-                    {aiProvider === 'groq' && 'Obtener API Key de Groq ↗'}
                   </Text>
                 </TouchableOpacity>
 

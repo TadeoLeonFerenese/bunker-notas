@@ -93,11 +93,11 @@ describe('AIService - Integración con IAs (Gemini y OpenAI)', () => {
       );
     });
 
-    it('debe consultar GitHub correctamente y devolver el texto', async () => {
+    it('debe consultar OpenRouter correctamente y devolver el texto', async () => {
       const mockResponse = {
         choices: [
           {
-            message: { content: 'Respuesta simulada de GitHub' },
+            message: { content: 'Respuesta simulada de OpenRouter' },
           },
         ],
       };
@@ -107,13 +107,13 @@ describe('AIService - Integración con IAs (Gemini y OpenAI)', () => {
         json: async () => mockResponse,
       });
 
-      const response = await AIService.ask('Hola', 'fake-api-key', 'github');
-      expect(response.text).toBe('Respuesta simulada de GitHub');
+      const response = await AIService.ask('Hola', 'fake-api-key', 'openrouter');
+      expect(response.text).toBe('Respuesta simulada de OpenRouter');
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('models.github.ai/inference/chat/completions'),
+        expect.stringContaining('openrouter.ai/api/v1/chat/completions'),
         expect.objectContaining({
           method: 'POST',
-          body: expect.stringContaining('gpt-4o-mini'),
+          body: expect.stringContaining('deepseek/deepseek-r1:free'),
         })
       );
     });
@@ -200,9 +200,9 @@ describe('AIService - Integración con IAs (Gemini y OpenAI)', () => {
       );
     });
 
-    it('debe devolver error al intentar transcribir con GitHub', async () => {
-      const response = await AIService.transcribe('file:///audio.m4a', 'fake-key', 'github');
-      expect(response.error).toContain('GitHub no soporta transcripción');
+    it('debe devolver error al intentar transcribir con OpenRouter', async () => {
+      const response = await AIService.transcribe('file:///audio.m4a', 'fake-key', 'openrouter');
+      expect(response.error).toContain('OpenRouter no soporta transcripción');
     });
   });
 });
