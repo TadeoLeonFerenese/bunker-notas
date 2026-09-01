@@ -38,22 +38,33 @@ Permitir la carga, visualización y recepción (vía Share Intent o local) de im
   * **Ajuste de Intents en la APK:** Se modificó `app.json` agregando `"singleShareMimeTypes": ["text/plain", "image/*", "audio/*"]` para asegurar que el sistema operativo Android registre la app en la lista nativa de compartir cuando el usuario selecciona fotos o archivos de voz en aplicaciones externas.
 
 * **Asistente de IA Integrado (BYOK & Zero-Knowledge):**
-  * **Estrategia BYOK (Bring Your Own Key):** La app incluye un panel de configuración seguro (con enlaces de obtención de API Keys en el modal) donde el usuario inserta su propia API Key (Gemini, OpenAI, Cohere o Groq).
+  * **Estrategia BYOK (Bring Your Own Key):** La app incluye un panel de configuración seguro (con enlaces de obtención de API Keys en el modal) donde el usuario inserta su propia API Key (Gemini, Groq, OpenRouter u OpenAI).
   * **Almacenamiento Multi-Key Seguro:** Se almacena cada API Key de forma independiente en el Keychain nativo (`app_ai_key_${provider}`) junto con la carga automatizada al cambiar de proveedor y un mecanismo transparente de migración de claves legacy en el primer inicio de la app.
-  * **Privacidad Absoluta:** Las llamadas a la IA (transcripción por voz y prompts de chat) van directo desde el celular del usuario al proveedor (OpenAI/Google/Cohere/Groq). No hay un servidor intermedio que audite los datos.
+  * **Auto-Detección Inteligente de Proveedor (Smart Key Signature):**
+    * Al pegar o escribir una clave en el input, la app detecta automáticamente la firma del proveedor y conmuta la pestaña de inmediato:
+      * `AIza...` ➔ Conmuta automáticamente a **Gemini**.
+      * `gsk_...` / `xai-...` ➔ Conmuta automáticamente a **Groq**.
+      * `sk-or-v1-...` ➔ Conmuta automáticamente a **OpenRouter**.
+      * `sk-proj-...` / `sk-...` ➔ Conmuta automáticamente a **OpenAI**.
+  * **Descubrimiento Dinámico de Modelos (Live Dynamic Model Chips):**
+    * Eliminación de nombres estáticos rígidos. La app consulta el catálogo activo de la API (`listAvailableModels` vía `GET /models`) y renderiza **Chips / Pills seleccionables con scroll horizontal**.
+    * Tocar un chip selecciona el modelo al instante sin necesidad de tipear strings técnicos a mano. Incluye botón de refresco directo (`Detectar`) y soporte de input custom para usuarios avanzados.
+  * **Migración a Gemini 3.6 Flash y Resiliencia Dinámica:**
+    * Se migró el modelo base de Gemini al estándar oficial **`gemini-3.6-flash`**, resolviendo la deprecación de Google para modelos 1.5, 2.0 y 2.5 en nuevas cuentas de AI Studio.
+    * **Extractor Dinámico por Regex:** En caso de futuras deprecaciones donde Google responda *"Please update your code to use models/..."*, la app extrae automáticamente el nuevo nombre del modelo en caliente y se autorecupera de inmediato.
+  * **Sanitización de Claves y Log Forense de Diagnóstico:**
+    * Función `sanitizeApiKey` para eliminar caracteres invisibles (zero-width spaces `\u200B-\u200D\uFEFF`) y espacios basura al pegar.
+    * Función `maskApiKey` que muestra la clave enmascarada junto al conteo exacto de caracteres (ej: `AIzaSy...7890 (39 caracteres)`).
+    * Modal de diagnóstico técnico detallado que reporta Estado HTTP, Código oficial del proveedor (`INVALID_ARGUMENT`, `PERMISSION_DENIED`, etc.), Mensaje textual del servidor y Diagnóstico sugerido en español.
+  * **Privacidad Absoluta:** Las llamadas a la IA (transcripción por voz y prompts de chat) van directo desde el celular del usuario al proveedor (OpenAI/Google/Groq/OpenRouter). No hay un servidor intermedio que audite los datos.
   * **Rediseño del Asistente de IA e Input Responsive:**
     * El Asistente se ubica como un botón de acción flotante (FAB) en el margen izquierdo inferior del Dashboard. Abre un modal flotante posicionado abajo (sobre el FAB) con una altura estricta del **48% de la pantalla** (`height: height * 0.48`), lo que asegura que quepa perfectamente por encima del teclado sin ocluirse ni salirse por el borde superior de celulares pequeños.
     * **Micrófono al Header y Ancho Completo:** Eliminamos el subtítulo ruidoso y reubicamos el botón de micrófono al encabezado al lado del título "Asistente IA", permitiendo que el input de prompt flexible ocupe el **100% de ancho de la tarjeta** de forma súper espaciosa. En reposo el micrófono está limpio sin cajas de fondo, y al grabar se enciende en rosado con icono `stop`.
-  * **Validación de Keys con Diagnóstico y Bypass:** Al configurar la API Key se valida mediante un "ping" al servicio. Si la validación falla (sea por credenciales incorrectas o restricciones de red/VPN corporativas), la app muestra un **Mini Log Técnico Estructurado** detallando el error y ofrece un bypass de **"Guardar de todos modos"** para evitar bloqueos por problemas de conexión locales.
-  * **Soporte para Motores Gratuitos y Open-Source (Cohere & Groq):**
-    * Se integró **Cohere** (usando la API oficial con el modelo `command-r` a través de `https://api.cohere.com/v1/chat`) en reemplazo de DeepSeek por su capa gratuita estable de desarrollo (Trial Key).
-    * > [!IMPORTANT]
-      > **Restricción Comercial de Cohere:** La clave de Cohere (Trial Key) tiene limitaciones estrictas para uso no comercial. Si el proyecto avanza a una fase comercial en producción, este proveedor deberá ser reemplazado por un endpoint con licencia comercial (como Cohere Production Key, OpenAI de pago, o Gemini API).
-    * Se mantiene integrado **Groq** (usando `llama-3.1-8b-instant` para chat, y transcripción de voz con Whisper `whisper-large-v3` gratuita). Esto mitiga las caídas o bloqueos de APIs corporativas.
   * **Optimización de Prompts y Formateo (Zero Hallucination):**
     * **System Prompts Estrictos:** Se implementaron instrucciones a nivel de sistema para los motores de IA que impiden la generación de comentarios conversacionales, saludos o introducciones ruidosas.
     * **Estructuración por JSON:** Al crear notas desde el Dashboard, la IA responde únicamente con un objeto JSON `{"title": "...", "content": "..."}`. Esto separa limpiamente el título del cuerpo y previene que se mezclen.
     * **Reconocimiento de Títulos y Markdown:** El motor es capaz de interpretar indicaciones explícitas de títulos (ej: "el título es X") y genera formato enriquecido de listas (`- elemento`) y negritas (`**texto**`) automáticamente al detectar dictados de enumeraciones o elementos clave, los cuales se renderizan nativamente en la UI.
+  * **Suite de Pruebas Unitarias:** 100/100 tests unitarios en verde en 17 test suites (Jest + React Native Testing Library).
 
 
 * **Solución de Warning en React Native Web:**
