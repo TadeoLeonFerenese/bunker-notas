@@ -134,7 +134,8 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
         }
 
         setAiProvider(storedProvider);
-        if (storedKey) setAiKey(storedKey);
+        setHasSavedAiKey(!!(storedKey && storedKey.trim()));
+        setAiKey('');
         setAiModel(sanitizeModel(storedProvider, storedModel));
       } catch (e) {
         console.log('Error loading AI config', e);
@@ -228,6 +229,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [aiConfigModal, setAiConfigModal] = useState(false);
   const [aiProvider, setAiProvider] = useState<AIProvider>('gemini');
   const [aiKey, setAiKey] = useState('');
+  const [hasSavedAiKey, setHasSavedAiKey] = useState(false);
   const [aiModel, setAiModel] = useState('');
   const [isValidatingKey, setIsValidatingKey] = useState(false);
   const [isAiRecording, setIsAiRecording] = useState(false);
@@ -239,10 +241,12 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       const { getSecureCredential } = require('./src/notes/encryption');
       const key = await getSecureCredential(`app_ai_key_${provider}`);
       const model = await getSecureCredential(`app_ai_model_${provider}`);
-      setAiKey(key || '');
+      setHasSavedAiKey(!!(key && key.trim()));
+      setAiKey('');
       setAiModel(sanitizeModel(provider, model));
     } catch (e) {
       console.log('Error switching AI provider credentials', e);
+      setHasSavedAiKey(false);
       setAiKey('');
       setAiModel(sanitizeModel(provider, ''));
     }
@@ -255,7 +259,8 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
           const { getSecureCredential } = require('./src/notes/encryption');
           const key = await getSecureCredential(`app_ai_key_${aiProvider}`);
           const model = await getSecureCredential(`app_ai_model_${aiProvider}`);
-          setAiKey(key || '');
+          setHasSavedAiKey(!!(key && key.trim()));
+          setAiKey('');
           setAiModel(sanitizeModel(aiProvider, model));
         } catch (e) {
           console.log('Error loading provider key on modal open', e);
@@ -4144,30 +4149,66 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                 <Text style={{ color: COLORS.textMuted, marginBottom: 8, fontFamily: COLORS.fontFamily, fontSize: 13, fontWeight: '600', textTransform: 'uppercase' }}>Proveedor</Text>
                 <View style={{ flexDirection: 'row', marginBottom: 8, gap: 8 }}>
                   <TouchableOpacity onPress={() => handleSelectAiProvider('gemini')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'gemini' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'gemini' ? 'transparent' : COLORS.border }}>
-                    <Text style={{ color: aiProvider === 'gemini' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700' }}>Gemini (Gratis)</Text>
+                    <Text style={{ color: aiProvider === 'gemini' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700' }}>Gemini</Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => handleSelectAiProvider('groq')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'groq' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'groq' ? 'transparent' : COLORS.border }}>
-                    <Text style={{ color: aiProvider === 'groq' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700' }}>Groq (Gratis)</Text>
+                    <Text style={{ color: aiProvider === 'groq' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700' }}>Groq</Text>
                   </TouchableOpacity>
                 </View>
                 <View style={{ flexDirection: 'row', marginBottom: 16, gap: 8 }}>
                   <TouchableOpacity onPress={() => handleSelectAiProvider('openrouter')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'openrouter' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'openrouter' ? 'transparent' : COLORS.border }}>
-                    <Text style={{ color: aiProvider === 'openrouter' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700' }}>OpenRouter (Gratis)</Text>
+                    <Text style={{ color: aiProvider === 'openrouter' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700' }}>OpenRouter</Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => handleSelectAiProvider('openai')} style={{ flex: 1, padding: 12, backgroundColor: aiProvider === 'openai' ? COLORS.bunkerAccent : COLORS.bunkerBg, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: aiProvider === 'openai' ? 'transparent' : COLORS.border }}>
                     <Text style={{ color: aiProvider === 'openai' ? '#fff' : COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '700' }}>OpenAI</Text>
                   </TouchableOpacity>
                 </View>
 
-                <Text style={{ color: COLORS.textMuted, marginBottom: 8, fontFamily: COLORS.fontFamily, fontSize: 13, fontWeight: '600', textTransform: 'uppercase' }}>API Key (Local y Cifrada)</Text>
-                <TextInput 
-                  style={{ backgroundColor: COLORS.bunkerBg, color: COLORS.text, padding: 14, borderRadius: 12, fontFamily: COLORS.fontFamily, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border, fontSize: 15 }}
-                  placeholder="Pegá tu API Key acá"
-                  placeholderTextColor={COLORS.textMuted}
-                  secureTextEntry
-                  value={aiKey}
-                  onChangeText={setAiKey}
-                />
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <Text style={{ color: COLORS.textMuted, fontFamily: COLORS.fontFamily, fontSize: 13, fontWeight: '600', textTransform: 'uppercase' }}>API Key (Local y Cifrada)</Text>
+                  {hasSavedAiKey && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#10b98120', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
+                      <Text style={{ color: '#10b981', fontSize: 11, fontWeight: '700', fontFamily: COLORS.fontFamily }}>● Guardada</Text>
+                    </View>
+                  )}
+                </View>
+
+                <View style={{ position: 'relative', marginBottom: 12 }}>
+                  <TextInput 
+                    style={{ backgroundColor: COLORS.bunkerBg, color: COLORS.text, padding: 14, paddingRight: aiKey ? 42 : 14, borderRadius: 12, fontFamily: COLORS.fontFamily, borderWidth: 1, borderColor: COLORS.border, fontSize: 15 }}
+                    placeholder={hasSavedAiKey ? "•••••••••••• (Pegá una nueva para cambiarla)" : "Pegá tu API Key acá"}
+                    placeholderTextColor={COLORS.textMuted}
+                    secureTextEntry
+                    value={aiKey}
+                    onChangeText={setAiKey}
+                  />
+                  {aiKey.length > 0 && (
+                    <TouchableOpacity 
+                      onPress={() => setAiKey('')}
+                      style={{ position: 'absolute', right: 12, top: 14, padding: 4 }}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                      <MaterialIcons name="close" size={18} color={COLORS.textMuted} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {hasSavedAiKey && (
+                  <TouchableOpacity
+                    onPress={async () => {
+                      const { storeSecureCredential } = require('./src/notes/encryption');
+                      await storeSecureCredential(`app_ai_key_${aiProvider}`, '');
+                      setHasSavedAiKey(false);
+                      setAiKey('');
+                      Alert.alert('Key Eliminada', `Se eliminó la clave guardada de ${aiProvider.toUpperCase()}.`);
+                    }}
+                    style={{ alignSelf: 'flex-start', marginTop: -4, marginBottom: 12 }}
+                  >
+                    <Text style={{ color: '#ef4444', fontFamily: COLORS.fontFamily, fontSize: 12, fontWeight: '600' }}>
+                      🗑️ Eliminar Key Guardada
+                    </Text>
+                  </TouchableOpacity>
+                )}
 
                 <Text style={{ color: COLORS.textMuted, marginBottom: 8, fontFamily: COLORS.fontFamily, fontSize: 13, fontWeight: '600', textTransform: 'uppercase' }}>Modelo de IA</Text>
                 <TextInput 
@@ -4193,9 +4234,9 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   style={{ marginBottom: 20, alignSelf: 'center' }}
                 >
                   <Text style={{ color: COLORS.bunkerAccent, fontFamily: COLORS.fontFamily, fontSize: 13, textDecorationLine: 'underline', fontWeight: '500' }}>
-                    {aiProvider === 'gemini' && 'Obtener API Key de Gemini (Gratis) ↗'}
-                    {aiProvider === 'groq' && 'Obtener API Key de Groq (Gratis) ↗'}
-                    {aiProvider === 'openrouter' && 'Obtener API Key de OpenRouter (Gratis) ↗'}
+                    {aiProvider === 'gemini' && 'Obtener API Key de Gemini ↗'}
+                    {aiProvider === 'groq' && 'Obtener API Key de Groq ↗'}
+                    {aiProvider === 'openrouter' && 'Obtener API Key de OpenRouter ↗'}
                     {aiProvider === 'openai' && 'Obtener API Key de OpenAI ↗'}
                   </Text>
                 </TouchableOpacity>
@@ -4220,20 +4261,24 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   <TouchableOpacity 
                     disabled={isValidatingKey}
                     onPress={async () => {
-                      if (!aiKey.trim()) {
+                      const { getSecureCredential, storeSecureCredential } = require('./src/notes/encryption');
+                      const keyToUse = aiKey.trim() || (hasSavedAiKey ? await getSecureCredential(`app_ai_key_${aiProvider}`) : '');
+                      
+                      if (!keyToUse) {
                         Alert.alert('Falta Información', 'Por favor, ingresá una API Key de IA antes de guardar.');
                         return;
                       }
                       
                       setIsValidatingKey(true);
                       try {
-                        const validation = await AIService.validateKey(aiKey, aiProvider, aiModel);
+                        const validation = await AIService.validateKey(keyToUse, aiProvider, aiModel);
                         if (validation.success) {
-                          const { storeSecureCredential } = require('./src/notes/encryption');
                           await storeSecureCredential('app_ai_provider', aiProvider);
-                          await storeSecureCredential('app_ai_key', aiKey);
-                          await storeSecureCredential(`app_ai_key_${aiProvider}`, aiKey);
+                          await storeSecureCredential('app_ai_key', keyToUse);
+                          await storeSecureCredential(`app_ai_key_${aiProvider}`, keyToUse);
                           await storeSecureCredential(`app_ai_model_${aiProvider}`, aiModel);
+                          setHasSavedAiKey(true);
+                          setAiKey('');
                           setAiConfigModal(false);
                           Alert.alert('Éxito', 'La configuración de la IA es correcta y se guardó de forma segura.');
                         } else {
@@ -4264,11 +4309,12 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                                 style: 'destructive',
                                 onPress: async () => {
                                   try {
-                                    const { storeSecureCredential } = require('./src/notes/encryption');
                                     await storeSecureCredential('app_ai_provider', aiProvider);
-                                    await storeSecureCredential('app_ai_key', aiKey);
-                                    await storeSecureCredential(`app_ai_key_${aiProvider}`, aiKey);
+                                    await storeSecureCredential('app_ai_key', keyToUse);
+                                    await storeSecureCredential(`app_ai_key_${aiProvider}`, keyToUse);
                                     await storeSecureCredential(`app_ai_model_${aiProvider}`, aiModel);
+                                    setHasSavedAiKey(true);
+                                    setAiKey('');
                                     setAiConfigModal(false);
                                     Alert.alert('Guardado', 'Se guardó la configuración de la IA sin validar.');
                                   } catch (errSave) {
@@ -4307,11 +4353,12 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                               style: 'destructive',
                               onPress: async () => {
                                 try {
-                                  const { storeSecureCredential } = require('./src/notes/encryption');
                                   await storeSecureCredential('app_ai_provider', aiProvider);
-                                  await storeSecureCredential('app_ai_key', aiKey);
-                                  await storeSecureCredential(`app_ai_key_${aiProvider}`, aiKey);
+                                  await storeSecureCredential('app_ai_key', keyToUse);
+                                  await storeSecureCredential(`app_ai_key_${aiProvider}`, keyToUse);
                                   await storeSecureCredential(`app_ai_model_${aiProvider}`, aiModel);
+                                  setHasSavedAiKey(true);
+                                  setAiKey('');
                                   setAiConfigModal(false);
                                   Alert.alert('Guardado', 'Se guardó la configuración de la IA sin validar.');
                                 } catch (errSave) {

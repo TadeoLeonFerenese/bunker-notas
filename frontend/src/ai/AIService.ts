@@ -48,6 +48,7 @@ export const AIService = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey.trim(),
         },
         body: JSON.stringify({
           contents: [{
@@ -185,6 +186,7 @@ export const AIService = {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey.trim(),
           },
           body: JSON.stringify({
             systemInstruction: {
