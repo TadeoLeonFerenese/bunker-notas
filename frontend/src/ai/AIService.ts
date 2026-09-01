@@ -222,8 +222,8 @@ export const AIService = {
   async ask(prompt: string, apiKey: string, provider: AIProvider, model?: string): Promise<AIResponse> {
     try {
       if (provider === 'gemini') {
-        const rawModel = model && model.trim() ? model.trim() : 'gemini-2.0-flash';
-        const modelName = rawModel === 'gemini-3.5-flash' ? 'gemini-2.0-flash' : rawModel;
+        const rawModel = model && model.trim() ? model.trim() : 'gemini-3.6-flash';
+        const modelName = (rawModel === 'gemini-3.5-flash' || rawModel === 'gemini-1.5-flash' || rawModel === 'gemini-2.0-flash' || rawModel === 'gemini-2.5-flash') ? 'gemini-3.6-flash' : rawModel;
         let url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey.trim()}`;
         console.log(`[AIService Gemini Request] Sending ask prompt to Gemini model ${modelName}...`);
         let response = await fetch(url, {
@@ -243,10 +243,12 @@ export const AIService = {
         let data = await response.json();
         console.log(`[AIService Gemini Response] Status: ${response.status}`, JSON.stringify(data));
         
-        // If model is not found or not supported on this key/version, try fallback to gemini-2.5-flash or gemini-2.0-flash
-        if (!response.ok && data.error?.message && (data.error.message.includes('not found') || data.error.message.includes('not supported'))) {
-          const fallbackModel = modelName === 'gemini-2.0-flash' ? 'gemini-2.5-flash' : 'gemini-2.0-flash';
-          console.log(`[AIService Gemini Fallback] Retrying with ${fallbackModel}...`);
+        // If Google rejects or suggests a new model ("Please update your code to use models/..."), extract it dynamically!
+        if (!response.ok && data.error?.message) {
+          const suggestedMatch = data.error.message.match(/use models\/([a-zA-Z0-9.-]+)/);
+          const fallbackModel = suggestedMatch ? suggestedMatch[1] : (modelName === 'gemini-3.6-flash' ? 'gemini-2.5-flash' : 'gemini-3.6-flash');
+          
+          console.log(`[AIService Gemini Fallback] Retrying with dynamically discovered model ${fallbackModel}...`);
           const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/${fallbackModel}:generateContent?key=${apiKey.trim()}`;
           const fallbackResp = await fetch(fallbackUrl, {
             method: 'POST',
@@ -432,14 +434,16 @@ export const AIService = {
 
       console.log(`[AIService Gemini Validate] Supported models found:`, supported);
 
-      let targetModel = requestedModel ? requestedModel.trim().replace(/^models\//, '') : '';
-      if (!targetModel || !supported.includes(targetModel)) {
-        targetModel = supported.find(m => m === 'gemini-2.0-flash') ||
-                      supported.find(m => m === 'gemini-2.5-flash') ||
-                      supported.find(m => m === 'gemini-1.5-flash') ||
+      let targetModel = requestedModel && supported.includes(requestedModel.trim().replace(/^models\//, ''))
+        ? requestedModel.trim().replace(/^models\//, '')
+        : '';
+
+      if (!targetModel) {
+        targetModel = supported.find(m => m.includes('3.6-flash') || m.includes('3.7-flash')) ||
                       supported.find(m => m.includes('flash')) ||
+                      supported.find(m => m.includes('gemini')) ||
                       supported[0] ||
-                      'gemini-2.0-flash';
+                      'gemini-3.6-flash';
       }
 
       const testRes = await this.ask('ping', cleanKey, 'gemini', targetModel);

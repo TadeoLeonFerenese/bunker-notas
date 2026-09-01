@@ -170,13 +170,13 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const sanitizeModel = (p: AIProvider, m?: string | null): string => {
     if (!m || m.trim() === '') {
       if (p === 'groq') return 'llama-3.3-70b-versatile';
-      if (p === 'gemini') return 'gemini-2.0-flash';
+      if (p === 'gemini') return 'gemini-3.6-flash';
       if (p === 'openrouter') return 'deepseek/deepseek-r1:free';
       return 'gpt-4o-mini';
     }
     const trimmed = m.trim();
     if (p === 'groq' && (trimmed === 'llama-3.1-8b-instant' || trimmed === 'mixtral-8x7b-32768')) return 'llama-3.3-70b-versatile';
-    if (p === 'gemini' && (trimmed === 'gemini-3.5-flash' || trimmed === 'gemini-1.5-flash')) return 'gemini-2.0-flash';
+    if (p === 'gemini' && (trimmed === 'gemini-3.5-flash' || trimmed === 'gemini-1.5-flash' || trimmed === 'gemini-2.0-flash' || trimmed === 'gemini-2.5-flash')) return 'gemini-3.6-flash';
     if (p === 'openrouter' && (trimmed === 'command-r' || trimmed === 'gpt-4o-mini' || trimmed === 'deepseek/deepseek-r1')) return 'deepseek/deepseek-r1:free';
     return trimmed;
   };
@@ -4214,7 +4214,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                 <TextInput 
                   style={{ backgroundColor: COLORS.bunkerBg, color: COLORS.text, padding: 14, borderRadius: 12, fontFamily: COLORS.fontFamily, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border, fontSize: 15 }}
                   placeholder={
-                    aiProvider === 'gemini' ? 'Ej: gemini-2.0-flash' :
+                    aiProvider === 'gemini' ? 'Ej: gemini-3.6-flash' :
                     aiProvider === 'groq' ? 'Ej: llama-3.3-70b-versatile' :
                     aiProvider === 'openrouter' ? 'Ej: deepseek/deepseek-r1:free' :
                     'Ej: gpt-4o-mini'
