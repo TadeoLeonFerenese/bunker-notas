@@ -42,9 +42,10 @@ export const AIService = {
   async transcribeGemini(audioUri: string, apiKey: string): Promise<AIResponse> {
     try {
       const base64Data = await this.getAudioBase64(audioUri);
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey.trim()}`;
+      let modelName = 'gemini-2.0-flash';
+      let url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey.trim()}`;
       
-      const response = await fetch(url, {
+      let response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -67,7 +68,38 @@ export const AIService = {
         }),
       });
 
-      const data = await response.json();
+      let data = await response.json();
+      if (!response.ok && data.error?.message && (data.error.message.includes('not found') || data.error.message.includes('not supported'))) {
+        modelName = 'gemini-1.5-flash';
+        url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey.trim()}`;
+        const fallbackResp = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey.trim(),
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: 'audio/mp4',
+                    data: base64Data
+                  }
+                },
+                {
+                  text: 'Transcribe exactamente lo que se dice en este audio en español. Devuelve únicamente la transcripción literal sin comentarios, explicaciones, ni etiquetas.'
+                }
+              ]
+            }],
+          }),
+        });
+        if (fallbackResp.ok) {
+          response = fallbackResp;
+          data = await fallbackResp.json();
+        }
+      }
+
       if (!response.ok) {
         return { error: data.error?.message || 'Error en Gemini API' };
       }
@@ -178,11 +210,11 @@ export const AIService = {
   async ask(prompt: string, apiKey: string, provider: AIProvider, model?: string): Promise<AIResponse> {
     try {
       if (provider === 'gemini') {
-        const rawModel = model && model.trim() ? model.trim() : 'gemini-1.5-flash';
-        const modelName = rawModel === 'gemini-3.5-flash' ? 'gemini-1.5-flash' : rawModel;
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey.trim()}`;
+        const rawModel = model && model.trim() ? model.trim() : 'gemini-2.0-flash';
+        const modelName = rawModel === 'gemini-3.5-flash' ? 'gemini-2.0-flash' : rawModel;
+        let url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey.trim()}`;
         console.log(`[AIService Gemini Request] Sending ask prompt to Gemini model ${modelName}...`);
-        const response = await fetch(url, {
+        let response = await fetch(url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -196,9 +228,34 @@ export const AIService = {
           }),
         });
 
-        const data = await response.json();
+        let data = await response.json();
         console.log(`[AIService Gemini Response] Status: ${response.status}`, JSON.stringify(data));
         
+        // If model is not found or not supported on this key/version, try fallback to gemini-2.5-flash or gemini-2.0-flash
+        if (!response.ok && data.error?.message && (data.error.message.includes('not found') || data.error.message.includes('not supported'))) {
+          const fallbackModel = modelName === 'gemini-2.0-flash' ? 'gemini-2.5-flash' : 'gemini-2.0-flash';
+          console.log(`[AIService Gemini Fallback] Retrying with ${fallbackModel}...`);
+          const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/${fallbackModel}:generateContent?key=${apiKey.trim()}`;
+          const fallbackResp = await fetch(fallbackUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': apiKey.trim(),
+            },
+            body: JSON.stringify({
+              systemInstruction: {
+                parts: [{ text: SYSTEM_INSTRUCTION }]
+              },
+              contents: [{ parts: [{ text: prompt }] }],
+            }),
+          });
+          const fallbackData = await fallbackResp.json();
+          if (fallbackResp.ok) {
+            response = fallbackResp;
+            data = fallbackData;
+          }
+        }
+
         if (!response.ok) {
           return { error: data.error?.message || data.message || `HTTP ${response.status}: Error en Gemini API` };
         }

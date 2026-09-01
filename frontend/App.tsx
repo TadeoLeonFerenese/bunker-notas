@@ -170,14 +170,14 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const sanitizeModel = (p: AIProvider, m?: string | null): string => {
     if (!m || m.trim() === '') {
       if (p === 'groq') return 'llama-3.3-70b-versatile';
-      if (p === 'gemini') return 'gemini-1.5-flash';
+      if (p === 'gemini') return 'gemini-2.0-flash';
       if (p === 'openrouter') return 'deepseek/deepseek-r1:free';
       return 'gpt-4o-mini';
     }
     const trimmed = m.trim();
-    if (p === 'groq' && trimmed === 'llama-3.1-8b-instant') return 'llama-3.3-70b-versatile';
-    if (p === 'gemini' && trimmed === 'gemini-3.5-flash') return 'gemini-1.5-flash';
-    if (p === 'openrouter' && (trimmed === 'command-r' || trimmed === 'gpt-4o-mini')) return 'deepseek/deepseek-r1:free';
+    if (p === 'groq' && (trimmed === 'llama-3.1-8b-instant' || trimmed === 'mixtral-8x7b-32768')) return 'llama-3.3-70b-versatile';
+    if (p === 'gemini' && (trimmed === 'gemini-3.5-flash' || trimmed === 'gemini-1.5-flash')) return 'gemini-2.0-flash';
+    if (p === 'openrouter' && (trimmed === 'command-r' || trimmed === 'gpt-4o-mini' || trimmed === 'deepseek/deepseek-r1')) return 'deepseek/deepseek-r1:free';
     return trimmed;
   };
 
@@ -4176,7 +4176,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                 <View style={{ position: 'relative', marginBottom: 12 }}>
                   <TextInput 
                     style={{ backgroundColor: COLORS.bunkerBg, color: COLORS.text, padding: 14, paddingRight: aiKey ? 42 : 14, borderRadius: 12, fontFamily: COLORS.fontFamily, borderWidth: 1, borderColor: COLORS.border, fontSize: 15 }}
-                    placeholder={hasSavedAiKey ? "•••••••••••• (Pegá una nueva para cambiarla)" : "Pegá tu API Key acá"}
+                    placeholder={hasSavedAiKey ? "•••••••••••• (Cambiar)" : "Pegá tu API Key acá"}
                     placeholderTextColor={COLORS.textMuted}
                     secureTextEntry
                     value={aiKey}
@@ -4213,7 +4213,12 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                 <Text style={{ color: COLORS.textMuted, marginBottom: 8, fontFamily: COLORS.fontFamily, fontSize: 13, fontWeight: '600', textTransform: 'uppercase' }}>Modelo de IA</Text>
                 <TextInput 
                   style={{ backgroundColor: COLORS.bunkerBg, color: COLORS.text, padding: 14, borderRadius: 12, fontFamily: COLORS.fontFamily, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border, fontSize: 15 }}
-                  placeholder="Ej: gemini-1.5-flash, deepseek/deepseek-r1:free"
+                  placeholder={
+                    aiProvider === 'gemini' ? 'Ej: gemini-2.0-flash' :
+                    aiProvider === 'groq' ? 'Ej: llama-3.3-70b-versatile' :
+                    aiProvider === 'openrouter' ? 'Ej: deepseek/deepseek-r1:free' :
+                    'Ej: gpt-4o-mini'
+                  }
                   placeholderTextColor={COLORS.textMuted}
                   value={aiModel}
                   onChangeText={setAiModel}
