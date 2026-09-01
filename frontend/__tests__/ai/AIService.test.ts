@@ -1,4 +1,4 @@
-import { AIService } from '../../src/ai/AIService';
+import { AIService, detectProviderFromKey } from '../../src/ai/AIService';
 
 // Mock expo-file-system/legacy
 jest.mock('expo-file-system/legacy', () => ({
@@ -251,6 +251,52 @@ describe('AIService - Integración con IAs (Gemini y OpenAI)', () => {
       expect(res.error).toContain('Estado HTTP: 400');
       expect(res.error).toContain('INVALID_ARGUMENT');
       expect(res.error).toContain('API key not valid');
+    });
+  });
+
+  describe('detectProviderFromKey() - Auto-detección de proveedor', () => {
+    it('debe detectar Gemini con prefijo AIza', () => {
+      expect(detectProviderFromKey('AIzaSyD1234567890abcdef')).toBe('gemini');
+    });
+
+    it('debe detectar Groq con prefijo gsk_', () => {
+      expect(detectProviderFromKey('gsk_1234567890abcdef')).toBe('groq');
+    });
+
+    it('debe detectar OpenRouter con prefijo sk-or-', () => {
+      expect(detectProviderFromKey('sk-or-v1-1234567890abcdef')).toBe('openrouter');
+    });
+
+    it('debe detectar OpenAI con prefijo sk- o sk-proj-', () => {
+      expect(detectProviderFromKey('sk-proj-1234567890abcdef')).toBe('openai');
+      expect(detectProviderFromKey('sk-1234567890abcdef')).toBe('openai');
+    });
+
+    it('debe devolver null para claves desconocidas o vacías', () => {
+      expect(detectProviderFromKey('')).toBeNull();
+      expect(detectProviderFromKey('unknown_key_format')).toBeNull();
+    });
+  });
+
+  describe('listAvailableModels() - Catálogo dinámico de modelos', () => {
+    it('debe listar modelos de Gemini filtrando los de generación de contenido', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          models: [
+            { name: 'models/gemini-3.6-flash', supportedGenerationMethods: ['generateContent'] },
+            { name: 'models/text-embedding-004', supportedGenerationMethods: ['embedContent'] },
+            { name: 'models/gemini-3.5-pro', supportedGenerationMethods: ['generateContent'] },
+          ],
+        }),
+      });
+
+      const res = await AIService.listAvailableModels('AIzaFakeKey', 'gemini');
+      expect(res.models).toContain('gemini-3.6-flash');
+      expect(res.models).toContain('gemini-3.5-pro');
+      expect(res.models).not.toContain('text-embedding-004');
+      expect(res.recommended).toBe('gemini-3.6-flash');
     });
   });
 });

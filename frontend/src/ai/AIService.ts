@@ -17,6 +17,16 @@ export function maskApiKey(key: string): string {
   return `${clean.substring(0, 6)}...${clean.substring(clean.length - 4)} (${clean.length} caracteres)`;
 }
 
+export function detectProviderFromKey(key: string): AIProvider | null {
+  const clean = sanitizeApiKey(key);
+  if (!clean) return null;
+  if (clean.startsWith('AIza')) return 'gemini';
+  if (clean.startsWith('gsk_') || clean.startsWith('xai-')) return 'groq';
+  if (clean.startsWith('sk-or-')) return 'openrouter';
+  if (clean.startsWith('sk-proj-') || clean.startsWith('sk-')) return 'openai';
+  return null;
+}
+
 export const SYSTEM_INSTRUCTION = `Sos un asistente de notas preciso y directo. 
 REGLAS ESTRICTAS E INVIOLABLES:
 1. Generá ÚNICAMENTE el contenido solicitado por el usuario para la nota.
@@ -593,5 +603,66 @@ export const AIService = {
       return this.validateOpenRouter(apiKey, model);
     }
     return this.validateOpenAI(apiKey, model);
+  },
+
+  async listAvailableModels(apiKey: string, provider: AIProvider): Promise<{ models: string[]; recommended: string }> {
+    const cleanKey = sanitizeApiKey(apiKey);
+    if (!cleanKey) {
+      if (provider === 'gemini') return { models: ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.5-pro'], recommended: 'gemini-3.6-flash' };
+      if (provider === 'groq') return { models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'], recommended: 'llama-3.3-70b-versatile' };
+      if (provider === 'openrouter') return { models: ['deepseek/deepseek-r1:free', 'meta-llama/llama-3.3-70b-instruct:free', 'deepseek/deepseek-chat:free'], recommended: 'deepseek/deepseek-r1:free' };
+      return { models: ['gpt-4o-mini', 'gpt-4o', 'o3-mini'], recommended: 'gpt-4o-mini' };
+    }
+
+    try {
+      if (provider === 'gemini') {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(cleanKey)}`;
+        const resp = await fetch(url, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cleanKey },
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          const rawModels: any[] = data.models || [];
+          const supported = rawModels
+            .filter(m => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
+            .map(m => m.name.replace(/^models\//, ''));
+
+          const filtered = supported.filter(m => !m.includes('embedding') && !m.includes('aqa') && !m.includes('imagen'));
+          const recommended = filtered.find(m => m.includes('3.6-flash') || m.includes('3.7-flash')) ||
+                              filtered.find(m => m.includes('flash')) ||
+                              filtered[0] ||
+                              'gemini-3.6-flash';
+          return { models: filtered.slice(0, 8), recommended };
+        }
+      } else if (provider === 'groq') {
+        const isXAI = cleanKey.startsWith('xai-');
+        const url = isXAI ? 'https://api.x.ai/v1/models' : 'https://api.groq.com/openai/v1/models';
+        const resp = await fetch(url, {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${cleanKey}`, 'Accept': 'application/json' },
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          const rawModels: any[] = data.data || [];
+          const supported = rawModels.map(m => m.id).filter((id: string) => !id.includes('whisper') && !id.includes('guard'));
+          const recommended = isXAI ? 'grok-2-latest' : (supported.find((m: string) => m === 'llama-3.3-70b-versatile') || supported[0] || 'llama-3.3-70b-versatile');
+          return { models: supported.slice(0, 8), recommended };
+        }
+      } else if (provider === 'openrouter') {
+        const defaults = ['deepseek/deepseek-r1:free', 'meta-llama/llama-3.3-70b-instruct:free', 'deepseek/deepseek-chat:free', 'google/gemini-2.0-flash-exp:free'];
+        return { models: defaults, recommended: 'deepseek/deepseek-r1:free' };
+      } else if (provider === 'openai') {
+        const defaults = ['gpt-4o-mini', 'gpt-4o', 'o3-mini'];
+        return { models: defaults, recommended: 'gpt-4o-mini' };
+      }
+    } catch (e) {
+      console.warn('[AIService listAvailableModels]', e);
+    }
+
+    if (provider === 'gemini') return { models: ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.5-pro'], recommended: 'gemini-3.6-flash' };
+    if (provider === 'groq') return { models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'], recommended: 'llama-3.3-70b-versatile' };
+    if (provider === 'openrouter') return { models: ['deepseek/deepseek-r1:free', 'meta-llama/llama-3.3-70b-instruct:free'], recommended: 'deepseek/deepseek-r1:free' };
+    return { models: ['gpt-4o-mini', 'gpt-4o'], recommended: 'gpt-4o-mini' };
   }
 };

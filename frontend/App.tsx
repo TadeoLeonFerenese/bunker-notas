@@ -231,9 +231,29 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [aiKey, setAiKey] = useState('');
   const [hasSavedAiKey, setHasSavedAiKey] = useState(false);
   const [aiModel, setAiModel] = useState('');
+  const [discoveredModels, setDiscoveredModels] = useState<string[]>([]);
+  const [isDiscoveringModels, setIsDiscoveringModels] = useState(false);
   const [isValidatingKey, setIsValidatingKey] = useState(false);
   const [isAiRecording, setIsAiRecording] = useState(false);
   const [aiRecording, setAiRecording] = useState<Audio.Recording | null>(null);
+
+  const loadModelsForProvider = async (provider: AIProvider, currentKey?: string) => {
+    try {
+      setIsDiscoveringModels(true);
+      const { getSecureCredential } = require('./src/notes/encryption');
+      const { AIService } = require('./src/ai/AIService');
+      const keyToUse = currentKey !== undefined ? currentKey : (aiKey || (await getSecureCredential(`app_ai_key_${provider}`)) || '');
+      const result = await AIService.listAvailableModels(keyToUse, provider);
+      setDiscoveredModels(result.models || []);
+      if (result.recommended && (!aiModel || !result.models.includes(aiModel))) {
+        setAiModel(result.recommended);
+      }
+    } catch (e) {
+      console.warn('Error discovering models', e);
+    } finally {
+      setIsDiscoveringModels(false);
+    }
+  };
 
   const handleSelectAiProvider = async (provider: AIProvider) => {
     setAiProvider(provider);
@@ -243,12 +263,26 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       const model = await getSecureCredential(`app_ai_model_${provider}`);
       setHasSavedAiKey(!!(key && key.trim()));
       setAiKey('');
-      setAiModel(sanitizeModel(provider, model));
+      const initialModel = sanitizeModel(provider, model);
+      setAiModel(initialModel);
+      loadModelsForProvider(provider, key || '');
     } catch (e) {
       console.log('Error switching AI provider credentials', e);
       setHasSavedAiKey(false);
       setAiKey('');
       setAiModel(sanitizeModel(provider, ''));
+      loadModelsForProvider(provider, '');
+    }
+  };
+
+  const handleApiKeyChange = (text: string) => {
+    setAiKey(text);
+    const { detectProviderFromKey } = require('./src/ai/AIService');
+    const detected = detectProviderFromKey(text);
+    if (detected && detected !== aiProvider) {
+      handleSelectAiProvider(detected);
+    } else if (text.trim().length > 10) {
+      loadModelsForProvider(aiProvider, text);
     }
   };
 
@@ -262,6 +296,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
           setHasSavedAiKey(!!(key && key.trim()));
           setAiKey('');
           setAiModel(sanitizeModel(aiProvider, model));
+          loadModelsForProvider(aiProvider, key || '');
         } catch (e) {
           console.log('Error loading provider key on modal open', e);
         }
@@ -4180,11 +4215,11 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                     placeholderTextColor={COLORS.textMuted}
                     secureTextEntry
                     value={aiKey}
-                    onChangeText={setAiKey}
+                    onChangeText={handleApiKeyChange}
                   />
                   {aiKey.length > 0 && (
                     <TouchableOpacity 
-                      onPress={() => setAiKey('')}
+                      onPress={() => handleApiKeyChange('')}
                       style={{ position: 'absolute', right: 12, top: 14, padding: 4 }}
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
@@ -4210,7 +4245,59 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   </TouchableOpacity>
                 )}
 
-                <Text style={{ color: COLORS.textMuted, marginBottom: 8, fontFamily: COLORS.fontFamily, fontSize: 13, fontWeight: '600', textTransform: 'uppercase' }}>Modelo de IA</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <Text style={{ color: COLORS.textMuted, fontFamily: COLORS.fontFamily, fontSize: 13, fontWeight: '600', textTransform: 'uppercase' }}>Modelo de IA</Text>
+                  <TouchableOpacity 
+                    onPress={() => loadModelsForProvider(aiProvider)}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <MaterialIcons name="refresh" size={14} color={COLORS.bunkerAccent} />
+                    <Text style={{ color: COLORS.bunkerAccent, fontSize: 12, fontWeight: '600', fontFamily: COLORS.fontFamily }}>
+                      {isDiscoveringModels ? 'Detectando...' : 'Detectar'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {discoveredModels.length > 0 && (
+                  <ScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false} 
+                    contentContainerStyle={{ gap: 6, paddingBottom: 10 }}
+                    style={{ marginBottom: 4 }}
+                  >
+                    {discoveredModels.map((m) => {
+                      const isSelected = aiModel === m;
+                      return (
+                        <TouchableOpacity
+                          key={m}
+                          onPress={() => setAiModel(m)}
+                          style={{
+                            paddingHorizontal: 12,
+                            paddingVertical: 6,
+                            borderRadius: 16,
+                            backgroundColor: isSelected ? COLORS.bunkerAccent : COLORS.bunkerBg,
+                            borderWidth: 1,
+                            borderColor: isSelected ? COLORS.bunkerAccent : COLORS.border,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 4
+                          }}
+                        >
+                          <Text style={{
+                            color: isSelected ? '#fff' : COLORS.text,
+                            fontFamily: COLORS.fontFamily,
+                            fontSize: 12,
+                            fontWeight: isSelected ? '700' : '500'
+                          }}>
+                            {m}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                )}
+
                 <TextInput 
                   style={{ backgroundColor: COLORS.bunkerBg, color: COLORS.text, padding: 14, borderRadius: 12, fontFamily: COLORS.fontFamily, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border, fontSize: 15 }}
                   placeholder={
