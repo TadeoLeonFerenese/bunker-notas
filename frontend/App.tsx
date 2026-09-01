@@ -4278,23 +4278,23 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                       try {
                         const validation = await AIService.validateKey(keyToUse, aiProvider, aiModel);
                         if (validation.success) {
+                          const modelToSave = validation.detectedModel || aiModel || sanitizeModel(aiProvider, '');
                           await storeSecureCredential('app_ai_provider', aiProvider);
                           await storeSecureCredential('app_ai_key', keyToUse);
                           await storeSecureCredential(`app_ai_key_${aiProvider}`, keyToUse);
-                          await storeSecureCredential(`app_ai_model_${aiProvider}`, aiModel);
+                          await storeSecureCredential(`app_ai_model_${aiProvider}`, modelToSave);
+                          setAiModel(modelToSave);
                           setHasSavedAiKey(true);
                           setAiKey('');
                           setAiConfigModal(false);
-                          Alert.alert('Éxito', 'La configuración de la IA es correcta y se guardó de forma segura.');
+                          Alert.alert('Éxito', `La configuración de ${aiProvider.toUpperCase()} es correcta y se guardó de forma segura.${validation.detectedModel ? `\n\nModelo configurado: ${validation.detectedModel}` : ''}`);
                         } else {
                           const errorMsg = validation.error || 'Respuesta inesperada del proveedor.';
                           Alert.alert(
                             'Error de Validación',
-                            `[LOG DE ERROR DE CONFIGURACIÓN]\n` +
+                            `[LOG DE DIAGNÓSTICO DE ${aiProvider.toUpperCase()}]\n` +
                             `---------------------------\n` +
-                            `Proveedor: ${aiProvider.toUpperCase()}\n` +
-                            `Resultado: Validación fallida\n` +
-                            `Detalle: ${errorMsg}\n` +
+                            `${errorMsg}\n` +
                             `---------------------------\n\n` +
                             `¿Querés corregir la API Key o preferís guardarla de todos modos?`,
                             [

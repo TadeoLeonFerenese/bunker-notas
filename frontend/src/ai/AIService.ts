@@ -5,6 +5,18 @@ export interface AIResponse {
   error?: string;
 }
 
+export function sanitizeApiKey(key: string): string {
+  if (!key) return '';
+  return key.replace(/[\u200B-\u200D\uFEFF\s]/g, '').trim();
+}
+
+export function maskApiKey(key: string): string {
+  const clean = sanitizeApiKey(key);
+  if (!clean) return '(Vacía - 0 caracteres)';
+  if (clean.length <= 8) return `${clean.substring(0, 2)}...${clean.substring(clean.length - 2)} (${clean.length} caracteres)`;
+  return `${clean.substring(0, 6)}...${clean.substring(clean.length - 4)} (${clean.length} caracteres)`;
+}
+
 export const SYSTEM_INSTRUCTION = `Sos un asistente de notas preciso y directo. 
 REGLAS ESTRICTAS E INVIOLABLES:
 1. Generá ÚNICAMENTE el contenido solicitado por el usuario para la nota.
@@ -365,18 +377,217 @@ export const AIService = {
     }
   },
 
-  async validateKey(apiKey: string, provider: AIProvider, model?: string): Promise<{ success: boolean; error?: string }> {
-    try {
-      const res = await this.ask('ping', apiKey, provider, model);
-      if (res.error) {
-        return { success: false, error: res.error };
-      }
-      if (res.text && res.text.trim().length > 0) {
-        return { success: true };
-      }
-      return { success: false, error: 'Respuesta vacía del servicio' };
-    } catch (e: any) {
-      return { success: false, error: e.message || 'Error de red inesperado' };
+  async validateGemini(apiKey: string, requestedModel?: string): Promise<{ success: boolean; error?: string; detectedModel?: string }> {
+    const cleanKey = sanitizeApiKey(apiKey);
+    const masked = maskApiKey(cleanKey);
+
+    if (!cleanKey) {
+      return { success: false, error: '• Error: La API Key ingresada está vacía.' };
     }
+
+    try {
+      console.log(`[AIService Gemini Validate] Probing models with key ${masked}...`);
+      const modelsUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(cleanKey)}`;
+      const modelsResp = await fetch(modelsUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': cleanKey,
+        },
+      });
+
+      const modelsData = await modelsResp.json();
+      console.log(`[AIService Gemini Validate] Models probe status: ${modelsResp.status}`, JSON.stringify(modelsData));
+
+      if (!modelsResp.ok) {
+        const httpStatus = modelsResp.status;
+        const errObj = modelsData?.error || {};
+        const code = errObj.status || errObj.code || `HTTP_${httpStatus}`;
+        const msg = errObj.message || (typeof modelsData === 'string' ? modelsData : JSON.stringify(modelsData));
+
+        let hint = 'Revisá la API Key copiada de Google AI Studio.';
+        if (code === 'INVALID_ARGUMENT' || msg?.includes('API key not valid')) {
+          hint = 'La clave es INVÁLIDA o se copió incompleta. Creá una nueva en https://aistudio.google.com/app/apikey.';
+        } else if (code === 'PERMISSION_DENIED' || msg?.includes('permission')) {
+          hint = 'La clave no tiene permisos o la API "Generative Language API" no está habilitada en tu proyecto de Google Cloud.';
+        } else if (httpStatus === 429 || code === 'RESOURCE_EXHAUSTED') {
+          hint = 'Límite de peticiones por minuto superado en Google AI Studio.';
+        }
+
+        const diag = 
+          `• Estado HTTP: ${httpStatus} (${modelsResp.statusText || 'Error'})\n` +
+          `• Código de Error: ${code}\n` +
+          `• Key Probada: ${masked}\n` +
+          `• Endpoint: generativelanguage.googleapis.com/v1beta/models\n` +
+          `• Mensaje Oficial de Google: "${msg}"\n\n` +
+          `• Diagnóstico Sugerido: ${hint}`;
+
+        return { success: false, error: diag };
+      }
+
+      const rawModels: any[] = modelsData.models || [];
+      const supported = rawModels
+        .filter(m => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
+        .map(m => m.name.replace(/^models\//, ''));
+
+      console.log(`[AIService Gemini Validate] Supported models found:`, supported);
+
+      let targetModel = requestedModel ? requestedModel.trim().replace(/^models\//, '') : '';
+      if (!targetModel || !supported.includes(targetModel)) {
+        targetModel = supported.find(m => m === 'gemini-2.0-flash') ||
+                      supported.find(m => m === 'gemini-2.5-flash') ||
+                      supported.find(m => m === 'gemini-1.5-flash') ||
+                      supported.find(m => m.includes('flash')) ||
+                      supported[0] ||
+                      'gemini-2.0-flash';
+      }
+
+      const testRes = await this.ask('ping', cleanKey, 'gemini', targetModel);
+      if (testRes.error) {
+        const diag = 
+          `• Key Válida, pero falló la generación con modelo '${targetModel}':\n` +
+          `• Modelos activos en tu cuenta: ${supported.slice(0, 5).join(', ')}${supported.length > 5 ? '...' : ''}\n` +
+          `• Detalle de Error: ${testRes.error}`;
+        return { success: false, error: diag };
+      }
+
+      return { success: true, detectedModel: targetModel };
+    } catch (e: any) {
+      console.error('[AIService Gemini Validate Exception]', e);
+      const diag = 
+        `• Excepción de Red: ${e.message || 'fetch failed'}\n` +
+        `• Key Probada: ${masked}\n` +
+        `• Diagnóstico Sugerido: Fallo de conexión DNS/TCP en el dispositivo o bloqueo de red.`;
+      return { success: false, error: diag };
+    }
+  },
+
+  async validateGroq(apiKey: string, requestedModel?: string): Promise<{ success: boolean; error?: string; detectedModel?: string }> {
+    const cleanKey = sanitizeApiKey(apiKey);
+    const masked = maskApiKey(cleanKey);
+    const isXAI = cleanKey.startsWith('xai-');
+
+    if (!cleanKey) {
+      return { success: false, error: '• Error: La API Key ingresada está vacía.' };
+    }
+
+    try {
+      const url = isXAI ? 'https://api.x.ai/v1/models' : 'https://api.groq.com/openai/v1/models';
+      const modelsResp = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${cleanKey}`,
+          'Accept': 'application/json',
+        },
+      });
+
+      const modelsData = await modelsResp.json();
+      if (!modelsResp.ok) {
+        const httpStatus = modelsResp.status;
+        const errObj = modelsData?.error || {};
+        const msg = errObj.message || (typeof modelsData === 'string' ? modelsData : JSON.stringify(modelsData));
+        const diag = 
+          `• Estado HTTP: ${httpStatus} (${modelsResp.statusText || 'Error'})\n` +
+          `• Key Probada: ${masked}\n` +
+          `• Mensaje de ${isXAI ? 'xAI' : 'Groq'}: "${msg}"\n\n` +
+          `• Diagnóstico Sugerido: ${httpStatus === 401 ? 'API Key inválida. Obtené una clave en https://console.groq.com/keys (debe empezar con gsk_).' : 'Error de servicio en Groq.'}`;
+        return { success: false, error: diag };
+      }
+
+      const rawModels: any[] = modelsData.data || [];
+      const supported = rawModels.map(m => m.id);
+      let targetModel = requestedModel ? requestedModel.trim() : (isXAI ? 'grok-2-latest' : 'llama-3.3-70b-versatile');
+      if (!isXAI && (!targetModel || !supported.includes(targetModel))) {
+        targetModel = supported.find(m => m === 'llama-3.3-70b-versatile') ||
+                      supported.find(m => m === 'llama-3.1-8b-instant') ||
+                      supported.find(m => m.startsWith('llama-3.3')) ||
+                      supported[0] ||
+                      'llama-3.3-70b-versatile';
+      }
+
+      const testRes = await this.ask('ping', cleanKey, 'groq', targetModel);
+      if (testRes.error) {
+        return { success: false, error: `• Falló test con '${targetModel}':\n• Detalle: ${testRes.error}` };
+      }
+
+      return { success: true, detectedModel: targetModel };
+    } catch (e: any) {
+      return { success: false, error: `• Excepción de Red: ${e.message || 'fetch failed'}\n• Key Probada: ${masked}` };
+    }
+  },
+
+  async validateOpenRouter(apiKey: string, requestedModel?: string): Promise<{ success: boolean; error?: string; detectedModel?: string }> {
+    const cleanKey = sanitizeApiKey(apiKey);
+    const masked = maskApiKey(cleanKey);
+
+    if (!cleanKey) {
+      return { success: false, error: '• Error: La API Key ingresada está vacía.' };
+    }
+
+    try {
+      const authUrl = 'https://openrouter.ai/api/v1/auth/key';
+      const authResp = await fetch(authUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${cleanKey}`,
+        },
+      });
+
+      const authData = await authResp.json();
+      if (!authResp.ok) {
+        const httpStatus = authResp.status;
+        const msg = authData?.error?.message || JSON.stringify(authData);
+        return {
+          success: false,
+          error: `• Estado HTTP: ${httpStatus}\n• Key Probada: ${masked}\n• Mensaje de OpenRouter: "${msg}"\n\n• Diagnóstico Sugerido: Clave inválida. Obtené una en https://openrouter.ai/keys.`
+        };
+      }
+
+      const targetModel = requestedModel && requestedModel.trim() ? requestedModel.trim() : 'deepseek/deepseek-r1:free';
+      const testRes = await this.ask('ping', cleanKey, 'openrouter', targetModel);
+      if (testRes.error) {
+        return {
+          success: false,
+          error: `• Key Válida, pero falló el modelo '${targetModel}':\n• Detalle: ${testRes.error}\n\n• Diagnóstico Sugerido: Asegurate de usar modelos con sufijo ':free' (ej: deepseek/deepseek-r1:free o meta-llama/llama-3.3-70b-instruct:free).`
+        };
+      }
+
+      return { success: true, detectedModel: targetModel };
+    } catch (e: any) {
+      return { success: false, error: `• Excepción de Red: ${e.message || 'fetch failed'}\n• Key Probada: ${masked}` };
+    }
+  },
+
+  async validateOpenAI(apiKey: string, requestedModel?: string): Promise<{ success: boolean; error?: string; detectedModel?: string }> {
+    const cleanKey = sanitizeApiKey(apiKey);
+    const masked = maskApiKey(cleanKey);
+    const targetModel = requestedModel && requestedModel.trim() ? requestedModel.trim() : 'gpt-4o-mini';
+
+    if (!cleanKey) {
+      return { success: false, error: '• Error: La API Key ingresada está vacía.' };
+    }
+
+    const testRes = await this.ask('ping', cleanKey, 'openai', targetModel);
+    if (testRes.error) {
+      return {
+        success: false,
+        error: `• Estado: Error al consultar OpenAI (${targetModel})\n• Key Probada: ${masked}\n• Detalle: ${testRes.error}\n\n• Diagnóstico Sugerido: ${testRes.error.includes('credits') ? 'Tu cuenta de OpenAI tiene $0 de saldo/créditos en billing.' : 'Revisá la API Key o límites en platform.openai.com.'}`
+      };
+    }
+
+    return { success: true, detectedModel: targetModel };
+  },
+
+  async validateKey(apiKey: string, provider: AIProvider, model?: string): Promise<{ success: boolean; error?: string; detectedModel?: string }> {
+    if (provider === 'gemini') {
+      return this.validateGemini(apiKey, model);
+    }
+    if (provider === 'groq') {
+      return this.validateGroq(apiKey, model);
+    }
+    if (provider === 'openrouter') {
+      return this.validateOpenRouter(apiKey, model);
+    }
+    return this.validateOpenAI(apiKey, model);
   }
 };

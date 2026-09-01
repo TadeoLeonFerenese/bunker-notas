@@ -205,4 +205,52 @@ describe('AIService - Integración con IAs (Gemini y OpenAI)', () => {
       expect(response.error).toContain('OpenRouter no soporta transcripción');
     });
   });
+
+  describe('validateKey() - Diagnósticos y validación', () => {
+    it('debe validar Gemini correctamente tras consultar lista de modelos', async () => {
+      // Mock GET /models then POST generateContent
+      global.fetch = jest.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            models: [
+              { name: 'models/gemini-2.0-flash', supportedGenerationMethods: ['generateContent'] },
+            ],
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            candidates: [{ content: { parts: [{ text: 'pong' }] } }],
+          }),
+        });
+
+      const res = await AIService.validateKey('AIzaSyFakeKey1234567890', 'gemini');
+      expect(res.success).toBe(true);
+      expect(res.detectedModel).toBe('gemini-2.0-flash');
+    });
+
+    it('debe generar log de diagnóstico detallado si Gemini rechaza la key', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        statusText: 'Bad Request',
+        json: async () => ({
+          error: {
+            code: 400,
+            status: 'INVALID_ARGUMENT',
+            message: 'API key not valid. Please pass a valid API key.',
+          },
+        }),
+      });
+
+      const res = await AIService.validateKey('AIzaInvalidKey', 'gemini');
+      expect(res.success).toBe(false);
+      expect(res.error).toContain('Estado HTTP: 400');
+      expect(res.error).toContain('INVALID_ARGUMENT');
+      expect(res.error).toContain('API key not valid');
+    });
+  });
 });
