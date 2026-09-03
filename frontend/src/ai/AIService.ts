@@ -64,7 +64,7 @@ export const AIService = {
   async transcribeGemini(audioUri: string, apiKey: string): Promise<AIResponse> {
     try {
       const base64Data = await this.getAudioBase64(audioUri);
-      let modelName = 'gemini-2.0-flash';
+      let modelName = 'gemini-3.5-flash';
       let url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey.trim()}`;
       
       let response = await fetch(url, {
@@ -443,15 +443,15 @@ export const AIService = {
 
       console.log(`[AIService Gemini Validate] Supported models found:`, supported);
 
-      let targetModel = requestedModel && supported.includes(requestedModel.trim().replace(/^models\//, ''))
-        ? requestedModel.trim().replace(/^models\//, '')
+      const cleanRequested = requestedModel ? requestedModel.trim().replace(/^models\//, '') : '';
+      let targetModel = cleanRequested && (cleanRequested === 'gemini-3.5-flash' || cleanRequested === 'gemini-3.6-flash' || supported.includes(cleanRequested))
+        ? cleanRequested
         : '';
 
       if (!targetModel) {
         targetModel = supported.find(m => m.includes('3.5-flash') || m.includes('3.6-flash') || m.includes('2.5-flash') || m.includes('2.0-flash') || m.includes('1.5-flash')) ||
                       supported.find(m => m.includes('flash')) ||
                       supported.find(m => m.includes('gemini')) ||
-                      supported[0] ||
                       'gemini-3.5-flash';
       }
 
@@ -615,25 +615,28 @@ export const AIService = {
 
     try {
       if (provider === 'gemini') {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(cleanKey)}`;
-        const resp = await fetch(url, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cleanKey },
-        });
-        if (resp.ok) {
-          const data = await resp.json();
-          const rawModels: any[] = data.models || [];
-          const supported = rawModels
-            .filter(m => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
-            .map(m => m.name.replace(/^models\//, ''));
+        const priorityModels = ['gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash'];
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(cleanKey)}`;
+          const resp = await fetch(url, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cleanKey },
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            const rawModels: any[] = data.models || [];
+            const supported = rawModels
+              .filter(m => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
+              .map(m => m.name.replace(/^models\//, ''));
 
-          const filtered = supported.filter(m => !m.includes('embedding') && !m.includes('aqa') && !m.includes('imagen'));
-          const recommended = filtered.find(m => m.includes('3.5-flash') || m.includes('3.6-flash') || m.includes('2.5-flash') || m.includes('2.0-flash')) ||
-                              filtered.find(m => m.includes('flash')) ||
-                              filtered[0] ||
-                              'gemini-3.5-flash';
-          return { models: filtered.slice(0, 8), recommended };
+            const filtered = supported.filter(m => !m.includes('embedding') && !m.includes('aqa') && !m.includes('imagen'));
+            const combined = Array.from(new Set([...priorityModels, ...filtered]));
+            return { models: combined.slice(0, 10), recommended: 'gemini-3.5-flash' };
+          }
+        } catch (e) {
+          console.warn('[AIService listAvailableModels Gemini fetch error]', e);
         }
+        return { models: priorityModels, recommended: 'gemini-3.5-flash' };
       } else if (provider === 'groq') {
         const isXAI = cleanKey.startsWith('xai-');
         const url = isXAI ? 'https://api.x.ai/v1/models' : 'https://api.groq.com/openai/v1/models';

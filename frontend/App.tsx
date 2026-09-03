@@ -168,6 +168,13 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [googleRedirectUri, setGoogleRedirectUri] = useState('');
   const [showAdvancedBackup, setShowAdvancedBackup] = useState(false);
 
+  const getFallbackModelsForProvider = (p: AIProvider): string[] => {
+    if (p === 'gemini') return ['gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash'];
+    if (p === 'groq') return ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
+    if (p === 'openrouter') return ['openrouter/free', 'deepseek/deepseek-chat', 'deepseek/deepseek-r1', 'google/gemma-4-31b-it:free'];
+    return ['gpt-4o-mini', 'gpt-4o', 'o3-mini'];
+  };
+
   const sanitizeModel = (p: AIProvider, m?: string | null): string => {
     if (!m || m.trim() === '') {
       if (p === 'groq') return 'llama-3.3-70b-versatile';
@@ -176,6 +183,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       return 'gpt-4o-mini';
     }
     const trimmed = m.trim();
+    if (p === 'gemini' && (trimmed === 'gemini-2.5-flash' || trimmed === 'gemini-2.0-flash')) return 'gemini-3.5-flash';
     if (p === 'groq' && (trimmed === 'llama-3.1-8b-instant' || trimmed === 'mixtral-8x7b-32768')) return 'llama-3.3-70b-versatile';
     if (p === 'openrouter' && (trimmed === 'command-r' || trimmed === 'gpt-4o-mini' || trimmed === 'deepseek/deepseek-r1:free')) return 'openrouter/free';
     return trimmed;
@@ -231,7 +239,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [aiKey, setAiKey] = useState('');
   const [hasSavedAiKey, setHasSavedAiKey] = useState(false);
   const [aiModel, setAiModel] = useState('');
-  const [discoveredModels, setDiscoveredModels] = useState<string[]>([]);
+  const [discoveredModels, setDiscoveredModels] = useState<string[]>(['gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash']);
   const [showModelDropdown, setShowModelDropdown] = useState(false);
   const [isDiscoveringModels, setIsDiscoveringModels] = useState(false);
   const [isValidatingKey, setIsValidatingKey] = useState(false);
@@ -245,12 +253,15 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       const { AIService } = require('./src/ai/AIService');
       const keyToUse = currentKey !== undefined ? currentKey : (aiKey || (await getSecureCredential(`app_ai_key_${provider}`)) || '');
       const result = await AIService.listAvailableModels(keyToUse, provider);
-      setDiscoveredModels(result.models || []);
-      if (result.recommended && (!aiModel || !result.models.includes(aiModel))) {
+      const fallbacks = getFallbackModelsForProvider(provider);
+      const merged = Array.from(new Set([...(result.models || []), ...fallbacks]));
+      setDiscoveredModels(merged);
+      if (result.recommended && (!aiModel || !merged.includes(aiModel))) {
         setAiModel(result.recommended);
       }
     } catch (e) {
       console.warn('Error discovering models', e);
+      setDiscoveredModels(getFallbackModelsForProvider(provider));
     } finally {
       setIsDiscoveringModels(false);
     }
@@ -259,6 +270,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const handleSelectAiProvider = async (provider: AIProvider) => {
     setAiProvider(provider);
     setShowModelDropdown(false);
+    setDiscoveredModels(getFallbackModelsForProvider(provider));
     try {
       const { getSecureCredential } = require('./src/notes/encryption');
       const key = await getSecureCredential(`app_ai_key_${provider}`);
@@ -283,7 +295,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     const detected = detectProviderFromKey(text);
     if (detected && detected !== aiProvider) {
       handleSelectAiProvider(detected);
-    } else if (text.trim().length > 10) {
+    } else if (text.trim().length >= 10) {
       loadModelsForProvider(aiProvider, text);
     }
   };
@@ -297,6 +309,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
           const model = await getSecureCredential(`app_ai_model_${aiProvider}`);
           setHasSavedAiKey(!!(key && key.trim()));
           setAiKey('');
+          setDiscoveredModels(getFallbackModelsForProvider(aiProvider));
           setAiModel(sanitizeModel(aiProvider, model));
           loadModelsForProvider(aiProvider, key || '');
         } catch (e) {

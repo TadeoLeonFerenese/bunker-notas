@@ -342,10 +342,11 @@ describe('AIService - Integración con IAs (Gemini y OpenAI)', () => {
       });
 
       const res = await AIService.listAvailableModels('AIzaFakeKey', 'gemini');
+      expect(res.models).toContain('gemini-3.5-flash');
       expect(res.models).toContain('gemini-2.5-flash');
       expect(res.models).toContain('gemini-2.5-pro');
       expect(res.models).not.toContain('text-embedding-004');
-      expect(res.recommended).toBe('gemini-2.5-flash');
+      expect(res.recommended).toBe('gemini-3.5-flash');
     });
   });
 });
