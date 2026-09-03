@@ -232,7 +232,7 @@ export const AIService = {
   async ask(prompt: string, apiKey: string, provider: AIProvider, model?: string): Promise<AIResponse> {
     try {
       if (provider === 'gemini') {
-        const modelName = model && model.trim() ? model.trim() : 'gemini-2.5-flash';
+        const modelName = model && model.trim() ? model.trim() : 'gemini-3.5-flash';
         let url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey.trim()}`;
         console.log(`[AIService Gemini Request] Sending ask prompt to Gemini model ${modelName}...`);
         let response = await fetch(url, {
@@ -255,7 +255,7 @@ export const AIService = {
         // If Google rejects or suggests a new model ("Please update your code to use models/..."), extract it dynamically!
         if (!response.ok && data.error?.message) {
           const suggestedMatch = data.error.message.match(/use models\/([a-zA-Z0-9.-]+)/);
-          const fallbackModel = suggestedMatch ? suggestedMatch[1] : (modelName === 'gemini-2.5-flash' ? 'gemini-2.0-flash' : 'gemini-2.5-flash');
+          const fallbackModel = suggestedMatch ? suggestedMatch[1] : (modelName === 'gemini-3.5-flash' ? 'gemini-3.6-flash' : 'gemini-3.5-flash');
           
           console.log(`[AIService Gemini Fallback] Retrying with dynamically discovered model ${fallbackModel}...`);
           const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/${fallbackModel}:generateContent?key=${apiKey.trim()}`;
@@ -448,11 +448,11 @@ export const AIService = {
         : '';
 
       if (!targetModel) {
-        targetModel = supported.find(m => m.includes('2.5-flash') || m.includes('2.0-flash') || m.includes('1.5-flash')) ||
+        targetModel = supported.find(m => m.includes('3.5-flash') || m.includes('3.6-flash') || m.includes('2.5-flash') || m.includes('2.0-flash') || m.includes('1.5-flash')) ||
                       supported.find(m => m.includes('flash')) ||
                       supported.find(m => m.includes('gemini')) ||
                       supported[0] ||
-                      'gemini-2.5-flash';
+                      'gemini-3.5-flash';
       }
 
       const testRes = await this.ask('ping', cleanKey, 'gemini', targetModel);
@@ -607,7 +607,7 @@ export const AIService = {
   async listAvailableModels(apiKey: string, provider: AIProvider): Promise<{ models: string[]; recommended: string }> {
     const cleanKey = sanitizeApiKey(apiKey);
     if (!cleanKey) {
-      if (provider === 'gemini') return { models: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash'], recommended: 'gemini-2.5-flash' };
+      if (provider === 'gemini') return { models: ['gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash'], recommended: 'gemini-3.5-flash' };
       if (provider === 'groq') return { models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'], recommended: 'llama-3.3-70b-versatile' };
       if (provider === 'openrouter') return { models: ['openrouter/free', 'deepseek/deepseek-chat', 'deepseek/deepseek-r1', 'google/gemma-4-31b-it:free'], recommended: 'openrouter/free' };
       return { models: ['gpt-4o-mini', 'gpt-4o', 'o3-mini'], recommended: 'gpt-4o-mini' };
@@ -628,10 +628,10 @@ export const AIService = {
             .map(m => m.name.replace(/^models\//, ''));
 
           const filtered = supported.filter(m => !m.includes('embedding') && !m.includes('aqa') && !m.includes('imagen'));
-          const recommended = filtered.find(m => m.includes('2.5-flash') || m.includes('2.0-flash')) ||
+          const recommended = filtered.find(m => m.includes('3.5-flash') || m.includes('3.6-flash') || m.includes('2.5-flash') || m.includes('2.0-flash')) ||
                               filtered.find(m => m.includes('flash')) ||
                               filtered[0] ||
-                              'gemini-2.5-flash';
+                              'gemini-3.5-flash';
           return { models: filtered.slice(0, 8), recommended };
         }
       } else if (provider === 'groq') {
@@ -659,7 +659,7 @@ export const AIService = {
       console.warn('[AIService listAvailableModels]', e);
     }
 
-    if (provider === 'gemini') return { models: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash'], recommended: 'gemini-2.5-flash' };
+    if (provider === 'gemini') return { models: ['gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash'], recommended: 'gemini-3.5-flash' };
     if (provider === 'groq') return { models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'], recommended: 'llama-3.3-70b-versatile' };
     if (provider === 'openrouter') return { models: ['openrouter/free', 'deepseek/deepseek-chat', 'deepseek/deepseek-r1'], recommended: 'openrouter/free' };
     return { models: ['gpt-4o-mini', 'gpt-4o'], recommended: 'gpt-4o-mini' };

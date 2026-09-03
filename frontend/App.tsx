@@ -32,6 +32,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 import { StatusBar } from 'expo-status-bar';
+import { BlurView } from 'expo-blur';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import * as ImagePicker from 'expo-image-picker';
@@ -170,13 +171,12 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const sanitizeModel = (p: AIProvider, m?: string | null): string => {
     if (!m || m.trim() === '') {
       if (p === 'groq') return 'llama-3.3-70b-versatile';
-      if (p === 'gemini') return 'gemini-2.5-flash';
+      if (p === 'gemini') return 'gemini-3.5-flash';
       if (p === 'openrouter') return 'openrouter/free';
       return 'gpt-4o-mini';
     }
     const trimmed = m.trim();
     if (p === 'groq' && (trimmed === 'llama-3.1-8b-instant' || trimmed === 'mixtral-8x7b-32768')) return 'llama-3.3-70b-versatile';
-    if (p === 'gemini' && (trimmed === 'gemini-3.5-flash' || trimmed === 'gemini-3.6-flash')) return 'gemini-2.5-flash';
     if (p === 'openrouter' && (trimmed === 'command-r' || trimmed === 'gpt-4o-mini' || trimmed === 'deepseek/deepseek-r1:free')) return 'openrouter/free';
     return trimmed;
   };
@@ -3623,6 +3623,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
         visible={showDashboardAiModal}
         animationType="fade"
         transparent={true}
+        statusBarTranslucent={true}
         onRequestClose={() => {
           if (!isAiLoading && !isAiRecording) {
             Keyboard.dismiss();
@@ -3634,15 +3635,24 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}
         >
-          <Pressable 
-            style={styles.aiModalOverlay} 
-            onPress={() => {
-              if (!isAiLoading && !isAiRecording) {
-                Keyboard.dismiss();
-                setShowDashboardAiModal(false);
-              }
-            }}
-          >
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 }}>
+            <BlurView
+              intensity={Platform.OS === 'ios' ? 40 : 80}
+              tint={isDark ? 'dark' : 'dark'}
+              style={[
+                StyleSheet.absoluteFillObject,
+                Platform.OS === 'web' ? { backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' } as any : null
+              ]}
+            />
+            <Pressable 
+              style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0, 0, 0, 0.55)' }]} 
+              onPress={() => {
+                if (!isAiLoading && !isAiRecording) {
+                  Keyboard.dismiss();
+                  setShowDashboardAiModal(false);
+                }
+              }}
+            />
             <Pressable 
               style={[
                 styles.aiModalContent, 
@@ -3751,7 +3761,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                 </View>
               </ScrollView>
             </Pressable>
-          </Pressable>
+          </View>
         </KeyboardAvoidingView>
       </Modal>
 
@@ -4184,13 +4194,30 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       </Modal>
 
       {/* AI CONFIG MODAL */}
-      <Modal visible={aiConfigModal} transparent animationType="fade" onRequestClose={() => setAiConfigModal(false)}>
+      <Modal 
+        visible={aiConfigModal} 
+        transparent 
+        animationType="fade" 
+        statusBarTranslucent={true}
+        onRequestClose={() => setAiConfigModal(false)}
+      >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={{ flex: 1 }}
         >
-          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 24 }}>
-            <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setAiConfigModal(false)} />
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 24 }}>
+            <BlurView
+              intensity={Platform.OS === 'ios' ? 40 : 80}
+              tint={isDark ? 'dark' : 'dark'}
+              style={[
+                StyleSheet.absoluteFillObject,
+                Platform.OS === 'web' ? { backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' } as any : null
+              ]}
+            />
+            <Pressable 
+              style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.55)' }]} 
+              onPress={() => setAiConfigModal(false)} 
+            />
             <View style={{ backgroundColor: COLORS.surface, width: '100%', maxWidth: 360, maxHeight: '90%', borderRadius: 20, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden' }}>
               <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                 {/* Header con Título y Botón Cerrar X */}
@@ -4318,7 +4345,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                     }}
                   >
                     {aiModel || (
-                      aiProvider === 'gemini' ? 'gemini-2.5-flash' :
+                      aiProvider === 'gemini' ? 'gemini-3.5-flash' :
                       aiProvider === 'groq' ? 'llama-3.3-70b-versatile' :
                       aiProvider === 'openrouter' ? 'openrouter/free' :
                       'gpt-4o-mini'
