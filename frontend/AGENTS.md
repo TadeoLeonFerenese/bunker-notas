@@ -18,15 +18,18 @@ Load this agent when working with: React Native, Expo Go, TypeScript, Watermelon
    - **Icon & UI Fallbacks:** Ensure icon names and vector graphics degrade gracefully without empty render crashes.
 5. **Visual Standards:** Follow Symmetrical Design Rules. Blurred thumbnails + Padlock badge for secure notes (`isSecure: true`).
 
-## Skill Registry (Local)
+## Skill Registry (Local & Élite)
 
-| Skill             | Trigger                                               | Path                        |
-| ----------------- | ----------------------------------------------------- | --------------------------- |
-| `ts-expert`       | Working on .ts or .tsx files.                         | `skills/typescript.md`      |
-| `expo-master`     | Modifying navigation, native modules or app config.   | `skills/expo.md`            |
-| `tailwind-pro`    | Styling components or config with NativeWind.         | `skills/tailwind.md`        |
-| `jest-expert`     | Writing or running tests in `__tests__` folder.       | `skills/jest.md`            |
-| `expo-go-expert`  | Handling Expo Go and native module compatibility.     | `skills/expo-go-expert.md`  |
-| `crypto-security` | Working with encryption, keychain, or local auth.    | `skills/crypto-security.md` |
-| `watermelondb`    | Querying, creating, or migrating SQLite databases.    | `skills/watermelondb.md`    |
-| `modal-responsive`| Creating or modifying Modals, inputs or keyboards.    | `AGENTS.md` (section 3 & 4) |
+| Skill | Trigger | Path |
+| :--- | :--- | :--- |
+| `zero-knowledge-sentinel` | Auditoría de seguridad ZK, tokens, claves, prompts y logs. | `../.agents/skills/zero-knowledge-sentinel/` |
+| `watermelon-reactive-expert`| SQLite reactivo, mutaciones con write, observabilidad y estado. | `../.agents/skills/watermelon-reactive-expert/` |
+| `byok-llm-wrapper` | Asistente de IA BYOK, sanitización de API keys y parsing JSON. | `../.agents/skills/byok-llm-wrapper/` |
+| `ts-expert` | Working on .ts or .tsx files. | `skills/typescript.md` |
+| `expo-master` | Modifying navigation, native modules or app config. | `skills/expo.md` |
+| `tailwind-pro` | Styling components or config with NativeWind. | `skills/tailwind.md` |
+| `jest-expert` | Writing or running tests in `__tests__` folder. | `skills/jest.md` |
+| `expo-go-expert` | Handling Expo Go and native module compatibility. | `skills/expo-go-expert.md` |
+| `crypto-security` | Working with encryption, keychain, or local auth. | `skills/crypto-security.md` |
+| `watermelondb` | Querying, creating, or migrating SQLite databases. | `skills/watermelondb.md` |
+| `modal-responsive` | Creating or modifying Modals, inputs or keyboards. | `AGENTS.md` (section 3 & 4) |

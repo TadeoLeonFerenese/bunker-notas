@@ -170,14 +170,14 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const sanitizeModel = (p: AIProvider, m?: string | null): string => {
     if (!m || m.trim() === '') {
       if (p === 'groq') return 'llama-3.3-70b-versatile';
-      if (p === 'gemini') return 'gemini-3.6-flash';
-      if (p === 'openrouter') return 'deepseek/deepseek-r1:free';
+      if (p === 'gemini') return 'gemini-2.5-flash';
+      if (p === 'openrouter') return 'openrouter/free';
       return 'gpt-4o-mini';
     }
     const trimmed = m.trim();
     if (p === 'groq' && (trimmed === 'llama-3.1-8b-instant' || trimmed === 'mixtral-8x7b-32768')) return 'llama-3.3-70b-versatile';
-    if (p === 'gemini' && (trimmed === 'gemini-3.5-flash' || trimmed === 'gemini-1.5-flash' || trimmed === 'gemini-2.0-flash' || trimmed === 'gemini-2.5-flash')) return 'gemini-3.6-flash';
-    if (p === 'openrouter' && (trimmed === 'command-r' || trimmed === 'gpt-4o-mini' || trimmed === 'deepseek/deepseek-r1')) return 'deepseek/deepseek-r1:free';
+    if (p === 'gemini' && (trimmed === 'gemini-3.5-flash' || trimmed === 'gemini-3.6-flash')) return 'gemini-2.5-flash';
+    if (p === 'openrouter' && (trimmed === 'command-r' || trimmed === 'gpt-4o-mini' || trimmed === 'deepseek/deepseek-r1:free')) return 'openrouter/free';
     return trimmed;
   };
 
@@ -232,6 +232,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const [hasSavedAiKey, setHasSavedAiKey] = useState(false);
   const [aiModel, setAiModel] = useState('');
   const [discoveredModels, setDiscoveredModels] = useState<string[]>([]);
+  const [showModelDropdown, setShowModelDropdown] = useState(false);
   const [isDiscoveringModels, setIsDiscoveringModels] = useState(false);
   const [isValidatingKey, setIsValidatingKey] = useState(false);
   const [isAiRecording, setIsAiRecording] = useState(false);
@@ -257,6 +258,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
   const handleSelectAiProvider = async (provider: AIProvider) => {
     setAiProvider(provider);
+    setShowModelDropdown(false);
     try {
       const { getSecureCredential } = require('./src/notes/encryption');
       const key = await getSecureCredential(`app_ai_key_${provider}`);
@@ -2670,37 +2672,41 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
         </ScrollView>
 
         {/* AI Floating Button (Bottom Left) */}
-        <TouchableOpacity
-          style={[
-            styles.aiFab,
-            { 
-              backgroundColor: COLORS.bunkerAccent, 
-              shadowColor: COLORS.bunkerAccent,
-              shadowOpacity: 0.4,
-            }
-          ]}
-          onPress={() => {
-            setAiPrompt('');
-            setShowDashboardAiModal(true);
-          }}
-          testID="dashboard-ai-button"
-        >
-          <MaterialCommunityIcons name="robot" size={26} color="#fff" />
-        </TouchableOpacity>
+        {!showDashboardAiModal && !aiConfigModal && (
+          <TouchableOpacity
+            style={[
+              styles.aiFab,
+              { 
+                backgroundColor: COLORS.bunkerAccent, 
+                shadowColor: COLORS.bunkerAccent,
+                shadowOpacity: 0.4,
+              }
+            ]}
+            onPress={() => {
+              setAiPrompt('');
+              setShowDashboardAiModal(true);
+            }}
+            testID="dashboard-ai-button"
+          >
+            <MaterialCommunityIcons name="robot" size={26} color="#fff" />
+          </TouchableOpacity>
+        )}
 
         {/* FAB */}
-        <TouchableOpacity
-          style={[styles.fab, { backgroundColor: COLORS.bunkerAccent, shadowColor: COLORS.bunkerAccent }]}
-          onPress={() => {
-            setNewNoteTitle('');
-            setNewNoteContent('');
-            setNewNoteSecure(false);
-            setEditingNoteId(null);
-            setShowCreateModal(true);
-          }}
-        >
-          <Text style={styles.fabText}>+</Text>
-        </TouchableOpacity>
+        {!showDashboardAiModal && !aiConfigModal && (
+          <TouchableOpacity
+            style={[styles.fab, { backgroundColor: COLORS.bunkerAccent, shadowColor: COLORS.bunkerAccent }]}
+            onPress={() => {
+              setNewNoteTitle('');
+              setNewNoteContent('');
+              setNewNoteSecure(false);
+              setEditingNoteId(null);
+              setShowCreateModal(true);
+            }}
+          >
+            <Text style={styles.fabText}>+</Text>
+          </TouchableOpacity>
+        )}
       </SafeAreaView>
     </View>
 
@@ -3615,117 +3621,135 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       {/* DASHBOARD AI MODAL */}
       <Modal
         visible={showDashboardAiModal}
-        animationType="slide"
+        animationType="fade"
         transparent={true}
         onRequestClose={() => {
           if (!isAiLoading && !isAiRecording) {
+            Keyboard.dismiss();
             setShowDashboardAiModal(false);
           }
         }}
       >
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}
         >
           <Pressable 
             style={styles.aiModalOverlay} 
             onPress={() => {
               if (!isAiLoading && !isAiRecording) {
+                Keyboard.dismiss();
                 setShowDashboardAiModal(false);
               }
             }}
           >
             <Pressable 
-              style={[styles.aiModalContent, { backgroundColor: COLORS.surface, height: height * 0.48 }]}
+              style={[
+                styles.aiModalContent, 
+                { 
+                  backgroundColor: COLORS.surface, 
+                  maxHeight: '85%',
+                  width: '90%',
+                  maxWidth: 380,
+                }
+              ]}
               onPress={() => {}}
             >
-              <View style={[styles.aiModalHeader, { justifyContent: 'space-between', alignItems: 'center', width: '100%' }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <View style={styles.aiModalIconContainer}>
-                    <MaterialCommunityIcons name="robot" size={28} color="#fff" />
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={{ flexGrow: 1 }}
+              >
+                <View style={[styles.aiModalHeader, { justifyContent: 'space-between', alignItems: 'center', width: '100%' }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <View style={styles.aiModalIconContainer}>
+                      <MaterialCommunityIcons name="robot" size={28} color="#fff" />
+                    </View>
+                    <Text style={[styles.aiModalTitle, { color: COLORS.bunkerDark, fontFamily: COLORS.fontFamily, fontSize: 20, fontWeight: '700' }]}>Asistente IA</Text>
                   </View>
-                  <Text style={[styles.aiModalTitle, { color: COLORS.bunkerDark, fontFamily: COLORS.fontFamily, fontSize: 20, fontWeight: '700' }]}>Asistente IA</Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.aiModalMicBtn,
+                      isAiRecording 
+                        ? { backgroundColor: COLORS.bunkerAccent, width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' } 
+                        : { backgroundColor: 'transparent', padding: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 0 },
+                    ]}
+                    onPress={isAiRecording ? stopAiRecording : startAiRecording}
+                    disabled={isAiLoading}
+                  >
+                    <MaterialIcons 
+                      name={isAiRecording ? "stop" : "mic-none"} 
+                      size={26} 
+                      color={isAiRecording ? "#fff" : COLORS.bunkerAccent} 
+                    />
+                  </TouchableOpacity>
                 </View>
-                <TouchableOpacity
-                  style={[
-                    styles.aiModalMicBtn,
-                    isAiRecording 
-                      ? { backgroundColor: COLORS.bunkerAccent, width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' } 
-                      : { backgroundColor: 'transparent', padding: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 0 },
-                  ]}
-                  onPress={isAiRecording ? stopAiRecording : startAiRecording}
-                  disabled={isAiLoading}
-                >
-                  <MaterialIcons 
-                    name={isAiRecording ? "stop" : "mic-none"} 
-                    size={26} 
-                    color={isAiRecording ? "#fff" : COLORS.bunkerAccent} 
+
+                <View style={{ minHeight: 120, width: '100%', marginBottom: 20 }}>
+                  <TextInput
+                    style={[
+                      styles.aiModalInput, 
+                      { 
+                        minHeight: 120,
+                        backgroundColor: COLORS.bunkerBg, 
+                        color: COLORS.bunkerDark,
+                        borderColor: COLORS.border,
+                        fontFamily: COLORS.fontFamily,
+                        textAlignVertical: 'top',
+                        paddingTop: 14,
+                        paddingBottom: 14,
+                      }
+                    ]}
+                    placeholder={isAiRecording ? "Escuchando audio..." : "Ej: Escribí un resumen de la reunión de hoy..."}
+                    placeholderTextColor={COLORS.bunkerGray}
+                    value={aiPrompt}
+                    onChangeText={setAiPrompt}
+                    multiline
+                    numberOfLines={4}
+                    editable={!isAiLoading && !isAiRecording}
                   />
-                </TouchableOpacity>
-              </View>
+                </View>
 
-              <View style={{ flex: 1, width: '100%', marginBottom: 20 }}>
-                <TextInput
-                  style={[
-                    styles.aiModalInput, 
-                    { 
-                      flex: 1,
+                <View style={{ flexDirection: 'row', gap: 12, marginTop: 'auto' }}>
+                  <TouchableOpacity
+                    disabled={isAiLoading || isAiRecording}
+                    onPress={() => {
+                      Keyboard.dismiss();
+                      setShowDashboardAiModal(false);
+                    }}
+                    style={{ 
+                      flex: 1, 
+                      paddingVertical: 14, 
+                      borderRadius: 12, 
+                      alignItems: 'center', 
                       backgroundColor: COLORS.bunkerBg, 
-                      color: COLORS.bunkerDark,
+                      borderWidth: 1, 
                       borderColor: COLORS.border,
-                      fontFamily: COLORS.fontFamily,
-                      height: '100%',
-                      textAlignVertical: 'top',
-                      paddingTop: 16,
-                      paddingBottom: 16,
-                    }
-                  ]}
-                  placeholder={isAiRecording ? "Escuchando audio..." : "Ej: Escribí un resumen de la reunión de hoy..."}
-                  placeholderTextColor={COLORS.bunkerGray}
-                  value={aiPrompt}
-                  onChangeText={setAiPrompt}
-                  multiline
-                  numberOfLines={4}
-                  editable={!isAiLoading && !isAiRecording}
-                />
-              </View>
-
-              <View style={{ flexDirection: 'row', gap: 12 }}>
-                <TouchableOpacity
-                  disabled={isAiLoading || isAiRecording}
-                  onPress={() => setShowDashboardAiModal(false)}
-                  style={{ 
-                    flex: 1, 
-                    paddingVertical: 14, 
-                    borderRadius: 12, 
-                    alignItems: 'center', 
-                    backgroundColor: COLORS.bunkerBg, 
-                    borderWidth: 1, 
-                    borderColor: COLORS.border,
-                    opacity: (isAiLoading || isAiRecording) ? 0.5 : 1
-                  }}
-                >
-                  <Text style={{ color: COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '600' }}>Cancelar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  disabled={isAiLoading || isAiRecording || !aiPrompt.trim()}
-                  onPress={handleDashboardAiSubmit}
-                  style={{ 
-                    flex: 1, 
-                    paddingVertical: 14, 
-                    backgroundColor: COLORS.bunkerAccent, 
-                    borderRadius: 12, 
-                    alignItems: 'center',
-                    opacity: (isAiLoading || isAiRecording || !aiPrompt.trim()) ? 0.5 : 1
-                  }}
-                >
-                  {isAiLoading ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text style={{ color: '#fff', fontFamily: COLORS.fontFamily, fontWeight: '700' }}>Generar</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
+                      opacity: (isAiLoading || isAiRecording) ? 0.5 : 1
+                    }}
+                  >
+                    <Text style={{ color: COLORS.text, fontFamily: COLORS.fontFamily, fontWeight: '600' }}>Cancelar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    disabled={isAiLoading || isAiRecording || !aiPrompt.trim()}
+                    onPress={handleDashboardAiSubmit}
+                    style={{ 
+                      flex: 1, 
+                      paddingVertical: 14, 
+                      backgroundColor: COLORS.bunkerAccent, 
+                      borderRadius: 12, 
+                      alignItems: 'center',
+                      opacity: (isAiLoading || isAiRecording || !aiPrompt.trim()) ? 0.5 : 1
+                    }}
+                  >
+                    {isAiLoading ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={{ color: '#fff', fontFamily: COLORS.fontFamily, fontWeight: '700' }}>Generar</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
             </Pressable>
           </Pressable>
         </KeyboardAvoidingView>
@@ -4259,57 +4283,147 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   </TouchableOpacity>
                 </View>
 
-                {discoveredModels.length > 0 && (
-                  <ScrollView 
-                    horizontal 
-                    showsHorizontalScrollIndicator={false} 
-                    contentContainerStyle={{ gap: 6, paddingBottom: 10 }}
-                    style={{ marginBottom: 4 }}
+                {/* Selector / Burger Menu de Modelo (Táctil, Pastel y Simétrico) */}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    if (discoveredModels.length === 0 && !isDiscoveringModels) {
+                      loadModelsForProvider(aiProvider);
+                    }
+                    setShowModelDropdown(prev => !prev);
+                  }}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    backgroundColor: `${COLORS.bunkerAccent}1F`,
+                    borderRadius: 12,
+                    borderWidth: 1.5,
+                    borderColor: showModelDropdown ? COLORS.bunkerAccent : `${COLORS.bunkerAccent}50`,
+                    paddingHorizontal: 16,
+                    paddingVertical: 14,
+                    minHeight: 52,
+                    marginBottom: showModelDropdown ? 8 : 16,
+                  }}
+                >
+                  <Text 
+                    numberOfLines={1}
+                    style={{ 
+                      flex: 1,
+                      color: COLORS.text, 
+                      fontFamily: COLORS.fontFamily, 
+                      fontSize: 14, 
+                      fontWeight: '600',
+                      marginRight: 8
+                    }}
                   >
-                    {discoveredModels.map((m) => {
-                      const isSelected = aiModel === m;
-                      return (
-                        <TouchableOpacity
-                          key={m}
-                          onPress={() => setAiModel(m)}
-                          style={{
-                            paddingHorizontal: 12,
-                            paddingVertical: 6,
-                            borderRadius: 16,
-                            backgroundColor: isSelected ? COLORS.bunkerAccent : COLORS.bunkerBg,
-                            borderWidth: 1,
-                            borderColor: isSelected ? COLORS.bunkerAccent : COLORS.border,
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            gap: 4
-                          }}
-                        >
-                          <Text style={{
-                            color: isSelected ? '#fff' : COLORS.text,
-                            fontFamily: COLORS.fontFamily,
-                            fontSize: 12,
-                            fontWeight: isSelected ? '700' : '500'
-                          }}>
-                            {m}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
-                )}
+                    {aiModel || (
+                      aiProvider === 'gemini' ? 'gemini-2.5-flash' :
+                      aiProvider === 'groq' ? 'llama-3.3-70b-versatile' :
+                      aiProvider === 'openrouter' ? 'openrouter/free' :
+                      'gpt-4o-mini'
+                    )}
+                  </Text>
+                  <MaterialIcons 
+                    name={showModelDropdown ? "menu-open" : "menu"} 
+                    size={22} 
+                    color={COLORS.bunkerAccent} 
+                  />
+                </TouchableOpacity>
 
-                <TextInput 
-                  style={{ backgroundColor: COLORS.bunkerBg, color: COLORS.text, padding: 14, borderRadius: 12, fontFamily: COLORS.fontFamily, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border, fontSize: 15 }}
-                  placeholder={
-                    aiProvider === 'gemini' ? 'Ej: gemini-3.6-flash' :
-                    aiProvider === 'groq' ? 'Ej: llama-3.3-70b-versatile' :
-                    aiProvider === 'openrouter' ? 'Ej: deepseek/deepseek-r1:free' :
-                    'Ej: gpt-4o-mini'
-                  }
-                  placeholderTextColor={COLORS.textMuted}
-                  value={aiModel}
-                  onChangeText={setAiModel}
-                />
+                {/* Dropdown Menu Desplegable */}
+                {showModelDropdown && (
+                  <View style={{
+                    backgroundColor: COLORS.bunkerBg,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: COLORS.border,
+                    marginBottom: 16,
+                    maxHeight: 220,
+                    overflow: 'hidden'
+                  }}>
+                    {isDiscoveringModels ? (
+                      <View style={{ padding: 16, alignItems: 'center' }}>
+                        <Text style={{ color: COLORS.textMuted, fontSize: 13, fontFamily: COLORS.fontFamily }}>
+                          Buscando modelos en tu cuenta...
+                        </Text>
+                      </View>
+                    ) : discoveredModels.length === 0 ? (
+                      <TouchableOpacity 
+                        onPress={() => loadModelsForProvider(aiProvider)}
+                        style={{ padding: 16, alignItems: 'center' }}
+                      >
+                        <Text style={{ color: COLORS.bunkerAccent, fontSize: 13, fontFamily: COLORS.fontFamily, fontWeight: '600' }}>
+                          ⚡ Tocá acá para detectar modelos disponibles
+                        </Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                        {discoveredModels.map((m) => {
+                          const isSelected = aiModel === m;
+                          return (
+                            <TouchableOpacity
+                              key={m}
+                              onPress={() => {
+                                setAiModel(m);
+                                setShowModelDropdown(false);
+                              }}
+                              style={{
+                                flexDirection: 'row',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                paddingVertical: 12,
+                                paddingHorizontal: 16,
+                                backgroundColor: isSelected ? `${COLORS.bunkerAccent}25` : 'transparent',
+                                borderBottomWidth: 1,
+                                borderBottomColor: COLORS.border + '30'
+                              }}
+                            >
+                              <Text style={{
+                                color: isSelected ? COLORS.bunkerAccent : COLORS.text,
+                                fontFamily: COLORS.fontFamily,
+                                fontSize: 13,
+                                fontWeight: isSelected ? '700' : '500'
+                              }}>
+                                {m}
+                              </Text>
+                              {isSelected && (
+                                <MaterialIcons name="check" size={16} color={COLORS.bunkerAccent} />
+                              )}
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </ScrollView>
+                    )}
+
+                    {/* Input para modelo custom opcional */}
+                    <View style={{ 
+                      paddingHorizontal: 12, 
+                      paddingVertical: 8, 
+                      borderTopWidth: 1, 
+                      borderTopColor: COLORS.border + '60',
+                      backgroundColor: COLORS.surface 
+                    }}>
+                      <TextInput
+                        placeholder="O escribir otro modelo custom..."
+                        placeholderTextColor={COLORS.textMuted}
+                        value={aiModel}
+                        onChangeText={setAiModel}
+                        style={{
+                          color: COLORS.text,
+                          fontSize: 12,
+                          fontFamily: COLORS.fontFamily,
+                          paddingVertical: 6,
+                          paddingHorizontal: 10,
+                          backgroundColor: COLORS.bunkerBg,
+                          borderRadius: 8,
+                          borderWidth: 1,
+                          borderColor: COLORS.border
+                        }}
+                      />
+                    </View>
+                  </View>
+                )}
 
                 <TouchableOpacity 
                   onPress={() => {
@@ -4645,19 +4759,19 @@ const styles = StyleSheet.create({
   },
   aiModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 20,
   },
   aiModalContent: {
     width: '90%',
     maxWidth: 380,
     borderRadius: 24,
     padding: 24,
-    marginBottom: Platform.OS === 'ios' ? 40 : 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
     shadowRadius: 16,
     elevation: 20,
   },

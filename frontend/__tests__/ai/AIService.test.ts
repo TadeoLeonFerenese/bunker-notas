@@ -41,7 +41,31 @@ describe('AIService - Integración con IAs (Gemini y OpenAI)', () => {
       const response = await AIService.ask('Hola', 'fake-api-key', 'gemini');
       expect(response.text).toBe('Respuesta simulada de Gemini');
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('v1beta/models/gemini-3.6-flash:generateContent?key=fake-api-key'),
+        expect.stringContaining('v1beta/models/gemini-2.5-flash:generateContent?key=fake-api-key'),
+        expect.any(Object)
+      );
+    });
+
+    it('debe respetar el modelo específico solicitado en Gemini sin mutarlo', async () => {
+      const mockResponse = {
+        candidates: [
+          {
+            content: {
+              parts: [{ text: 'Respuesta Pro' }],
+            },
+          },
+        ],
+      };
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const response = await AIService.ask('Hola', 'fake-api-key', 'gemini', 'gemini-2.5-pro');
+      expect(response.text).toBe('Respuesta Pro');
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('v1beta/models/gemini-2.5-pro:generateContent?key=fake-api-key'),
         expect.any(Object)
       );
     });
@@ -113,7 +137,32 @@ describe('AIService - Integración con IAs (Gemini y OpenAI)', () => {
         expect.stringContaining('openrouter.ai/api/v1/chat/completions'),
         expect.objectContaining({
           method: 'POST',
-          body: expect.stringContaining('deepseek/deepseek-r1:free'),
+          body: expect.stringContaining('openrouter/free'),
+        })
+      );
+    });
+
+    it('debe respetar el modelo específico solicitado en OpenRouter sin mutarlo', async () => {
+      const mockResponse = {
+        choices: [
+          {
+            message: { content: 'Respuesta DeepSeek R1' },
+          },
+        ],
+      };
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const response = await AIService.ask('Hola', 'fake-api-key', 'openrouter', 'deepseek/deepseek-r1');
+      expect(response.text).toBe('Respuesta DeepSeek R1');
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('openrouter.ai/api/v1/chat/completions'),
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('deepseek/deepseek-r1'),
         })
       );
     });
@@ -285,18 +334,18 @@ describe('AIService - Integración con IAs (Gemini y OpenAI)', () => {
         status: 200,
         json: async () => ({
           models: [
-            { name: 'models/gemini-3.6-flash', supportedGenerationMethods: ['generateContent'] },
+            { name: 'models/gemini-2.5-flash', supportedGenerationMethods: ['generateContent'] },
             { name: 'models/text-embedding-004', supportedGenerationMethods: ['embedContent'] },
-            { name: 'models/gemini-3.5-pro', supportedGenerationMethods: ['generateContent'] },
+            { name: 'models/gemini-2.5-pro', supportedGenerationMethods: ['generateContent'] },
           ],
         }),
       });
 
       const res = await AIService.listAvailableModels('AIzaFakeKey', 'gemini');
-      expect(res.models).toContain('gemini-3.6-flash');
-      expect(res.models).toContain('gemini-3.5-pro');
+      expect(res.models).toContain('gemini-2.5-flash');
+      expect(res.models).toContain('gemini-2.5-pro');
       expect(res.models).not.toContain('text-embedding-004');
-      expect(res.recommended).toBe('gemini-3.6-flash');
+      expect(res.recommended).toBe('gemini-2.5-flash');
     });
   });
 });
