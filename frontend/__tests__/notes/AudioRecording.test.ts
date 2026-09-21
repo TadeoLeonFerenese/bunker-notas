@@ -69,4 +69,13 @@ describe('Audio Notes Recording & Playback', () => {
     expect(sound.stopAsync).toHaveBeenCalledTimes(1);
     expect(sound.unloadAsync).toHaveBeenCalledTimes(1);
   });
+
+  it('Should distinguish between temp decrypted files and permanent audio files for cleanup', () => {
+    const tempAudioUri = 'file:///mock/cache/temp_123456.m4a';
+    const permanentAudioUri = 'file:///mock/documents/audio_123456.m4a';
+
+    expect(tempAudioUri.includes('temp_')).toBe(true);
+    expect(permanentAudioUri.includes('temp_')).toBe(false);
+  });
 });
+

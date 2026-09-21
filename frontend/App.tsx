@@ -501,14 +501,16 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   useEffect(() => {
     if (!selectedNote) {
       const cleanup = async () => {
-        if (decryptedAudioUri) {
+        if (decryptedAudioUri && decryptedAudioUri.includes('temp_')) {
           try { await FileSystem.deleteAsync(decryptedAudioUri, { idempotent: true }); } catch (e) {}
-          setDecryptedAudioUri(null);
         }
+        setDecryptedAudioUri(null);
         for (const uri of Object.values(decryptedImages)) {
           try { await FileSystem.deleteAsync(uri, { idempotent: true }); } catch (e) {}
         }
         setDecryptedImages({});
+        setPlaybackDuration(0);
+        setPlaybackPosition(0);
       };
       cleanup();
       return;
@@ -516,15 +518,30 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
     const decryptMedia = async () => {
       // 1. Audio
+      let targetAudioUri: string | null = null;
       if (selectedNote.isSecure && selectedNote.audioUri && selectedNote.audioUri.endsWith('.enc')) {
         try {
-          const tempPath = await decryptFile(selectedNote.audioUri);
-          setDecryptedAudioUri(tempPath);
+          targetAudioUri = await decryptFile(selectedNote.audioUri);
         } catch (e) {
           console.error("Failed to decrypt audio", e);
         }
       } else {
-        setDecryptedAudioUri(selectedNote.audioUri || null);
+        targetAudioUri = selectedNote.audioUri || null;
+      }
+
+      if (targetAudioUri) {
+        setDecryptedAudioUri(targetAudioUri);
+        try {
+          const { sound: tempSound, status } = await Audio.Sound.createAsync({ uri: targetAudioUri }, { shouldPlay: false });
+          if (status.isLoaded && status.durationMillis) {
+            setPlaybackDuration(status.durationMillis);
+          }
+          await tempSound.unloadAsync();
+        } catch (e) {
+          console.log('[Viewer] Could not preload audio duration:', e);
+        }
+      } else {
+        setDecryptedAudioUri(null);
       }
 
       // 2. Images in content
@@ -624,6 +641,9 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
   const performAutosave = async () => {
     try {
+      if (recording || isRecording) {
+        await stopAndPersistRecording();
+      }
       const { title, content, isSecure, color, illustration, audioUri, editingNoteId: currentEditingId, showCreateModal: isModalVisible, reminderAt, calendarEventId } = noteStateRef.current;
 
       // Si el modal ya no está visible, no autoguardamos
@@ -674,7 +694,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
           }
         }
       } else {
-        // 1. Desencriptar audio si el usuario quita el candado
+        // 1. Desencriptar audio si el usuario quita el candado o mover de caché si es temporal
         if (audioUri && audioUri.endsWith('.enc')) {
           try {
             const decPath = await decryptFile(audioUri);
@@ -686,6 +706,16 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
             await FileSystem.deleteAsync(audioUri, { idempotent: true });
           } catch (e) {
             console.error('[Autosave] Error desencriptando audio al quitar seguridad:', e);
+          }
+        } else if (finalAudioUri && finalAudioUri.includes('/cache/')) {
+          try {
+            const extension = finalAudioUri.split('.').pop() || 'm4a';
+            const permanentPath = FileSystem.documentDirectory + `audio_${Date.now()}.${extension}`;
+            await FileSystem.moveAsync({ from: finalAudioUri, to: permanentPath });
+            finalAudioUri = permanentPath;
+            setRecordedAudioUri(permanentPath);
+          } catch (e) {
+            console.error('[Autosave] Error moviendo audio de caché a permanente:', e);
           }
         }
 
@@ -963,24 +993,50 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     }
   };
 
-  const stopRecording = async () => {
+  const stopAndPersistRecording = async (): Promise<string | null> => {
     try {
-      if (!recording) return;
+      if (!recording) return recordedAudioUri;
       setIsRecording(false);
       if (recordingIntervalRef.current) {
         clearInterval(recordingIntervalRef.current);
       }
       await recording.stopAndUnloadAsync();
-      const uri = recording.getURI();
-      setRecordedAudioUri(uri);
+      const rawUri = recording.getURI();
       setRecording(null);
+
+      if (!rawUri) return null;
+
+      const extension = rawUri.split('.').pop() || 'm4a';
+      const permanentPath = FileSystem.documentDirectory + `audio_${Date.now()}.${extension}`;
+      try {
+        await FileSystem.moveAsync({ from: rawUri, to: permanentPath });
+      } catch (e) {
+        console.warn('Could not move audio file from cache to documentDirectory, fallback to rawUri:', e);
+      }
+
+      const finalPath = (await FileSystem.getInfoAsync(permanentPath)).exists ? permanentPath : rawUri;
+      setRecordedAudioUri(finalPath);
+      noteStateRef.current.audioUri = finalPath;
+      return finalPath;
     } catch (err) {
-      console.error('Failed to stop recording', err);
+      console.error('Failed to stop and persist recording', err);
+      return null;
     }
+  };
+
+  const stopRecording = async () => {
+    await stopAndPersistRecording();
   };
 
   const handlePlayAudio = async (uri: string) => {
     try {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        playThroughEarpieceAndroid: false,
+        shouldDuckAndroid: true,
+      });
+
       if (playbackSound && isPlaybackPlaying) {
         await playbackSound.pauseAsync();
         setIsPlaybackPlaying(false);
@@ -1060,6 +1116,10 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const handleCloseCreateModal = async () => {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
+    }
+
+    if (recording || isRecording) {
+      await stopAndPersistRecording();
     }
     
     try {

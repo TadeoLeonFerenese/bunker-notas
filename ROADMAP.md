@@ -46,8 +46,9 @@ Permitir la carga, visualización y recepción (vía Share Intent o local) de im
       * `gsk_...` / `xai-...` ➔ Conmuta automáticamente a **Groq**.
       * `sk-or-v1-...` ➔ Conmuta automáticamente a **OpenRouter**.
       * `sk-proj-...` / `sk-...` ➔ Conmuta automáticamente a **OpenAI**.
-  * **Descubrimiento Dinámico de Modelos (Live Dynamic Model Chips):**
-    * Eliminación de nombres estáticos rígidos. La app consulta el catálogo activo de la API (`listAvailableModels` vía `GET /models`) y renderiza **Chips / Pills seleccionables con scroll horizontal**.
+  * **Descubrimiento Dinámico de Modelos (Live Dynamic Model Chips) y Fallback de Prioridad:**
+    * La app consulta el catálogo activo de la API (`listAvailableModels` vía `GET /models`) y renderiza **Chips / Pills seleccionables con scroll horizontal**.
+    * **Resiliencia ante endpoints truncados:** Dado que Google a veces oculta u omite modelos nuevos como `gemini-3.5-flash` en la respuesta de su API, se implementó un sistema de **Fallback de Prioridad**. Esto inyecta dinámicamente modelos garantizados al principio de la lista usando un `Set`, asegurando que modelos cruciales nunca desaparezcan de la UI aunque la API de descubrimiento los omita.
     * Tocar un chip selecciona el modelo al instante sin necesidad de tipear strings técnicos a mano. Incluye botón de refresco directo (`Detectar`) y soporte de input custom para usuarios avanzados.
   * **Migración a Gemini 3.6 Flash y Resiliencia Dinámica:**
     * Se migró el modelo base de Gemini al estándar oficial **`gemini-3.6-flash`**, resolviendo la deprecación de Google para modelos 1.5, 2.0 y 2.5 en nuevas cuentas de AI Studio.
