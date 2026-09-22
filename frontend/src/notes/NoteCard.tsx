@@ -46,6 +46,19 @@ export const NOTE_ILLUSTRATIONS: Record<string, string> = {
   heart: '❤️',
   gym: '🏋️',
   cinema: '🎬',
+  clothes: '👕',
+  cooking: '🍳',
+  coffee: '☕',
+  food: '🍕',
+  shopping: '🛍️',
+  study: '📚',
+  game: '🎮',
+  car: '🚗',
+  pet: '🐶',
+  health: '💊',
+  party: '🍻',
+  rest: '🛋️',
+  clean: '🧹',
 };
 
 export interface NoteCardProps {
