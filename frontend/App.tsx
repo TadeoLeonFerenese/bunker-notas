@@ -880,40 +880,10 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     return html;
   };
 
-  // Keyboard Visibility
-  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-
+  // Keyboard Focus Handling
   const handleInputFocus = () => {
-    setIsKeyboardVisible(prev => {
-      if (!prev) {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      }
-      return true;
-    });
+    // No-op for smooth native focus without LayoutAnimation jank
   };
-
-  useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-
-    const keyboardDidShowListener = Keyboard.addListener(showEvent, () => {
-      setIsKeyboardVisible(prev => {
-        if (!prev) LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        return true;
-      });
-    });
-    const keyboardDidHideListener = Keyboard.addListener(hideEvent, () => {
-      setIsKeyboardVisible(prev => {
-        if (prev) LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        return false;
-      });
-    });
-
-    return () => {
-      keyboardDidShowListener.remove();
-      keyboardDidHideListener.remove();
-    };
-  }, []);
 
   // Audio Lifecycle cleanup
   useEffect(() => {
@@ -2788,7 +2758,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
         <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.surface }}>
           <KeyboardAvoidingView 
             style={{ flex: 1 }}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           >
             {showCreateModal && (
               <View style={[styles.modalContent, { backgroundColor: COLORS.surface, flex: 1, padding: 0 }]}>
@@ -2833,7 +2803,14 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                     )}
                   </View>
                 </View>
-                <View style={{ flex: 1, paddingHorizontal: 24, paddingBottom: 8, paddingTop: 6 }}>
+                <ScrollView 
+                  style={{ flex: 1 }}
+                  contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40, paddingTop: 6, flexGrow: 1 }}
+                  keyboardShouldPersistTaps="handled"
+                  keyboardDismissMode="on-drag"
+                  showsVerticalScrollIndicator={true}
+                  nestedScrollEnabled={true}
+                >
                   <TextInput
                     style={[{
                       fontFamily: COLORS.fontFamily, 
@@ -2853,7 +2830,6 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                     value={newNoteTitle}
                     onChangeText={setNewNoteTitle}
                     onFocus={handleInputFocus}
-                    autoFocus
                   />
 
                   {(isRecording || recordedAudioUri) && (
@@ -2896,6 +2872,10 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                     </View>
                   )}
 
+                  <Pressable 
+                    style={{ flex: 1, minHeight: 280 }} 
+                    onPress={() => contentInputRef.current?.focus()}
+                  >
                     <TextInput
                       ref={contentInputRef}
                       style={[{
@@ -2907,27 +2887,29 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                         paddingBottom: 40,
                         color: COLORS.bunkerDark,
                         textAlignVertical: 'top',
-                        flex: 1,
+                        minHeight: 280,
                       }]}
-                    placeholder="Nota"
-                    placeholderTextColor={COLORS.textMuted}
-                    multiline={true}
-                    value={newNoteContent}
-                    onChangeText={setNewNoteContent}
-                    onFocus={handleInputFocus}
-                    onSelectionChange={(e) => {
-                      currentSelectionRef.current = e.nativeEvent.selection;
-                      if (textSelection !== undefined) {
-                        setTextSelection(undefined);
-                      }
-                    }}
-                    {...(textSelection ? { selection: textSelection } : {})}
-                  />
+                      placeholder="Nota"
+                      placeholderTextColor={COLORS.textMuted}
+                      multiline={true}
+                      scrollEnabled={false}
+                      value={newNoteContent}
+                      onChangeText={setNewNoteContent}
+                      onFocus={handleInputFocus}
+                      onSelectionChange={(e) => {
+                        currentSelectionRef.current = e.nativeEvent.selection;
+                        if (textSelection !== undefined) {
+                          setTextSelection(undefined);
+                        }
+                      }}
+                      {...(textSelection ? { selection: textSelection } : {})}
+                    />
+                  </Pressable>
 
-                  <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, textAlign: 'center', marginTop: 6, fontStyle: 'italic' }}>
+                  <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, textAlign: 'center', marginTop: 12, marginBottom: 8, fontStyle: 'italic' }}>
                     Los estilos visuales se aplicarán al guardar la nota.
                   </Text>
-                </View>
+                </ScrollView>
 
                 {/* Expandable Toolbars (Above Bottom Action Bar) */}
                 {activeToolbar === 'format' && (
