@@ -2805,7 +2805,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                 </View>
                 <ScrollView 
                   style={{ flex: 1 }}
-                  contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40, paddingTop: 6, flexGrow: 1 }}
+                  contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 16, paddingTop: 6, flexGrow: 1 }}
                   keyboardShouldPersistTaps="handled"
                   keyboardDismissMode="on-drag"
                   showsVerticalScrollIndicator={true}
@@ -2873,7 +2873,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   )}
 
                   <Pressable 
-                    style={{ flex: 1, minHeight: 280 }} 
+                    style={{ flex: 1, minHeight: 180 }} 
                     onPress={() => contentInputRef.current?.focus()}
                   >
                     <TextInput
@@ -2884,10 +2884,11 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                         backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
                         borderRadius: 12,
                         padding: 16,
-                        paddingBottom: 40,
+                        paddingBottom: 24,
                         color: COLORS.bunkerDark,
                         textAlignVertical: 'top',
-                        minHeight: 280,
+                        flex: 1,
+                        minHeight: 180,
                       }]}
                       placeholder="Nota"
                       placeholderTextColor={COLORS.textMuted}
@@ -2905,10 +2906,6 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                       {...(textSelection ? { selection: textSelection } : {})}
                     />
                   </Pressable>
-
-                  <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, textAlign: 'center', marginTop: 12, marginBottom: 8, fontStyle: 'italic' }}>
-                    Los estilos visuales se aplicarán al guardar la nota.
-                  </Text>
                 </ScrollView>
 
                 {/* Expandable Toolbars (Above Bottom Action Bar) */}
