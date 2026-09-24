@@ -321,7 +321,6 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   }, [aiConfigModal, aiProvider]);
   const authActionRef = useRef<'open' | 'delete'>('open');
   const contentInputRef = useRef<any>(null);
-  const editorScrollViewRef = useRef<ScrollView>(null);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [textSelection, setTextSelection] = useState<{ start: number; end: number } | undefined>(undefined);
   const currentSelectionRef = useRef({ start: 0, end: 0 });
@@ -904,23 +903,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
   const handleInputFocus = () => {
     setIsKeyboardVisible(true);
-    setTimeout(() => {
-      if (editorScrollViewRef.current) {
-        const selection = currentSelectionRef.current;
-        if (!selection || (newNoteContent && selection.start > newNoteContent.length * 0.4)) {
-          editorScrollViewRef.current.scrollToEnd({ animated: true });
-        }
-      }
-    }, 150);
   };
-
-  useEffect(() => {
-    if (activeToolbar && editorScrollViewRef.current) {
-      setTimeout(() => {
-        editorScrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    }
-  }, [activeToolbar]);
 
   // Audio Lifecycle cleanup
   useEffect(() => {
@@ -2843,32 +2826,16 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                     )}
                   </View>
                 </View>
-                <ScrollView 
-                  ref={editorScrollViewRef}
-                  style={{ flex: 1 }}
-                  contentContainerStyle={{ 
-                    paddingHorizontal: 24, 
-                    paddingBottom: isKeyboardVisible 
-                      ? (activeToolbar ? 260 : 200) 
-                      : (activeToolbar ? 120 : 24), 
-                    paddingTop: 6, 
-                    flexGrow: 1 
-                  }}
-                  keyboardShouldPersistTaps="handled"
-                  keyboardDismissMode="on-drag"
-                  showsVerticalScrollIndicator={true}
-                  nestedScrollEnabled={true}
-                >
+                <View style={{ flex: 1, paddingHorizontal: 24, paddingTop: 6, paddingBottom: 8 }}>
                   <TextInput
                     style={[{
                       fontFamily: COLORS.fontFamily, 
                       fontSize: 20, 
                       fontWeight: 'bold', 
-                      flex: undefined, 
-                      marginBottom: 6, 
+                      marginBottom: 8, 
                       backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', 
                       paddingHorizontal: 16, 
-                      paddingVertical: 8,
+                      paddingVertical: 10,
                       borderRadius: 12,
                       borderWidth: 0, 
                       color: COLORS.bunkerDark 
@@ -2881,7 +2848,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   />
 
                   {(isRecording || recordedAudioUri) && (
-                    <View style={[styles.audioPanel, { backgroundColor: COLORS.bunkerBg, borderColor: COLORS.border, marginBottom: 6, paddingVertical: 8 }]}>
+                    <View style={[styles.audioPanel, { backgroundColor: COLORS.bunkerBg, borderColor: COLORS.border, marginBottom: 8, paddingVertical: 8 }]}>
                       {isRecording ? (
                         <View style={styles.audioRow}>
                           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -2920,41 +2887,35 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                     </View>
                   )}
 
-                  <Pressable 
-                    style={{ flex: 1, minHeight: 180 }} 
-                    onPress={() => contentInputRef.current?.focus()}
-                  >
-                    <TextInput
-                      ref={contentInputRef}
-                      style={[{
-                        fontFamily: COLORS.fontFamily,
-                        fontSize: 16,
-                        backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-                        borderRadius: 12,
-                        padding: 16,
-                        paddingBottom: 24,
-                        color: COLORS.bunkerDark,
-                        textAlignVertical: 'top',
-                        flex: 1,
-                        minHeight: 180,
-                      }]}
-                      placeholder="Nota"
-                      placeholderTextColor={COLORS.textMuted}
-                      multiline={true}
-                      scrollEnabled={false}
-                      value={newNoteContent}
-                      onChangeText={setNewNoteContent}
-                      onFocus={handleInputFocus}
-                      onSelectionChange={(e) => {
-                        currentSelectionRef.current = e.nativeEvent.selection;
-                        if (textSelection !== undefined) {
-                          setTextSelection(undefined);
-                        }
-                      }}
-                      {...(textSelection ? { selection: textSelection } : {})}
-                    />
-                  </Pressable>
-                </ScrollView>
+                  <TextInput
+                    ref={contentInputRef}
+                    style={[{
+                      fontFamily: COLORS.fontFamily,
+                      fontSize: 16,
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                      borderRadius: 12,
+                      padding: 16,
+                      paddingBottom: 24,
+                      color: COLORS.bunkerDark,
+                      textAlignVertical: 'top',
+                      flex: 1,
+                    }]}
+                    placeholder="Nota"
+                    placeholderTextColor={COLORS.textMuted}
+                    multiline={true}
+                    scrollEnabled={true}
+                    value={newNoteContent}
+                    onChangeText={setNewNoteContent}
+                    onFocus={handleInputFocus}
+                    onSelectionChange={(e) => {
+                      currentSelectionRef.current = e.nativeEvent.selection;
+                      if (textSelection !== undefined) {
+                        setTextSelection(undefined);
+                      }
+                    }}
+                    {...(textSelection ? { selection: textSelection } : {})}
+                  />
+                </View>
 
                 {/* Expandable Toolbars (Above Bottom Action Bar) */}
                 {activeToolbar === 'format' && (
