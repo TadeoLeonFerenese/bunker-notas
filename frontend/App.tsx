@@ -321,6 +321,8 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   }, [aiConfigModal, aiProvider]);
   const authActionRef = useRef<'open' | 'delete'>('open');
   const contentInputRef = useRef<any>(null);
+  const editorScrollViewRef = useRef<ScrollView>(null);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [textSelection, setTextSelection] = useState<{ start: number; end: number } | undefined>(undefined);
   const currentSelectionRef = useRef({ start: 0, end: 0 });
   
@@ -880,10 +882,45 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     return html;
   };
 
-  // Keyboard Focus Handling
+  // Keyboard Focus & Auto-Scroll Handling
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => {
+        setIsKeyboardVisible(true);
+      }
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setIsKeyboardVisible(false);
+      }
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
   const handleInputFocus = () => {
-    // No-op for smooth native focus without LayoutAnimation jank
+    setIsKeyboardVisible(true);
+    setTimeout(() => {
+      if (editorScrollViewRef.current) {
+        const selection = currentSelectionRef.current;
+        if (!selection || (newNoteContent && selection.start > newNoteContent.length * 0.4)) {
+          editorScrollViewRef.current.scrollToEnd({ animated: true });
+        }
+      }
+    }, 150);
   };
+
+  useEffect(() => {
+    if (activeToolbar && editorScrollViewRef.current) {
+      setTimeout(() => {
+        editorScrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [activeToolbar]);
 
   // Audio Lifecycle cleanup
   useEffect(() => {
@@ -1615,6 +1652,9 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   };
 
   const closeCreateModal = () => {
+    Keyboard.dismiss();
+    setIsKeyboardVisible(false);
+    setActiveToolbar(null);
     setShowCreateModal(false);
     setNewNoteTitle('');
     setNewNoteContent('');
@@ -2804,8 +2844,16 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   </View>
                 </View>
                 <ScrollView 
+                  ref={editorScrollViewRef}
                   style={{ flex: 1 }}
-                  contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 16, paddingTop: 6, flexGrow: 1 }}
+                  contentContainerStyle={{ 
+                    paddingHorizontal: 24, 
+                    paddingBottom: isKeyboardVisible 
+                      ? (activeToolbar ? 260 : 200) 
+                      : (activeToolbar ? 120 : 24), 
+                    paddingTop: 6, 
+                    flexGrow: 1 
+                  }}
                   keyboardShouldPersistTaps="handled"
                   keyboardDismissMode="on-drag"
                   showsVerticalScrollIndicator={true}
