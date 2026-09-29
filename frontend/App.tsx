@@ -1620,11 +1620,40 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     setTempReminderDate(null);
   };
 
-  const openEditModal = (note: NoteModel) => {
-    setNewNoteTitle(note.title);
-    setNewNoteContent(note.content || '');
+  const openEditModal = async (note: NoteModel) => {
+    let content = note.content || '';
+    let audio = note.audioUri || null;
+    if (note.isSecure) {
+      try {
+        content = encryption.decrypt(note.content || '');
+      } catch (e) {
+        console.error('Failed to decrypt note content', e);
+      }
+      if (audio && audio.endsWith('.enc')) {
+        try {
+          audio = await decryptFile(audio);
+        } catch (e) {
+          console.error('Failed to decrypt audio in editor', e);
+        }
+      }
+    }
+    setNewNoteTitle(note.title || '');
+    setNewNoteContent(content);
     setNewNoteSecure(note.isSecure);
-    setRecordedAudioUri(note.audioUri || null);
+    setRecordedAudioUri(audio);
+    setPlaybackPosition(0);
+    setPlaybackDuration(0);
+    if (audio) {
+      try {
+        const { sound: tempSound, status } = await Audio.Sound.createAsync({ uri: audio }, { shouldPlay: false });
+        if (status.isLoaded && status.durationMillis) {
+          setPlaybackDuration(status.durationMillis);
+        }
+        await tempSound.unloadAsync();
+      } catch (e) {
+        console.log('[Editor] Could not preload audio duration:', e);
+      }
+    }
     setNewNoteColor((note as any).color || 'default');
     setNewNoteIllustration((note as any).illustration || 'none');
     setNewNoteReminderAt(((note as any).reminderAt && (note as any).reminderAt > Date.now()) ? (note as any).reminderAt : null);
@@ -2817,23 +2846,70 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                     >
                       <MaterialIcons name={newNoteSecure ? "lock" : "lock-outline"} size={26} color={newNoteSecure ? "#fff" : COLORS.bunkerAccent} />
                     </TouchableOpacity>
-
-                    {!isRecording && !recordedAudioUri && (
-                      <TouchableOpacity 
-                        style={{ padding: 8 }}
-                        onPress={startRecording}
-                      >
-                        <MaterialIcons name="mic-none" size={26} color={COLORS.bunkerAccent} />
-                      </TouchableOpacity>
-                    )}
                   </View>
                 </View>
-                <ScrollView 
-                  keyboardShouldPersistTaps="handled" 
-                  showsVerticalScrollIndicator={false}
-                  contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 6, paddingBottom: isKeyboardVisible ? 280 : 40 }}
-                  style={{ flex: 1 }}
-                >
+                {/* PINNED AUDIO PLAYER: Visible at all times on screen */}
+                {(isRecording || recordedAudioUri) && (
+                  <View style={{ paddingHorizontal: 24, paddingTop: 4, paddingBottom: 6 }}>
+                    <View style={[styles.viewerPlayer, { backgroundColor: COLORS.bunkerBg, borderColor: COLORS.border, marginBottom: 0, paddingVertical: 10 }]}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: isRecording ? 0 : 8 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          {isRecording && <View style={styles.pulsingDot} />}
+                          <Text style={[styles.viewerPlayerTitle, { color: COLORS.bunkerDark, marginBottom: 0, fontSize: 14 }]}>
+                            {isRecording ? `Grabando audio... ${formatTime(recordingDuration)}` : '🎙️ Nota de voz'}
+                          </Text>
+                        </View>
+                        {isRecording ? (
+                          <TouchableOpacity 
+                            style={[styles.audioIconBtn, { width: 34, height: 34, borderRadius: 8, backgroundColor: COLORS.bunkerAccent }]} 
+                            onPress={stopRecording}
+                          >
+                            <MaterialIcons name="stop" size={20} color="#fff" />
+                          </TouchableOpacity>
+                        ) : (
+                          <TouchableOpacity 
+                            onPress={cleanupAudio}
+                            style={{ padding: 4 }}
+                          >
+                            <MaterialIcons name="delete-outline" size={22} color={COLORS.bunkerAccent} />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+
+                      {!isRecording && (
+                        <View style={styles.viewerPlayerControls}>
+                          <TouchableOpacity 
+                            style={[styles.viewerPlayBtn, { backgroundColor: COLORS.bunkerAccent, paddingVertical: 6, paddingHorizontal: 12 }]} 
+                            onPress={() => handlePlayAudio(recordedAudioUri!)}
+                          >
+                            <Text style={styles.viewerPlayBtnText}>
+                              {isPlaybackPlaying ? '⏸ Pausa' : '▶ Reproducir'}
+                            </Text>
+                          </TouchableOpacity>
+                          <View style={styles.progressContainer}>
+                            <View style={[styles.progressBar, { backgroundColor: COLORS.border }]}>
+                              <View 
+                                style={[
+                                  styles.progressFill, 
+                                  { 
+                                    backgroundColor: COLORS.bunkerAccent, 
+                                    width: playbackDuration > 0 ? `${(playbackPosition / playbackDuration) * 100}%` : '0%' 
+                                  }
+                                ]} 
+                              />
+                            </View>
+                            <View style={styles.progressLabels}>
+                              <Text style={[styles.progressTime, { color: COLORS.bunkerGray }]}>{formatMs(playbackPosition)}</Text>
+                              <Text style={[styles.progressTime, { color: COLORS.bunkerGray }]}>{formatMs(playbackDuration)}</Text>
+                            </View>
+                          </View>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                )}
+
+                <View style={{ flex: 1, paddingHorizontal: 24, paddingTop: 6, paddingBottom: 8 }}>
                   <TextInput
                     style={[{
                       fontFamily: COLORS.fontFamily, 
@@ -2852,47 +2928,8 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                     value={newNoteTitle}
                     onChangeText={setNewNoteTitle}
                     onFocus={handleInputFocus}
+                    onBlur={() => setIsKeyboardVisible(false)}
                   />
-
-                  {(isRecording || recordedAudioUri) && (
-                    <View style={[styles.audioPanel, { backgroundColor: COLORS.bunkerBg, borderColor: COLORS.border, marginBottom: 8, paddingVertical: 8 }]}>
-                      {isRecording ? (
-                        <View style={styles.audioRow}>
-                          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                            <View style={styles.pulsingDot} />
-                            <Text style={[styles.audioText, { color: COLORS.bunkerDark }]}>Grabando... {formatTime(recordingDuration)}</Text>
-                          </View>
-                          <TouchableOpacity 
-                            style={[styles.audioIconBtn, { backgroundColor: COLORS.bunkerAccent }]} 
-                            onPress={stopRecording}
-                          >
-                            <MaterialIcons name="pause" size={24} color="#fff" />
-                          </TouchableOpacity>
-                        </View>
-                      ) : (
-                        <View style={styles.audioRow}>
-                          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                            <MaterialIcons name="mic" size={20} color={COLORS.bunkerAccent} />
-                            <Text style={[styles.audioText, { color: COLORS.bunkerDark }]}>Nota de voz grabada</Text>
-                          </View>
-                          <View style={{ flexDirection: 'row', gap: 8 }}>
-                            <TouchableOpacity 
-                               style={[styles.audioIconBtn, { backgroundColor: COLORS.bunkerAccent }]} 
-                              onPress={() => handlePlayAudio(recordedAudioUri!)}
-                            >
-                              <MaterialIcons name={isPlaybackPlaying ? 'pause' : 'play-arrow'} size={24} color="#fff" />
-                            </TouchableOpacity>
-                            <TouchableOpacity 
-                              style={[styles.audioIconBtn, { backgroundColor: COLORS.bunkerBg, borderWidth: 1, borderColor: COLORS.border }]} 
-                              onPress={cleanupAudio}
-                            >
-                              <MaterialIcons name="delete-outline" size={24} color={COLORS.bunkerAccent} />
-                            </TouchableOpacity>
-                          </View>
-                        </View>
-                      )}
-                    </View>
-                  )}
 
                   <TextInput
                     ref={contentInputRef}
@@ -2905,17 +2942,18 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                       paddingBottom: 24,
                       color: COLORS.bunkerDark,
                       textAlignVertical: 'top',
-                      minHeight: 220,
+                      flex: 1,
                     }]}
                     placeholder="Nota"
                     placeholderTextColor={COLORS.textMuted}
                     multiline={true}
-                    scrollEnabled={false}
+                    scrollEnabled={true}
                     value={newNoteContent}
                     onChangeText={setNewNoteContent}
                     onFocus={handleInputFocus}
+                    onBlur={() => setIsKeyboardVisible(false)}
                   />
-                </ScrollView>
+                </View>
 
                 {/* Expandable Toolbars (Above Bottom Action Bar) */}
                 {activeToolbar === 'format' && (
@@ -2996,6 +3034,13 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                       onPress={() => setActiveToolbar(activeToolbar === 'doodle' ? null : 'doodle')}
                     >
                       <MaterialIcons name="emoji-emotions" size={26} color={activeToolbar === 'doodle' ? "#fff" : COLORS.bunkerAccent} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                      style={{ padding: 8, marginLeft: 8, marginBottom: 5, backgroundColor: isRecording ? COLORS.bunkerAccent : 'transparent', borderRadius: 8 }}
+                      onPress={isRecording ? stopRecording : startRecording}
+                    >
+                      <MaterialIcons name={isRecording ? "stop" : (recordedAudioUri ? "mic" : "mic-none")} size={26} color={isRecording ? "#fff" : COLORS.bunkerAccent} />
                     </TouchableOpacity>
                   </View>
 
