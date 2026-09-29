@@ -145,6 +145,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     loadAiConfig();
   }, []);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isEditingNote, setIsEditingNote] = useState(false);
   const [showDashboardAiModal, setShowDashboardAiModal] = useState(false);
   const [selectedNote, setSelectedNote] = useState<NoteModel | null>(null);
   const [decryptedAudioUri, setDecryptedAudioUri] = useState<string | null>(null);
@@ -1660,12 +1661,14 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     setNewNoteCalendarEventId((note as any).calendarEventId || null);
     setEditingNoteId(note.id);
     setSelectedNote(null);
+    setIsEditingNote(false);
     setShowCreateModal(true);
   };
 
   const closeCreateModal = () => {
     Keyboard.dismiss();
     setIsKeyboardVisible(false);
+    setIsEditingNote(false);
     setActiveToolbar(null);
     setShowCreateModal(false);
     setNewNoteTitle('');
@@ -2021,6 +2024,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
             setNewNoteColor('default');
             setNewNoteIllustration('none');
             setRecordedAudioUri(null);
+            setIsEditingNote(true);
             setShowCreateModal(true);
           }, Platform.OS === 'ios' ? 400 : 200);
         }
@@ -2798,6 +2802,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
               setNewNoteContent('');
               setNewNoteSecure(false);
               setEditingNoteId(null);
+              setIsEditingNote(true);
               setShowCreateModal(true);
             }}
           >
@@ -2822,7 +2827,48 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                     <MaterialIcons name="arrow-back" size={24} color={COLORS.bunkerDark} />
                   </TouchableOpacity>
 
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+                    {!isEditingNote ? (
+                      <TouchableOpacity 
+                        style={{ 
+                          flexDirection: 'row', 
+                          alignItems: 'center', 
+                          gap: 6, 
+                          backgroundColor: COLORS.bunkerAccent, 
+                          paddingHorizontal: 14, 
+                          paddingVertical: 7, 
+                          borderRadius: 20 
+                        }}
+                        onPress={() => { 
+                          setIsEditingNote(true); 
+                          setTimeout(() => contentInputRef.current?.focus(), 100); 
+                        }}
+                      >
+                        <MaterialIcons name="edit" size={16} color="#fff" />
+                        <Text style={{ fontFamily: COLORS.fontFamily, color: '#fff', fontSize: 13, fontWeight: '700' }}>Editar</Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <TouchableOpacity 
+                        style={{ 
+                          flexDirection: 'row', 
+                          alignItems: 'center', 
+                          gap: 5, 
+                          backgroundColor: '#10B981', 
+                          paddingHorizontal: 14, 
+                          paddingVertical: 7, 
+                          borderRadius: 20 
+                        }}
+                        onPress={() => { 
+                          Keyboard.dismiss(); 
+                          setIsEditingNote(false); 
+                          performAutosave(); 
+                        }}
+                      >
+                        <MaterialIcons name="check" size={18} color="#fff" />
+                        <Text style={{ fontFamily: COLORS.fontFamily, color: '#fff', fontSize: 13, fontWeight: '700' }}>Listo</Text>
+                      </TouchableOpacity>
+                    )}
+
                     <TouchableOpacity 
                       style={{ 
                         padding: 8, 
@@ -2910,49 +2956,118 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                 )}
 
                 <View style={{ flex: 1, paddingHorizontal: 24, paddingTop: 6, paddingBottom: 8 }}>
-                  <TextInput
-                    style={[{
-                      fontFamily: COLORS.fontFamily, 
-                      fontSize: 20, 
-                      fontWeight: 'bold', 
-                      marginBottom: 8, 
-                      backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', 
-                      paddingHorizontal: 16, 
-                      paddingVertical: 10,
-                      borderRadius: 12,
-                      borderWidth: 0, 
-                      color: COLORS.bunkerDark 
-                    }]}
-                    placeholder="Título"
-                    placeholderTextColor={COLORS.textMuted}
-                    value={newNoteTitle}
-                    onChangeText={setNewNoteTitle}
-                    onFocus={handleInputFocus}
-                    onBlur={() => setIsKeyboardVisible(false)}
-                  />
+                  {!isEditingNote ? (
+                    <Pressable
+                      onPress={() => {
+                        setIsEditingNote(true);
+                      }}
+                      style={{
+                        marginBottom: 8, 
+                        backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', 
+                        paddingHorizontal: 16, 
+                        paddingVertical: 10,
+                        borderRadius: 12,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontFamily: COLORS.fontFamily, 
+                          fontSize: 20, 
+                          fontWeight: 'bold', 
+                          color: newNoteTitle ? COLORS.bunkerDark : COLORS.textMuted,
+                        }}
+                      >
+                        {newNoteTitle || 'Sin título'}
+                      </Text>
+                    </Pressable>
+                  ) : (
+                    <TextInput
+                      style={[{
+                        fontFamily: COLORS.fontFamily, 
+                        fontSize: 20, 
+                        fontWeight: 'bold', 
+                        marginBottom: 8, 
+                        backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', 
+                        paddingHorizontal: 16, 
+                        paddingVertical: 10,
+                        borderRadius: 12,
+                        borderWidth: 0, 
+                        color: COLORS.bunkerDark 
+                      }]}
+                      placeholder="Título"
+                      placeholderTextColor={COLORS.textMuted}
+                      value={newNoteTitle}
+                      onChangeText={setNewNoteTitle}
+                      onFocus={handleInputFocus}
+                      onBlur={() => setIsKeyboardVisible(false)}
+                    />
+                  )}
 
-                  <TextInput
-                    ref={contentInputRef}
-                    style={[{
-                      fontFamily: COLORS.fontFamily,
-                      fontSize: 16,
-                      backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-                      borderRadius: 12,
-                      padding: 16,
-                      paddingBottom: 24,
-                      color: COLORS.bunkerDark,
-                      textAlignVertical: 'top',
-                      flex: 1,
-                    }]}
-                    placeholder="Nota"
-                    placeholderTextColor={COLORS.textMuted}
-                    multiline={true}
-                    scrollEnabled={true}
-                    value={newNoteContent}
-                    onChangeText={setNewNoteContent}
-                    onFocus={handleInputFocus}
-                    onBlur={() => setIsKeyboardVisible(false)}
-                  />
+                  {!isEditingNote ? (
+                    <View style={{ flex: 1 }}>
+                      <ScrollView 
+                        style={{ flex: 1 }}
+                        contentContainerStyle={{ flexGrow: 1 }}
+                        keyboardShouldPersistTaps="handled"
+                        showsVerticalScrollIndicator={true}
+                      >
+                        <Pressable
+                          style={{
+                            flex: 1,
+                            minHeight: '100%',
+                            backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                            borderRadius: 12,
+                            padding: 16,
+                            paddingBottom: 24,
+                          }}
+                          onPress={() => {
+                            setIsEditingNote(true);
+                            setTimeout(() => contentInputRef.current?.focus(), 100);
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontFamily: COLORS.fontFamily,
+                              fontSize: 16,
+                              lineHeight: 24,
+                              color: newNoteContent ? COLORS.bunkerDark : COLORS.textMuted,
+                            }}
+                          >
+                            {newNoteContent || 'Toca aquí o en "Editar" para escribir...'}
+                          </Text>
+                        </Pressable>
+                      </ScrollView>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingTop: 6, paddingBottom: 2 }}>
+                        <MaterialIcons name="touch-app" size={14} color={COLORS.textMuted} />
+                        <Text style={{ fontFamily: COLORS.fontFamily, fontSize: 12, color: COLORS.textMuted, fontWeight: '500' }}>
+                          Modo lectura • Tocá para editar
+                        </Text>
+                      </View>
+                    </View>
+                  ) : (
+                    <TextInput
+                      ref={contentInputRef}
+                      style={[{
+                        fontFamily: COLORS.fontFamily,
+                        fontSize: 16,
+                        backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                        borderRadius: 12,
+                        padding: 16,
+                        paddingBottom: 24,
+                        color: COLORS.bunkerDark,
+                        textAlignVertical: 'top',
+                        flex: 1,
+                      }]}
+                      placeholder="Nota"
+                      placeholderTextColor={COLORS.textMuted}
+                      multiline={true}
+                      scrollEnabled={true}
+                      value={newNoteContent}
+                      onChangeText={setNewNoteContent}
+                      onFocus={handleInputFocus}
+                      onBlur={() => setIsKeyboardVisible(false)}
+                    />
+                  )}
                 </View>
 
                 {/* Expandable Toolbars (Above Bottom Action Bar) */}
@@ -3017,7 +3132,10 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <TouchableOpacity 
                       style={{ padding: 8, marginBottom: 5, backgroundColor: activeToolbar === 'format' ? COLORS.bunkerAccent : 'transparent', borderRadius: 8 }}
-                      onPress={() => setActiveToolbar(activeToolbar === 'format' ? null : 'format')}
+                      onPress={() => {
+                        if (!isEditingNote) setIsEditingNote(true);
+                        setActiveToolbar(activeToolbar === 'format' ? null : 'format');
+                      }}
                     >
                       <MaterialIcons name="text-format" size={26} color={activeToolbar === 'format' ? "#fff" : COLORS.bunkerAccent} />
                     </TouchableOpacity>
@@ -3046,7 +3164,10 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
                   <TouchableOpacity 
                     style={{ padding: 8, marginBottom: 5, borderRadius: 8 }}
-                    onPress={handleInsertImage}
+                    onPress={() => {
+                      if (!isEditingNote) setIsEditingNote(true);
+                      handleInsertImage();
+                    }}
                   >
                     <MaterialIcons name="photo-library" size={26} color={COLORS.bunkerAccent} />
                   </TouchableOpacity>
