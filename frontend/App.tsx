@@ -1208,7 +1208,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       authActionRef.current = 'open';
       showPinInput(note);
     } else {
-      setSelectedNote(note);
+      openEditModal(note);
     }
   };
 
@@ -1984,14 +1984,16 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
         // 3. Abrir la nota creada en el editor principal
         if (newNoteId) {
-          setEditingNoteId(newNoteId);
-          setNewNoteTitle(titleText);
-          setNewNoteContent(contentText);
-          setNewNoteSecure(false);
-          setNewNoteColor('default');
-          setNewNoteIllustration('none');
-          setRecordedAudioUri(null);
-          setShowCreateModal(true);
+          setTimeout(() => {
+            setEditingNoteId(newNoteId);
+            setNewNoteTitle(titleText);
+            setNewNoteContent(contentText);
+            setNewNoteSecure(false);
+            setNewNoteColor('default');
+            setNewNoteIllustration('none');
+            setRecordedAudioUri(null);
+            setShowCreateModal(true);
+          }, Platform.OS === 'ios' ? 400 : 200);
         }
       }
     } catch (e: any) {
@@ -2826,7 +2828,12 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                     )}
                   </View>
                 </View>
-                <View style={{ flex: 1, paddingHorizontal: 24, paddingTop: 6, paddingBottom: 8 }}>
+                <ScrollView 
+                  keyboardShouldPersistTaps="handled" 
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 6, paddingBottom: isKeyboardVisible ? 280 : 40 }}
+                  style={{ flex: 1 }}
+                >
                   <TextInput
                     style={[{
                       fontFamily: COLORS.fontFamily, 
@@ -2898,24 +2905,17 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
                       paddingBottom: 24,
                       color: COLORS.bunkerDark,
                       textAlignVertical: 'top',
-                      flex: 1,
+                      minHeight: 220,
                     }]}
                     placeholder="Nota"
                     placeholderTextColor={COLORS.textMuted}
                     multiline={true}
-                    scrollEnabled={true}
+                    scrollEnabled={false}
                     value={newNoteContent}
                     onChangeText={setNewNoteContent}
                     onFocus={handleInputFocus}
-                    onSelectionChange={(e) => {
-                      currentSelectionRef.current = e.nativeEvent.selection;
-                      if (textSelection !== undefined) {
-                        setTextSelection(undefined);
-                      }
-                    }}
-                    {...(textSelection ? { selection: textSelection } : {})}
                   />
-                </View>
+                </ScrollView>
 
                 {/* Expandable Toolbars (Above Bottom Action Bar) */}
                 {activeToolbar === 'format' && (
