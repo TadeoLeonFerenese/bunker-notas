@@ -73,6 +73,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   const placeholderTranslateX = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    if (!isAuthenticated) return;
     const interval = setInterval(() => {
       Animated.parallel([
         Animated.timing(placeholderOpacity, {
@@ -104,7 +105,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     }, 3800);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     AsyncStorage.getItem('@bunker_view_mode').then(mode => {
@@ -115,6 +116,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   }, []);
 
   useEffect(() => {
+    if (!isAuthenticated) return;
     const loadAiConfig = async () => {
       try {
         const { getSecureCredential, storeSecureCredential } = require('./src/notes/encryption');
@@ -143,7 +145,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       }
     };
     loadAiConfig();
-  }, []);
+  }, [isAuthenticated]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [showDashboardAiModal, setShowDashboardAiModal] = useState(false);
@@ -191,6 +193,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   };
 
   useEffect(() => {
+    if (!isAuthenticated) return;
     const loadGoogleSettings = async () => {
       try {
         const status = await GoogleDriveService.getStatus();
@@ -232,7 +235,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       }
     };
     loadGoogleSettings();
-  }, []);
+  }, [isAuthenticated]);
   const [aiPrompt, setAiPrompt] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiConfigModal, setAiConfigModal] = useState(false);
@@ -1157,16 +1160,27 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
   };
 
   // Auth Handling
-  const handleLoginSuccess = async (pin: string) => {
+  const handleLoginSuccess = async (pin: string, preDerivedKey?: string) => {
     try {
-      const { getSecureCredential } = require('./src/notes/encryption');
-      let salt = await getSecureCredential('app_encryption_salt');
-      if (!salt) {
-        salt = 'bunker-default-salt-value-for-device-migrations';
+      if (preDerivedKey) {
+        encryption.setSessionKey(preDerivedKey);
+        setIsAuthenticated(true);
+        return;
       }
-      const CryptoJS = require('crypto-js');
-      const derivedKey = CryptoJS.PBKDF2(pin, salt, { keySize: 256/32, iterations: 1000 }).toString();
-      encryption.setSessionKey(derivedKey);
+      const { getSecureCredential, storeSecureCredential } = require('./src/notes/encryption');
+      let derivedKey = await getSecureCredential('app_derived_key');
+      if (!derivedKey && pin) {
+        let salt = await getSecureCredential('app_encryption_salt');
+        if (!salt) {
+          salt = 'bunker-default-salt-value-for-device-migrations';
+        }
+        const CryptoJS = require('crypto-js');
+        derivedKey = CryptoJS.PBKDF2(pin, salt, { keySize: 256/32, iterations: 1000 }).toString();
+        await storeSecureCredential('app_derived_key', derivedKey);
+      }
+      if (derivedKey) {
+        encryption.setSessionKey(derivedKey);
+      }
       setIsAuthenticated(true);
     } catch (e) {
       console.error('[Auth] Error al derivar la clave de sesión:', e);
@@ -1228,12 +1242,17 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       
       if (result.success) {
         const { getSecureCredential } = require('./src/notes/encryption');
-        const savedPin = await getSecureCredential('app_user_pin');
-        let salt = await getSecureCredential('app_encryption_salt');
-        if (savedPin) {
-          if (!salt) salt = 'bunker-default-salt-value-for-device-migrations';
-          const CryptoJS = require('crypto-js');
-          const derivedKey = CryptoJS.PBKDF2(savedPin, salt, { keySize: 256/32, iterations: 1000 }).toString();
+        let derivedKey = await getSecureCredential('app_derived_key');
+        if (!derivedKey) {
+          const savedPin = await getSecureCredential('app_user_pin');
+          let salt = await getSecureCredential('app_encryption_salt');
+          if (savedPin) {
+            if (!salt) salt = 'bunker-default-salt-value-for-device-migrations';
+            const CryptoJS = require('crypto-js');
+            derivedKey = CryptoJS.PBKDF2(savedPin, salt, { keySize: 256/32, iterations: 1000 }).toString();
+          }
+        }
+        if (derivedKey) {
           encryption.setSessionKey(derivedKey);
         }
         executeAuthAction(note);
@@ -1285,14 +1304,15 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
         // Registro dinámico del primer PIN
         const salt = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
         const hash = await hashPin(pinInput, salt);
+        const CryptoJS = require('crypto-js');
+        const derivedKey = CryptoJS.PBKDF2(pinInput, salt, { keySize: 256/32, iterations: 1000 }).toString();
         await storeSecureCredential('app_encryption_salt', salt);
         await storeSecureCredential('app_user_pin', pinInput);
         await storeSecureCredential('app_pin_hash', hash);
+        await storeSecureCredential('app_derived_key', derivedKey);
         setHasStoredPin(true);
         Alert.alert('PIN Registrado', 'Has definido tu PIN de seguridad para las notas.');
         
-        const CryptoJS = require('crypto-js');
-        const derivedKey = CryptoJS.PBKDF2(pinInput, salt, { keySize: 256/32, iterations: 1000 }).toString();
         encryption.setSessionKey(derivedKey);
 
         if (pendingNote) {
@@ -1306,12 +1326,12 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
         }
         const isValid = await verifyPin(pinInput, storedHash, salt);
         if (isValid) {
-          let salt = await getSecureCredential('app_encryption_salt');
-          if (!salt) {
-            salt = 'bunker-default-salt-value-for-device-migrations';
+          let derivedKey = await getSecureCredential('app_derived_key');
+          if (!derivedKey) {
+            const CryptoJS = require('crypto-js');
+            derivedKey = CryptoJS.PBKDF2(pinInput, salt, { keySize: 256/32, iterations: 1000 }).toString();
+            await storeSecureCredential('app_derived_key', derivedKey);
           }
-          const CryptoJS = require('crypto-js');
-          const derivedKey = CryptoJS.PBKDF2(pinInput, salt, { keySize: 256/32, iterations: 1000 }).toString();
           encryption.setSessionKey(derivedKey);
 
           if (pendingNote) {

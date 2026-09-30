@@ -40,7 +40,7 @@ const COLORS = {
 type LoginMode = 'loading' | 'setup' | 'biometric' | 'pin';
 
 interface LoginScreenProps {
-  onLoginSuccess: (pin: string) => void;
+  onLoginSuccess: (pin: string, preDerivedKey?: string) => void;
 }
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
@@ -81,7 +81,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         } else if (hasBiometrics) {
           // Biometría disponible y PIN registrado → siempre mostrar huella primero
           setMode('biometric');
-          biometricTimerRef.current = setTimeout(() => triggerBiometricAuth(), 400);
+          biometricTimerRef.current = setTimeout(() => triggerBiometricAuth(), 50);
         } else {
           // Sin biometría pero con PIN registrado → ir a modo PIN
           setMode('pin');
@@ -123,13 +123,18 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
       if (result.success) {
         const { getSecureCredential } = require('../notes/encryption');
-        const savedPin = await getSecureCredential('app_user_pin');
-        if (savedPin) {
-          onLoginSuccess(savedPin);
+        const savedDerivedKey = await getSecureCredential('app_derived_key');
+        if (savedDerivedKey) {
+          onLoginSuccess('', savedDerivedKey);
         } else {
-          setMode('pin');
-          setHint('Configurá o ingresá tu PIN manualmente.');
-          setHintIsError(true);
+          const savedPin = await getSecureCredential('app_user_pin');
+          if (savedPin) {
+            onLoginSuccess(savedPin);
+          } else {
+            setMode('pin');
+            setHint('Configurá o ingresá tu PIN manualmente.');
+            setHintIsError(true);
+          }
         }
       } else {
         const error = result.error as string | undefined;
@@ -168,11 +173,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           if (pin === pinConfirm) {
             const salt = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
             const hash = await hashPin(pin, salt);
+            const CryptoJS = require('crypto-js');
+            const derivedKey = CryptoJS.PBKDF2(pin, salt, { keySize: 256/32, iterations: 1000 }).toString();
             await storeSecureCredential('app_encryption_salt', salt);
             await storeSecureCredential('app_user_pin', pin);
             await storeSecureCredential('app_pin_hash', hash);
+            await storeSecureCredential('app_derived_key', derivedKey);
             setIsLoading(false);
-            onLoginSuccess(pin);
+            onLoginSuccess(pin, derivedKey);
           } else {
             setIsLoading(false);
             setPin('');
