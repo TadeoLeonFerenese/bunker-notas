@@ -671,7 +671,14 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
         // 1. Encriptar audio si no está encriptado
         if (audioUri && !audioUri.endsWith('.enc')) {
           try {
-            const encPath = await encryptFile(audioUri);
+            let fileToEncrypt = audioUri;
+            if (audioUri.includes('/cache/') || audioUri.includes('temp_')) {
+              const extension = audioUri.split('.').pop() || 'm4a';
+              const permanentPlainPath = FileSystem.documentDirectory + `audio_${Date.now()}.${extension}`;
+              await FileSystem.copyAsync({ from: audioUri, to: permanentPlainPath });
+              fileToEncrypt = permanentPlainPath;
+            }
+            const encPath = await encryptFile(fileToEncrypt);
             finalAudioUri = encPath;
             setRecordedAudioUri(encPath);
           } catch (e) {
@@ -1024,6 +1031,10 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
   const handlePlayAudio = async (uri: string) => {
     try {
+      let targetUri = uri;
+      if (targetUri.endsWith('.enc')) {
+        targetUri = await decryptFile(targetUri);
+      }
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: false,
         playsInSilentModeIOS: true,
@@ -1188,7 +1199,85 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
     }
   };
 
-  const executeAuthAction = (note: NoteModel) => {
+  const openEditModal = async (note: NoteModel) => {
+    let content = note.content || '';
+    let audio = note.audioUri || null;
+    if (note.isSecure) {
+      if (!encryption.hasSessionKey()) {
+        console.error('[Editor] No session key available to decrypt secure note');
+        Alert.alert('Error de seguridad', 'No hay clave de sesión activa para desencriptar la nota.');
+        return;
+      }
+      try {
+        const decrypted = encryption.decrypt(note.content || '');
+        if (note.content && note.content.trim().length > 0 && !decrypted) {
+          console.error('[Editor] Decryption produced empty string for non-empty note content. Aborting to protect data.');
+          Alert.alert('Error de descifrado', 'No se pudo descifrar el contenido de la nota. Por seguridad no se abrirá para evitar sobreescribir tus datos.');
+          return;
+        }
+        content = decrypted;
+      } catch (e) {
+        console.error('[Editor] Failed to decrypt note content', e);
+        Alert.alert('Error de descifrado', 'Hubo un error al desencriptar la nota. Por seguridad no se modificará.');
+        return;
+      }
+      if (audio && audio.endsWith('.enc')) {
+        try {
+          audio = await decryptFile(audio);
+        } catch (e) {
+          console.error('[Editor] Failed to decrypt audio in editor', e);
+        }
+      }
+    }
+
+    setNewNoteTitle(note.title || '');
+    setNewNoteContent(content);
+    setNewNoteSecure(note.isSecure);
+    setRecordedAudioUri(audio);
+    setPlaybackPosition(0);
+    setPlaybackDuration(0);
+    if (audio) {
+      try {
+        const { sound: tempSound, status } = await Audio.Sound.createAsync({ uri: audio }, { shouldPlay: false });
+        if (status.isLoaded && status.durationMillis) {
+          setPlaybackDuration(status.durationMillis);
+        }
+        await tempSound.unloadAsync();
+      } catch (e) {
+        console.log('[Editor] Could not preload audio duration:', e);
+      }
+    }
+    const colorVal = (note as any).color || 'default';
+    const illustrationVal = (note as any).illustration || 'none';
+    const reminderAtVal = ((note as any).reminderAt && (note as any).reminderAt > Date.now()) ? (note as any).reminderAt : null;
+    const calendarEventVal = (note as any).calendarEventId || null;
+
+    setNewNoteColor(colorVal);
+    setNewNoteIllustration(illustrationVal);
+    setNewNoteReminderAt(reminderAtVal);
+    setNewNoteCalendarEventId(calendarEventVal);
+    setEditingNoteId(note.id);
+    setSelectedNote(null);
+    setIsEditingNote(false);
+
+    // Actualización síncrona inmediata de noteStateRef para blindar el autosave contra pérdida de datos
+    noteStateRef.current = {
+      title: note.title || '',
+      content: content,
+      isSecure: note.isSecure,
+      color: colorVal,
+      illustration: illustrationVal,
+      audioUri: audio,
+      editingNoteId: note.id,
+      showCreateModal: true,
+      reminderAt: reminderAtVal,
+      calendarEventId: calendarEventVal,
+    };
+
+    setShowCreateModal(true);
+  };
+
+  const executeAuthAction = async (note: NoteModel) => {
     setPinModalVisible(false);
     setPendingNote(null);
 
@@ -1197,22 +1286,7 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
       return;
     }
 
-    if (!note.isSecure) {
-      setSelectedNote(note);
-      return;
-    }
-    const raw = note as any;
-    setSelectedNote({
-      id: note.id,
-      title: note.title,
-      content: encryption.decrypt(note.content || ''),
-      isSecure: true,
-      isMarked: note.isMarked,
-      audioUri: raw.audioUri,
-      color: raw.color,
-      illustration: raw.illustration,
-      createdAt: raw.createdAt,
-    } as any);
+    await openEditModal(note);
   };
 
   const handleNotePress = (noteId: string) => {
@@ -1639,50 +1713,6 @@ export const AppContent = ({ notes }: { notes: NoteModel[] }) => {
 
     setShowDatePicker(false);
     setTempReminderDate(null);
-  };
-
-  const openEditModal = async (note: NoteModel) => {
-    let content = note.content || '';
-    let audio = note.audioUri || null;
-    if (note.isSecure) {
-      try {
-        content = encryption.decrypt(note.content || '');
-      } catch (e) {
-        console.error('Failed to decrypt note content', e);
-      }
-      if (audio && audio.endsWith('.enc')) {
-        try {
-          audio = await decryptFile(audio);
-        } catch (e) {
-          console.error('Failed to decrypt audio in editor', e);
-        }
-      }
-    }
-    setNewNoteTitle(note.title || '');
-    setNewNoteContent(content);
-    setNewNoteSecure(note.isSecure);
-    setRecordedAudioUri(audio);
-    setPlaybackPosition(0);
-    setPlaybackDuration(0);
-    if (audio) {
-      try {
-        const { sound: tempSound, status } = await Audio.Sound.createAsync({ uri: audio }, { shouldPlay: false });
-        if (status.isLoaded && status.durationMillis) {
-          setPlaybackDuration(status.durationMillis);
-        }
-        await tempSound.unloadAsync();
-      } catch (e) {
-        console.log('[Editor] Could not preload audio duration:', e);
-      }
-    }
-    setNewNoteColor((note as any).color || 'default');
-    setNewNoteIllustration((note as any).illustration || 'none');
-    setNewNoteReminderAt(((note as any).reminderAt && (note as any).reminderAt > Date.now()) ? (note as any).reminderAt : null);
-    setNewNoteCalendarEventId((note as any).calendarEventId || null);
-    setEditingNoteId(note.id);
-    setSelectedNote(null);
-    setIsEditingNote(false);
-    setShowCreateModal(true);
   };
 
   const closeCreateModal = () => {

@@ -246,5 +246,47 @@ describe('Auditoría del Flujo Biométrico — Prevención de Borrado Accidental
       });
     });
 
+    it('THEN: Al abrir la nota segura, se abre directamente en la pantalla unificada con Tap-to-Edit y sin modal secundario', async () => {
+      LocalAuthentication.getEnrolledLevelAsync.mockResolvedValue(3);
+      LocalAuthentication.authenticateAsync.mockResolvedValueOnce({ success: true }); // Login
+
+      const { getByText, queryByText } = render(
+        <ThemeProvider>
+          <AppContent notes={mockNotes} />
+        </ThemeProvider>
+      );
+
+      await act(async () => {
+        jest.advanceTimersByTime(300);
+      });
+
+      await waitFor(() => {
+        expect(getByText('Mi Nota Segura')).toBeTruthy();
+      });
+
+      // Apertura con biometría exitosa
+      LocalAuthentication.authenticateAsync.mockResolvedValueOnce({ success: true });
+      fireEvent.press(getByText('Mi Nota Segura'));
+
+      await act(async () => {
+        jest.advanceTimersByTime(300);
+      });
+
+      // Debe estar en la pantalla unificada en modo lectura Tap-to-edit
+      await waitFor(() => {
+        expect(getByText('Contenido ultra secreto')).toBeTruthy();
+        expect(getByText('Modo lectura • Tocá para editar')).toBeTruthy();
+        expect(getByText('Editar')).toBeTruthy();
+      });
+
+      // Al presionar "Editar", pasa a modo edición en la misma pantalla (aparece botón "Listo")
+      fireEvent.press(getByText('Editar'));
+
+      await waitFor(() => {
+        expect(getByText('Listo')).toBeTruthy();
+        expect(queryByText('Modo lectura • Tocá para editar')).toBeNull();
+      });
+    });
+
   });
 });
